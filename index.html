@@ -98,8 +98,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .split-body{display:flex;border:2px dashed #cbd5e1;border-top:none;border-radius:0 0 10px 10px;margin-bottom:0;overflow:hidden;}
 .split-track{flex:1;border-right:2px dashed #cbd5e1;min-height:60px;}
 .split-track:last-child{border-right:none;}
-.split-track .drill-row{padding:10px 12px;gap:8px;}
-.split-track .drill-row{border-radius:0;}
+.split-row{display:flex;flex-direction:column;border-bottom:1px solid var(--border);padding:10px 12px;gap:3px;background:white;transition:background .1s;}
+.split-row:hover{background:#f8f9ff;}
+.split-row-top{display:flex;align-items:center;gap:8px;}
+.split-row-name{flex:1;font-size:13px;font-weight:500;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+.split-row-meta{font-size:11px;color:var(--xsoft);}
+.split-row-dur{font-size:16px;font-weight:700;font-family:"DM Mono",monospace;color:var(--text);flex-shrink:0;}
+.split-row-actions{display:flex;gap:3px;opacity:0;transition:opacity .15s;flex-shrink:0;}
+.split-row:hover .split-row-actions{opacity:1;}
+.split-row-sub{font-size:11px;color:var(--soft);}
+.split-row-note{background:#fffbf0;border-top:1px solid #fde68a;margin:4px -12px -10px;padding:4px 12px;}
+.split-row-note textarea{width:100%;border:none;background:transparent;font-family:"DM Sans",sans-serif;font-size:11px;color:#92400e;resize:none;outline:none;padding:0;}
+.split-row-note textarea::placeholder{color:#d97706;}
 .split-add-btn{width:100%;padding:7px;font-size:11.5px;color:rgba(0,87,255,.6);background:rgba(0,87,255,.04);border:none;border-top:1px dashed #cbd5e1;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:500;transition:background .15s;}
 .split-add-btn:hover{background:rgba(0,87,255,.1);}
 .split-merge-row{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#f0f4ff;border:2px dashed #cbd5e1;border-top:none;border-radius:0 0 10px 10px;margin-bottom:12px;}
@@ -1714,7 +1724,7 @@ async function saveAll(){
     ort:sessionMeta.ort||'',
     focus:sessionMeta.focus||'',
     notes:sessionMeta.notes||'',
-    drills:drillsClean,
+    drills:JSON.stringify(drillsClean),
     updated_at:new Date().toISOString()
   };
   console.log('Payload drills count: '+drillsClean.length,'info');
@@ -3095,6 +3105,31 @@ function addDrillToTrack(splitId, trackIdx){
 }
 
 // ── render() Erweiterung: splitRenderSection ──
+function makeSplitRow(d, gi, tOffset){
+  const row = document.createElement('div');
+  row.className = 'split-row';
+  const cat = catMeta(d.phase, d.cat);
+  const tLabel = sessionMeta.time ? addMinutes(sessionMeta.time, tOffset) : '–:––';
+  const noteVal = d.sessionNote || '';
+  row.innerHTML = `
+    <div class="split-row-top">
+      <div class="split-row-meta">${tLabel}</div>
+      <div class="split-row-name" onclick="openDetail(${gi})">${d.name||'–'}</div>
+      <div class="split-row-dur">${d.duration||'–'}<span style="font-size:9px;font-weight:600;color:var(--xsoft);margin-left:2px;">MIN</span></div>
+      <div class="split-row-actions">
+        <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
+        <button class="action-btn del" onclick="deleteDrill(${gi})">🗑</button>
+      </div>
+    </div>
+    <div class="split-row-sub" style="color:${cat.color}">${cat.label}${d.augenmerk?' · '+d.augenmerk:''}</div>
+    <div class="split-row-note">
+      <textarea rows="1" placeholder="📝 Notiz…"
+        oninput="saveDrillNote(${gi},this.value);autoResizeTA(this)"
+        onfocus="autoResizeTA(this)">${noteVal}</textarea>
+    </div>`;
+  return row;
+}
+
 function renderSplitSection(card, splitMarker, offset){
   const {id, labels} = splitMarker;
   const trackDrills = labels.map((_,ti)=>
@@ -3110,9 +3145,10 @@ function renderSplitSection(card, splitMarker, offset){
         oninput="renameSplitLabel('${id}',${ti},this.value)"
         title="Strang umbenennen">
     </div>`).join('')+
-    `<div style="padding:6px 8px;display:flex;gap:4px;align-items:center;">
-      <button title="Strang hinzufügen" onclick="addTrack('${id}')" style="font-size:14px;background:none;border:none;cursor:pointer;color:var(--accent)">＋</button>
-      <button title="Letzten Strang entfernen" onclick="removeTrack('${id}')" style="font-size:14px;background:none;border:none;cursor:pointer;color:var(--soft)">－</button>
+    `<div style="padding:6px 10px;display:flex;gap:4px;align-items:center;flex-shrink:0;">
+      <button title="Strang hinzufügen" onclick="addTrack('${id}')" style="font-size:14px;background:none;border:none;cursor:pointer;color:var(--accent);line-height:1;">＋</button>
+      <button title="Letzten Strang entfernen" onclick="removeTrack('${id}')" style="font-size:14px;background:none;border:none;cursor:pointer;color:var(--soft);line-height:1;">－</button>
+      <button title="Aufteilung entfernen" onclick="deleteSplit('${id}')" style="font-size:12px;background:none;border:none;cursor:pointer;color:#dc2626;line-height:1;padding:0 4px;">🗑</button>
     </div>`;
   card.appendChild(hdr);
 
@@ -3120,15 +3156,16 @@ function renderSplitSection(card, splitMarker, offset){
   const body = document.createElement('div');
   body.className='split-body';
 
-  const maxOffset = offset;
+  let maxTrackDur = 0;
   labels.forEach((lbl,ti)=>{
     const col = document.createElement('div');
     col.className='split-track';
-    let tOffset = maxOffset;
+    let tOffset = offset;
     trackDrills[ti].forEach(({d,gi})=>{
-      col.appendChild(makeRow(d,gi,tOffset));
+      col.appendChild(makeSplitRow(d,gi,tOffset));
       tOffset += parseInt(d.duration)||0;
     });
+    maxTrackDur = Math.max(maxTrackDur, tOffset - offset);
     const addBtn = document.createElement('button');
     addBtn.className='split-add-btn';
     addBtn.textContent='+ Übung zu '+lbl;
@@ -3139,19 +3176,12 @@ function renderSplitSection(card, splitMarker, offset){
   card.appendChild(body);
 
   // Merge-Leiste
-  const maxTrackDur = Math.max(...trackDrills.map(t=>
-    t.reduce((s,{d})=>s+(parseInt(d.duration)||0),0)), 0);
-
   const mergeRow = document.createElement('div');
   mergeRow.className='split-merge-row';
-  mergeRow.innerHTML=`
-    <span style="font-size:11px;color:var(--soft);">↕ Stränge zusammenführen · max. ${maxTrackDur} Min</span>
-    <div class="split-ctrl">
-      <button onclick="deleteSplit('${id}')">🗑 Aufteilung entfernen</button>
-    </div>`;
+  mergeRow.innerHTML=`<span style="font-size:11px;color:var(--soft);">↕ Zusammenführen nach max. ${maxTrackDur} Min</span>`;
   card.appendChild(mergeRow);
 
-  return maxTrackDur; // offset-Beitrag
+  return maxTrackDur;
 }
 // MEHR-MENU (Mobile)
 function toggleMehrMenu() {
@@ -3294,13 +3324,11 @@ async function loadMostRecentEinheit(){
       notes:data.notes||''
     };
     const rawDrills = data.drills;
-    if(Array.isArray(rawDrills)){
-      drills=rawDrills;
-    } else if(typeof rawDrills==='string'){
-      try { drills=JSON.parse(rawDrills); } catch(e){ drills=[]; }
-    } else {
-      drills=[];
-    }
+    try {
+      drills = typeof rawDrills==='string' ? JSON.parse(rawDrills)
+             : Array.isArray(rawDrills)    ? rawDrills
+             : [];
+    } catch(e){ drills=[]; }
     console.log('Drills geladen: '+drills.length+' Stück','ok');
     // Show first drill details for debugging
     if(drills.length>0){
@@ -3331,8 +3359,11 @@ async function loadEinheit(id){
     notes:data.notes||''
   };
   // drills is stored as jsonb - parse if string
-  drills = Array.isArray(data.drills) ? data.drills : 
-           (typeof data.drills === 'string' ? JSON.parse(data.drills) : []);
+  try {
+    drills = typeof data.drills==='string' ? JSON.parse(data.drills)
+           : Array.isArray(data.drills)    ? data.drills
+           : [];
+  } catch(e){ drills=[]; }
   document.getElementById('s-title').innerText=sessionMeta.name;
   setStatus('connected','✅ Einheit geladen: '+drills.length+' Übungen');
   // Share-Button aktualisieren
