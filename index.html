@@ -1359,7 +1359,7 @@ async function onAuthSuccess(user){
   currentUser=user;
 
   // Profil laden mit Timeout-Schutz
-  console.console.log('Lade Profil…');
+  console.log('Lade Profil…');
   let profile=null;
   try {
     const result=await Promise.race([
@@ -1372,7 +1372,7 @@ async function onAuthSuccess(user){
 
   // Kein Profil → anlegen
   if(!profile){
-    console.console.log('Lege Profil an…');
+    console.log('Lege Profil an…');
     try {
       const {data:np,error:ie}=await supa.from('profiles').insert({
         id:user.id,email:user.email,
@@ -1382,7 +1382,7 @@ async function onAuthSuccess(user){
         role:'trainer',aktiv:false
       }).select().maybeSingle();
       if(ie) console.log('Profil anlegen Fehler: '+ie.message,'err');
-      else { profile=np; console.console.log('Profil angelegt'); }
+      else { profile=np; console.log('Profil angelegt'); }
     } catch(e){ console.log('Profil anlegen Exception: '+e.message,'err'); }
   }
 
@@ -1390,7 +1390,7 @@ async function onAuthSuccess(user){
 
   // Aktivierungs-Check
   if(profile && !profile.aktiv){
-    console.console.log('Konto NICHT aktiviert – Abbruch');
+    console.log('Konto NICHT aktiviert – Abbruch');
     showAuthError('Dein Konto ist noch nicht aktiviert. Bitte wende dich an den Administrator.',true);
     await supa.auth.signOut();
     currentUser=null;
@@ -1400,7 +1400,7 @@ async function onAuthSuccess(user){
   }
 
   // App starten
-  console.console.log('Auth-Screen ausblenden…');
+  console.log('Auth-Screen ausblenden…');
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('topbar-user').textContent=(profile?.full_name||profile?.email||user.email);
 
@@ -1417,17 +1417,17 @@ async function onAuthSuccess(user){
     if(mb) mb.style.display='';
   }
 
-  console.console.log('Lade Kategorien…');
+  console.log('Lade Kategorien…');
   await loadKategorien();
-  console.console.log('Lade Übungsdatenbank…');
+  console.log('Lade Übungsdatenbank…');
   await loadDBFromSupabase();
-  console.console.log('Lade geteilte DB…');
+  console.log('Lade geteilte DB…');
   await loadGeteilteDB();
   if(profile?.role==='admin'||profile?.role==='manager') checkPending();
-  console.console.log('Lade letzte Einheit…');
+  console.log('Lade letzte Einheit…');
   await loadMostRecentEinheit();
   render();
-  console.console.log('App bereit ✅');
+  console.log('App bereit ✅');
 }
 async function signOut(){
   if(!confirm('Abmelden?')) return;
@@ -1469,7 +1469,7 @@ function setStatus(type,msg){
 // ══════════════════════════════════════════
 async function loadDBFromSupabase(){
   try {
-    console.console.log('Lade Übungsdatenbank…');
+    console.log('Lade Übungsdatenbank…');
     const {data,error}=await supa.from('uebungen')
       .select('*')
       .eq('user_id',currentUser.id)
@@ -2983,7 +2983,7 @@ function newEinheitOnDate(year,month,day){
 async function loadMostRecentEinheit(){
   if(!currentUser) return;
   try {
-    console.console.log('Lade letzte Einheit…');
+    console.log('Lade letzte Einheit…');
     const {data,error}=await supa.from('einheiten')
       .select('*')
       .eq('user_id',currentUser.id)
@@ -2994,7 +2994,7 @@ async function loadMostRecentEinheit(){
       console.log('Einheit laden Fehler: '+error.message+' ('+error.code+')','err');
       return;
     }
-    if(!data){console.console.log('Keine gespeicherte Einheit vorhanden');return;}
+    if(!data){console.log('Keine gespeicherte Einheit vorhanden');return;}
     console.log('Einheit gefunden: '+data.name+' drills='+JSON.stringify(data.drills||[]).slice(0,80),'ok');
     currentEinheitId=data.id;
     sessionMeta={
