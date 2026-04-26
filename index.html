@@ -657,14 +657,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <span>☰</span>
     <span>Mehr</span>
   </div>
-  <div style="margin-top:auto;padding:16px 10px;border-top:1px solid rgba(255,255,255,.06);">
-    <div style="font-size:10px;color:rgba(255,255,255,.25);padding:0 8px;margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Ordner</div>
-    <div style="font-size:11px;color:rgba(255,255,255,.35);padding:6px 10px;line-height:1.6;">
-      📁 Handball Trainer/<br>
-      &nbsp;&nbsp;📄 uebungsdatenbank.json<br>
-      &nbsp;&nbsp;📁 Bilder/
-    </div>
-  </div>
+
 </nav>
 
 <!-- Mehr-Menü (mobile only) -->
@@ -1788,9 +1781,6 @@ function render(){
     card.appendChild(makeRow(drill,gi,offset));
     offset+=parseInt(drill.duration)||0;
   });
-  const na=document.createElement('div');na.className='notes-area';
-  na.innerHTML=`<textarea class="notes-ta" placeholder="📝 Trainer-Notizen…" oninput="sessionMeta.notes=this.value;updateTopbar()">${sessionMeta.notes||''}</textarea>`;
-  card.appendChild(na);
   updateTopbar();
   const tb=document.createElement('div');tb.className='total-bar';
   tb.innerHTML=`<div class="total-lbl">Gesamtdauer</div><div class="total-val">${totalMin()} Min</div>`;
