@@ -118,6 +118,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .notes-area{padding:12px 22px;background:#fffbf0;border-top:1px solid #fde68a;}
 .notes-ta{width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;color:#92400e;resize:none;outline:none;min-height:34px;}
 .notes-ta::placeholder{color:#d97706;}
+.drill-session-note{font-size:11.5px;color:#92400e;background:#fffbf0;border-top:1px solid #fde68a;padding:5px 12px 5px 44px;font-style:italic;white-space:pre-wrap;cursor:text;}
+.drill-session-note:empty::before{content:'📝 Notiz für heute hinzufügen…';color:#d97706;font-style:normal;}
+.drill-note-input{width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:11.5px;color:#92400e;resize:none;outline:none;padding:0;min-height:20px;}
+.drill-note-input::placeholder{color:#d97706;}
 .total-bar{display:flex;align-items:center;justify-content:space-between;padding:13px 22px;background:var(--sidebar);}
 .total-lbl{font-size:11px;font-weight:600;color:rgba(255,255,255,.4);letter-spacing:.06em;text-transform:uppercase;}
 .total-val{font-family:'DM Mono',monospace;font-size:19px;font-weight:500;color:white;}
@@ -718,6 +722,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div class="session-info-item">📍 <span id="s-ort">–</span></div>
           <div class="session-info-item">⏱ <strong id="s-total">0 Min</strong></div>
           <div class="session-info-item"><span class="focus-tag" id="s-focus" style="display:none"></span></div>
+        </div>
+        <div id="s-notes-bar" style="display:none;padding:8px 0 10px;border-top:1px solid var(--border);margin-top:10px;">
+          <div style="font-size:11px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">📝 Trainernotizen</div>
+          <div id="s-notes-text" style="font-size:13px;color:#92400e;white-space:pre-wrap;"></div>
         </div>
         <div class="tabs" onclick="event.stopPropagation()">
           <div class="tab active">Planung</div>
@@ -1693,7 +1701,17 @@ function addMinutes(base,offset){
   const t=h*60+m+offset;
   return String(Math.floor(t/60)%24).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
 }
-function updateTopbar(){document.getElementById('topbar-name').textContent=sessionMeta.name||'Neue Einheit';}
+function updateTopbar(){
+  document.getElementById('topbar-name').textContent = sessionMeta.name||'Neue Einheit';
+  // Trainernotizen im Session-Header
+  const bar = document.getElementById('s-notes-bar');
+  const txt = document.getElementById('s-notes-text');
+  if(bar && txt){
+    const n = sessionMeta.notes||'';
+    bar.style.display = n.trim() ? '' : 'none';
+    txt.textContent = n;
+  }
+}
 function slugify(n){
   return (n||'uebung').trim()
     .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
@@ -1771,8 +1789,9 @@ function render(){
     offset+=parseInt(drill.duration)||0;
   });
   const na=document.createElement('div');na.className='notes-area';
-  na.innerHTML=`<textarea class="notes-ta" placeholder="📝 Trainer-Notizen…" oninput="sessionMeta.notes=this.value">${sessionMeta.notes||''}</textarea>`;
+  na.innerHTML=`<textarea class="notes-ta" placeholder="📝 Trainer-Notizen…" oninput="sessionMeta.notes=this.value;updateTopbar()">${sessionMeta.notes||''}</textarea>`;
   card.appendChild(na);
+  updateTopbar();
   const tb=document.createElement('div');tb.className='total-bar';
   tb.innerHTML=`<div class="total-lbl">Gesamtdauer</div><div class="total-val">${totalMin()} Min</div>`;
   card.appendChild(tb);
@@ -1784,6 +1803,7 @@ function makeRow(drill,gi,offset){
   const tLabel=sessionMeta.time?addMinutes(sessionMeta.time,offset):'–:––';
   const cat=catMeta(drill.phase,drill.cat);
   const firstImg=drill.bilder&&drill.bilder.length?`<img class="drill-img-thumb" src="${drill.bilder[0]}" onerror="this.style.display='none'" alt="">`:'';
+  const noteVal = drill.sessionNote || '';
   row.innerHTML=`
     <div class="drag-handle">⠿</div>
     <div class="drill-time">${tLabel}</div>
@@ -1796,6 +1816,14 @@ function makeRow(drill,gi,offset){
     <div class="row-actions">
       <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
       <button class="action-btn del" onclick="deleteDrill(${gi})">🗑</button>
+    </div>
+    <div style="grid-column:1/-1;padding:0;">
+      <div class="drill-session-note" onclick="focusDrillNote(this)" title="Notiz für heute (wird nicht in der Übungsdatenbank gespeichert)">
+        <textarea class="drill-note-input" rows="1"
+          placeholder="📝 Notiz für heute hinzufügen…"
+          oninput="saveDrillNote(${gi},this.value);autoResizeTA(this)"
+          onfocus="autoResizeTA(this)">${noteVal}</textarea>
+      </div>
     </div>`;
   return row;
 }
@@ -2710,6 +2738,7 @@ function saveSessionEdit(){
   sessionMeta.ort   = document.getElementById('se-ort').value.trim();
   sessionMeta.focus = document.getElementById('se-focus').value.trim();
   sessionMeta.notes = document.getElementById('se-notes').value;
+  updateTopbar();
   closeSessionEdit();
   render();
   showToast('✅ Einheit aktualisiert', 'success');
@@ -2748,7 +2777,11 @@ let shareFreigaben = {};      // { user_id: 'view'|'edit' } – aktuelle DB-Frei
 let sharePending = {};        // { user_id: 'view'|'edit'|null } – Änderungen im Modal
 
 async function shareEinheit(){
-  if(!currentEinheitId){ showToast('Bitte zuerst speichern','info'); return; }
+  if(!currentEinheitId){
+    showToast('⏳ Einheit wird gespeichert…','info');
+    await saveAll();
+    if(!currentEinheitId){ showToast('❌ Speichern fehlgeschlagen','error'); return; }
+  }
 
   document.getElementById('share-modal-name').textContent = sessionMeta.name || 'Trainingseinheit';
   document.getElementById('share-modal').style.display = 'flex';
@@ -2874,6 +2907,27 @@ async function saveShareFreigaben(){
   } catch(e){
     showToast('❌ Fehler: '+e.message, 'error');
   }
+}
+
+
+// ══════════════════════════════════════════
+// ÜBUNGS-SESSIONNOTIZEN
+// ══════════════════════════════════════════
+function saveDrillNote(idx, value){
+  if(drills[idx]) drills[idx].sessionNote = value;
+  // Autosave nach kurzer Pause
+  clearTimeout(saveDrillNote._t);
+  saveDrillNote._t = setTimeout(saveAll, 1500);
+}
+
+function focusDrillNote(container){
+  const ta = container.querySelector('textarea');
+  if(ta) ta.focus();
+}
+
+function autoResizeTA(ta){
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
 }
 
 // MEHR-MENU (Mobile)
