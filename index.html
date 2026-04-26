@@ -2854,9 +2854,9 @@ async function saveShareFreigaben(){
         .eq('einheit_id', currentEinheitId).eq('user_id', uid);
     }
 
-    // Neue oder geänderte Freigaben upserten
+    // Neue oder geänderte Freigaben upserten (owner_id mitspeichern für RLS)
     const zuUpserten = Object.entries(sharePending).map(([user_id, mode]) => ({
-      einheit_id: currentEinheitId, user_id, mode
+      einheit_id: currentEinheitId, user_id, mode, owner_id: currentUser.id
     }));
     if(zuUpserten.length){
       const {error} = await supa.from('einheit_freigaben')
