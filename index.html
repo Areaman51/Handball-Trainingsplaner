@@ -736,7 +736,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <div style="display:flex;gap:6px;">
               <button class="btn btn-ghost" style="padding:6px 10px;" onclick="kalNav(-1)">‹</button>
               <button class="btn btn-ghost" style="padding:6px 10px;" onclick="kalNav(1)">›</button>
-              <button class="btn btn-primary" style="font-size:12px;" onclick="showView('planer')">+ Neue Einheit</button>
+              <button class="btn btn-primary" style="font-size:12px;" onclick="newEinheit()">+ Neue Einheit</button>
             </div>
           </div>
           <!-- Wochentage -->
@@ -2963,7 +2963,7 @@ async function renderKalender() {
   const liste=document.getElementById('kal-einheiten');
   const allE=Object.values(einheitenMap).flat().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   if(!allE.length){
-    liste.innerHTML='<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Keine Einheiten diesen Monat.<br><br><button class="btn btn-primary" style="font-size:12px;" onclick="showView(&quot;planer&quot;)">+ Neue Einheit</button></div>';
+    liste.innerHTML='<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Keine Einheiten diesen Monat.<br><br><button class="btn btn-primary" style="font-size:12px;" onclick="newEinheit()">+ Neue Einheit</button></div>';
   } else {
     liste.innerHTML=allE.map(e=>`
       <div onclick="loadEinheit('${e.id}')" style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer;">
@@ -2974,10 +2974,20 @@ async function renderKalender() {
   }
 }
 
+function newEinheit(datePrefill=''){
+  drills = [];
+  currentEinheitId = null;
+  sessionMeta = {name:'Trainingseinheit',group:'',date:datePrefill,time:'',ort:'',focus:'',notes:''};
+  document.getElementById('s-title').innerText = 'Trainingseinheit';
+  const btn = document.getElementById('share-btn');
+  if(btn) btn.style.color = '';
+  showView('planer');
+  render();
+}
+
 function newEinheitOnDate(year,month,day){
-  sessionMeta.date=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-  showView('planer'); render();
-  setTimeout(()=>openAddModal(-1),300);
+  const date=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  newEinheit(date);
 }
 
 async function loadMostRecentEinheit(){
