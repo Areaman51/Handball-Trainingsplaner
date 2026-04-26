@@ -916,6 +916,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="modal-close" onclick="closeDB()">✕</button>
     </div>
   </div>
+  <!-- Insert-Hinweis (nur sichtbar wenn aus Split/Merge aufgerufen) -->
+  <div id="db-insert-hint" style="display:none;padding:7px 18px;background:#eff6ff;border-bottom:1px solid #bfdbfe;font-size:12px;font-weight:600;color:var(--accent);"></div>
   <!-- Dual Tab: Meine / Geteilt -->
   <div class="db-tab-row">
     <div class="db-tab active" id="dbtab-meine" onclick="switchDBTab('meine')">📋 Meine Übungen</div>
@@ -2072,8 +2074,16 @@ async function saveDrill(){
     youtube:document.getElementById('f-yt').value.trim(),
     bilder:resolvedImages,
   };
-  if(editIdx>=0) drills[editIdx]=drill;
-  else drills.push(drill);
+  if(editIdx>=0){
+    // Bei Edit: Split-Metadaten erhalten
+    if(drills[editIdx]){
+      if(drills[editIdx].splitId!==undefined) drill.splitId=drills[editIdx].splitId;
+      if(drills[editIdx].track!==undefined) drill.track=drills[editIdx].track;
+    }
+    drills[editIdx]=drill;
+  } else {
+    insertPendingDrill(drill);
+  }
   if(document.getElementById('f-save-db').checked){
     const id=await saveUebungToSupabase(drill);
     if(id){drill.id=id;customDB.push({...drill});}
@@ -2103,11 +2113,26 @@ function openDB(tab='meine'){
   switchDBTab(tab);
   document.getElementById('db-search-input').value='';
   document.getElementById('db-panel').classList.add('open');
+  // Hinweis wenn mit pending insert geöffnet
+  const hint = document.getElementById('db-insert-hint');
+  if(hint){
+    hint.style.display = pendingInsert ? '' : 'none';
+    if(pendingInsert && pendingInsert.type==='track'){
+      const marker = drills.find(d=>d.type==='split'&&d.id===pendingInsert.splitId);
+      const lbl = marker?.labels?.[pendingInsert.trackIdx]||'Gruppe';
+      hint.textContent = '➕ Wird in: '+lbl+' eingefügt';
+    } else if(pendingInsert && pendingInsert.type==='after'){
+      hint.textContent = '➕ Wird nach dem Split-Block eingefügt';
+    }
+  }
   document.getElementById('db-overlay').classList.add('open');
 }
 function closeDB(){
   document.getElementById('db-panel').classList.remove('open');
   document.getElementById('db-overlay').classList.remove('open');
+  pendingInsert = null;
+  const hint = document.getElementById('db-insert-hint');
+  if(hint) hint.style.display='none';
 }
 
 function switchDBTab(tab){
@@ -2189,8 +2214,9 @@ function renderDB(q='',phaseFilter='all'){
 function addFromDB(idx){
   const source=dbActiveTab==='meine'?customDB:geteilteDB.filter(u=>u.status==='freigegeben');
   const item=source[idx];
-  drills.push({...item,bilder:item.bilder?[...item.bilder]:[]});
-  closeDB();render();
+  const drillObj={...item,bilder:item.bilder?[...item.bilder]:[]};
+  insertPendingDrill(drillObj);
+  closeDB();render();saveAll();
   showToast(`✅ "${item.name}" zum Plan hinzugefügt`,'success');
 }
 
@@ -3031,6 +3057,10 @@ function autoResizeTA(ta){
 // ══════════════════════════════════════════
 // SPLIT / MERGE – Parallele Stränge
 // ══════════════════════════════════════════
+// Pending-Insert: wenn ein Drill in einen Split-Track oder nach einem Merge eingefügt werden soll
+let pendingInsert = null;
+// { type:'track', splitId, trackIdx } → Drill vor Merge-Marker einfügen
+// { type:'after', afterIdx }          → Drill nach bestimmtem Index einfügen
 
 // Datenstruktur:
 // Split-Marker:  { type:'split', id:'sp1', labels:['Gruppe A','Gruppe B'] }
@@ -3089,19 +3119,37 @@ function deleteSplit(splitId){
 }
 
 function addDrillToTrack(splitId, trackIdx){
-  // Fügt Platzhalter-Übung in den Track ein, dann Bearbeitungs-Modal öffnen
-  const mergeIdx = drills.findIndex(d=>d.type==='merge'&&d.splitId===splitId);
-  const placeholder = {
-    name:'Neue Übung',phase:'hauptteil',cat:'allgemein',
-    duration:'15',players:'beliebig',aufbau:'',ablauf:'',
-    variationen:'',augenmerk:'',youtube:'',bilder:[],
-    splitId, track:trackIdx
-  };
-  if(mergeIdx>=0) drills.splice(mergeIdx,0,placeholder);
-  else drills.push(placeholder);
-  const idx = mergeIdx>=0 ? mergeIdx : drills.length-1;
-  render();
-  openAddModal(idx);
+  // Pending-State setzen, dann DB-Panel öffnen
+  pendingInsert = {type:'track', splitId, trackIdx};
+  // DB öffnen – bei Klick auf + wird pendingInsert ausgewertet
+  openDB();
+  showToast('📋 Übung aus DB wählen oder neue erstellen','info');
+}
+
+function addDrillAfterMerge(afterIdx){
+  pendingInsert = {type:'after', afterIdx};
+  openDB();
+  showToast('📋 Übung aus DB wählen oder neue erstellen','info');
+}
+
+function insertPendingDrill(drillObj){
+  if(!pendingInsert){ drills.push(drillObj); return; }
+  const p = pendingInsert;
+  pendingInsert = null;
+
+  if(p.type==='track'){
+    // Vor den Merge-Marker einfügen + Split-Metadaten setzen
+    drillObj.splitId = p.splitId;
+    drillObj.track = p.trackIdx;
+    const mergeIdx = drills.findIndex(d=>d.type==='merge'&&d.splitId===p.splitId);
+    if(mergeIdx>=0) drills.splice(mergeIdx, 0, drillObj);
+    else drills.push(drillObj);
+  } else if(p.type==='after'){
+    // Nach einem bestimmten Index einfügen
+    drills.splice(p.afterIdx+1, 0, drillObj);
+  } else {
+    drills.push(drillObj);
+  }
 }
 
 // ── render() Erweiterung: splitRenderSection ──
@@ -3176,9 +3224,12 @@ function renderSplitSection(card, splitMarker, offset){
   card.appendChild(body);
 
   // Merge-Leiste
+  const mergeIdx = drills.findIndex(d=>d.type==='merge'&&d.splitId===id);
   const mergeRow = document.createElement('div');
   mergeRow.className='split-merge-row';
-  mergeRow.innerHTML=`<span style="font-size:11px;color:var(--soft);">↕ Zusammenführen nach max. ${maxTrackDur} Min</span>`;
+  mergeRow.innerHTML=`
+    <span style="font-size:11px;color:var(--soft);">↕ Zusammenführen nach max. ${maxTrackDur} Min</span>
+    <button onclick="addDrillAfterMerge(${mergeIdx})" style="margin-left:auto;font-size:11.5px;padding:4px 10px;border-radius:7px;border:1px solid var(--accent);color:var(--accent);background:white;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">+ Übung nach Block</button>`;
   card.appendChild(mergeRow);
 
   return maxTrackDur;
