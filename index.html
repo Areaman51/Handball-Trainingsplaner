@@ -1677,21 +1677,31 @@ async function saveAll(){
   btn.textContent='⏳…'; btn.disabled=true;
   setStatus('saving','⏳ Speichere…');
   
-  // Clean drills - remove any non-serializable data
-  const drillsClean = drills.map(d => ({
-    phase: d.phase||'',
-    cat: d.cat||'',
-    name: d.name||'',
-    duration: d.duration||'0',
-    players: d.players||'',
-    aufbau: d.aufbau||'',
-    ablauf: d.ablauf||'',
-    variationen: d.variationen||'',
-    augenmerk: d.augenmerk||'',
-    youtube: d.youtube||'',
-    bilder: (d.bilder||[]).map(b => typeof b==='string' ? b : (b.objectUrl||b.filename||'')).filter(Boolean),
-    id: d.id||undefined,
-  }));
+  // Clean drills – alle Felder inkl. sessionNote, Split-Metadaten erhalten
+  const drillsClean = drills.map(d => {
+    // Split/Merge-Marker komplett speichern
+    if(d.type === 'split') return {type:'split', id:d.id, labels:d.labels||['Gruppe A','Gruppe B']};
+    if(d.type === 'merge') return {type:'merge', splitId:d.splitId};
+    // Normale Übung + optionale Felder
+    const entry = {
+      phase: d.phase||'',
+      cat: d.cat||'',
+      name: d.name||'',
+      duration: d.duration||'0',
+      players: d.players||'',
+      aufbau: d.aufbau||'',
+      ablauf: d.ablauf||'',
+      variationen: d.variationen||'',
+      augenmerk: d.augenmerk||'',
+      youtube: d.youtube||'',
+      bilder: (d.bilder||[]).map(b => typeof b==='string' ? b : (b.objectUrl||b.filename||'')).filter(Boolean),
+      id: d.id||undefined,
+    };
+    if(d.sessionNote) entry.sessionNote = d.sessionNote;
+    if(d.splitId !== undefined) entry.splitId = d.splitId;
+    if(d.track !== undefined) entry.track = d.track;
+    return entry;
+  });
   
   console.log('Speichere: '+drillsClean.length+' Übungen, name='+sessionMeta.name,'info');
   
