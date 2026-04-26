@@ -303,13 +303,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .show-mobile { display: none; }
 
 /* ── DEBUG PANEL ── */
-#debug-panel{position:fixed;bottom:70px;left:0;right:0;z-index:999;background:rgba(0,0,0,0.92);color:#0f0;font-family:monospace;font-size:11px;max-height:40vh;overflow-y:auto;padding:8px;display:none;border-top:2px solid #0f0;}
-#debug-panel.open{display:block;}
-.debug-line{padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.1);word-break:break-all;}
-.debug-line.err{color:#f55;}
-.debug-line.ok{color:#0f0;}
-.debug-line.info{color:#ff0;}
-#debug-toggle{position:fixed;bottom:70px;right:0;z-index:1000;background:#333;color:#0f0;border:none;font-size:10px;padding:4px 6px;cursor:pointer;font-family:monospace;border-radius:4px 0 0 4px;}
+
 
 /* ── SAVE TOAST ── */
 .toast{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);z-index:200;display:flex;align-items:center;gap:8px;transform:translateY(80px);opacity:0;transition:all .3s ease;}
@@ -434,7 +428,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .session-info-row { gap: 10px; }
   .session-info-item { font-size: 11.5px; }
   .tab { padding: 9px 11px; font-size: 10.5px; letter-spacing: 0; }
-  .session-edit-btn { top: 12px; right: 12px; width: 27px; height: 27px; font-size: 12px; }
+  .session-action-btns { top: 12px; right: 12px; } .session-action-btns button { width: 27px; height: 27px; font-size: 12px; }
 
   /* Plan */
   .plan-card { border-radius: 10px; }
@@ -626,7 +620,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--xsoft);">
       Deine Daten sind privat und nur für dich sichtbar.
     </div>
-    <div id="auth-debug" style="display:none;margin-top:12px;padding:10px;background:#f0f2f5;border-radius:8px;font-size:11px;font-family:monospace;color:#374151;line-height:1.6;max-height:120px;overflow-y:auto;"></div>
+
   </div>
 </div>
 
@@ -709,7 +703,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
       <!-- Session Header -->
       <div class="session-header" onclick="openSessionEdit()" style="cursor:pointer;position:relative;" title="Einheit bearbeiten">
-        <button class="session-edit-btn" onclick="event.stopPropagation();openSessionEdit()" title="Einheit bearbeiten">✏</button>
+        <div class="session-action-btns" style="position:absolute;top:14px;right:16px;display:flex;gap:6px;" onclick="event.stopPropagation()">
+          <button onclick="shareEinheit()" title="Einheit teilen" style="background:none;border:1px solid var(--border);border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;" id="share-btn">🔗</button>
+          <button onclick="deleteEinheit()" title="Einheit löschen" style="background:none;border:1px solid var(--border);border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:#dc2626;">🗑</button>
+          <button onclick="openSessionEdit()" title="Einheit bearbeiten" style="background:none;border:1px solid var(--border);border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">✏</button>
+        </div>
         <div class="session-meta-top">
           <div class="team-badge" id="team-badge">M</div>
           <div class="session-datetime" id="s-datetime" style="font-size:12px;color:var(--soft);">Datum & Uhrzeit einstellen →</div>
@@ -1120,6 +1118,36 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </div>
 
 
+<!-- EINHEIT TEILEN MODAL -->
+<div class="modal-overlay" id="share-modal" onclick="if(event.target.id==='share-modal')closeShareModal()" style="display:none;">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">🔗 Einheit teilen</div>
+        <div class="modal-subtitle" id="share-modal-name"></div>
+      </div>
+      <button class="modal-close" onclick="closeShareModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <!-- Suche -->
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);">
+        <input class="form-input" id="share-search" placeholder="Nutzer suchen…" oninput="filterShareUsers()" style="margin:0;">
+      </div>
+      <!-- Nutzerliste -->
+      <div id="share-user-list" style="max-height:340px;overflow-y:auto;padding:8px 0;">
+        <div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">⏳ Lade Nutzer…</div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <div style="font-size:12px;color:var(--xsoft);" id="share-count"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="closeShareModal()">Schließen</button>
+        <button class="btn btn-primary" onclick="saveShareFreigaben()">Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ADMIN PANEL -->
 <div class="admin-overlay" id="admin-overlay" style="display:none" onclick="if(event.target===this)closeAdmin()">
   <div class="admin-panel">
@@ -1281,11 +1309,9 @@ async function authSubmit(){
   const email=document.getElementById('auth-email').value.trim();
   const pw=document.getElementById('auth-password').value;
   const btn=document.getElementById('auth-btn');
-  const dbg=document.getElementById('auth-debug');
-  function log(msg){console.log(msg);if(dbg){dbg.style.display='';dbg.innerHTML+='<div>'+msg+'</div>';}}
   if(!email||!pw){showAuthError('Bitte E-Mail und Passwort eingeben.');return;}
   btn.textContent='⏳…'; btn.disabled=true;
-  log('1. Starte Login…');
+  console.log('1. Starte Login…');
 
   if(authMode==='register'){
     const verein=document.getElementById('auth-verein')?.value.trim()||'';
@@ -1304,11 +1330,11 @@ async function authSubmit(){
     }
     await onAuthSuccess(data.session.user);
   } else {
-    log('1b. Sende Login-Anfrage an Supabase…');
+    console.log('1b. Sende Login-Anfrage an Supabase…');
     const {data,error}=await supa.auth.signInWithPassword({email,password:pw});
     btn.disabled=false; btn.textContent='Anmelden';
     if(error){log('❌ Login-Fehler: '+error.message);showAuthError(error.message);return;}
-    log('✅ Supabase Auth OK');
+    console.log('✅ Supabase Auth OK');
     await onAuthSuccess(data.user);
   }
 }
@@ -1329,24 +1355,24 @@ function switchAuthTabExtended(m){
 }
 
 async function onAuthSuccess(user){
-  dbg('Auth OK: '+user.email,'ok');
+  console.log('Auth OK: '+user.email,'ok');
   currentUser=user;
 
   // Profil laden mit Timeout-Schutz
-  dbg('Lade Profil…','info');
+  console.console.log('Lade Profil…');
   let profile=null;
   try {
     const result=await Promise.race([
       supa.from('profiles').select('*').eq('id',user.id).maybeSingle(),
       new Promise((_,rej)=>setTimeout(()=>rej(new Error('Profil-Timeout nach 8s')),8000))
     ]);
-    if(result.error) dbg('Profil Fehler: '+result.error.message,'err');
-    else { profile=result.data; dbg('Profil: '+(profile?'aktiv='+profile.aktiv+' role='+profile.role:'nicht vorhanden'),'ok'); }
-  } catch(e){ dbg('Profil Exception: '+e.message,'err'); }
+    if(result.error) console.log('Profil Fehler: '+result.error.message,'err');
+    else { profile=result.data; console.log('Profil: '+(profile?'aktiv='+profile.aktiv+' role='+profile.role:'nicht vorhanden'),'ok'); }
+  } catch(e){ console.log('Profil Exception: '+e.message,'err'); }
 
   // Kein Profil → anlegen
   if(!profile){
-    dbg('Lege Profil an…','info');
+    console.console.log('Lege Profil an…');
     try {
       const {data:np,error:ie}=await supa.from('profiles').insert({
         id:user.id,email:user.email,
@@ -1355,16 +1381,16 @@ async function onAuthSuccess(user){
         mannschaft:user.user_metadata?.mannschaft||'',
         role:'trainer',aktiv:false
       }).select().maybeSingle();
-      if(ie) dbg('Profil anlegen Fehler: '+ie.message,'err');
-      else { profile=np; dbg('Profil angelegt','ok'); }
-    } catch(e){ dbg('Profil anlegen Exception: '+e.message,'err'); }
+      if(ie) console.log('Profil anlegen Fehler: '+ie.message,'err');
+      else { profile=np; console.console.log('Profil angelegt'); }
+    } catch(e){ console.log('Profil anlegen Exception: '+e.message,'err'); }
   }
 
   currentProfile=profile;
 
   // Aktivierungs-Check
   if(profile && !profile.aktiv){
-    dbg('Konto NICHT aktiviert – Abbruch','err');
+    console.console.log('Konto NICHT aktiviert – Abbruch');
     showAuthError('Dein Konto ist noch nicht aktiviert. Bitte wende dich an den Administrator.',true);
     await supa.auth.signOut();
     currentUser=null;
@@ -1374,7 +1400,7 @@ async function onAuthSuccess(user){
   }
 
   // App starten
-  dbg('Auth-Screen ausblenden…','info');
+  console.console.log('Auth-Screen ausblenden…');
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('topbar-user').textContent=(profile?.full_name||profile?.email||user.email);
 
@@ -1391,17 +1417,17 @@ async function onAuthSuccess(user){
     if(mb) mb.style.display='';
   }
 
-  dbg('Lade Kategorien…','info');
+  console.console.log('Lade Kategorien…');
   await loadKategorien();
-  dbg('Lade Übungsdatenbank…','info');
+  console.console.log('Lade Übungsdatenbank…');
   await loadDBFromSupabase();
-  dbg('Lade geteilte DB…','info');
+  console.console.log('Lade geteilte DB…');
   await loadGeteilteDB();
   if(profile?.role==='admin'||profile?.role==='manager') checkPending();
-  dbg('Lade letzte Einheit…','info');
+  console.console.log('Lade letzte Einheit…');
   await loadMostRecentEinheit();
   render();
-  dbg('App bereit ✅','ok');
+  console.console.log('App bereit ✅');
 }
 async function signOut(){
   if(!confirm('Abmelden?')) return;
@@ -1443,21 +1469,21 @@ function setStatus(type,msg){
 // ══════════════════════════════════════════
 async function loadDBFromSupabase(){
   try {
-    dbg('Lade Übungsdatenbank…','info');
+    console.console.log('Lade Übungsdatenbank…');
     const {data,error}=await supa.from('uebungen')
       .select('*')
       .eq('user_id',currentUser.id)
       .order('created_at',{ascending:true});
     if(error){
-      dbg('DB Fehler: '+error.message+' code:'+error.code,'err');
+      console.log('DB Fehler: '+error.message+' code:'+error.code,'err');
       setStatus('error','❌ DB: '+error.message);
       return;
     }
     customDB=data||[];
-    dbg('DB geladen: '+customDB.length+' Übungen','ok');
+    console.log('DB geladen: '+customDB.length+' Übungen','ok');
     if(dbActiveTab==='meine') applyFilters();
   } catch(e){
-    dbg('loadDB Exception: '+e.message,'err');
+    console.log('loadDB Exception: '+e.message,'err');
   }
 }
 
@@ -1475,11 +1501,11 @@ async function saveUebungToSupabase(u){
   };
   if(u.id){
     const {error}=await supa.from('uebungen').update(payload).eq('id',u.id);
-    if(error){console.error('Update error:',error);dbg('Update Fehler: '+error.message+' hint:'+error.hint,'err');setStatus('error','❌ '+error.message);return null;}
+    if(error){console.error('Update error:',error);console.log('Update Fehler: '+error.message+' hint:'+error.hint,'err');setStatus('error','❌ '+error.message);return null;}
     return u.id;
   } else {
     const {data,error}=await supa.from('uebungen').insert(payload).select().single();
-    if(error){console.error('Insert error:',error);dbg('Insert Fehler: '+error.message+' hint:'+error.hint,'err');setStatus('error','❌ '+error.message);return null;}
+    if(error){console.error('Insert error:',error);console.log('Insert Fehler: '+error.message+' hint:'+error.hint,'err');setStatus('error','❌ '+error.message);return null;}
     return data?.id||null;
   }
 }
@@ -1618,7 +1644,7 @@ async function saveAll(){
     id: d.id||undefined,
   }));
   
-  dbg('Speichere: '+drillsClean.length+' Übungen, name='+sessionMeta.name,'info');
+  console.log('Speichere: '+drillsClean.length+' Übungen, name='+sessionMeta.name,'info');
   
   const payload={
     user_id:currentUser.id,
@@ -1632,7 +1658,7 @@ async function saveAll(){
     drills:drillsClean,
     updated_at:new Date().toISOString()
   };
-  dbg('Payload drills count: '+drillsClean.length,'info');
+  console.log('Payload drills count: '+drillsClean.length,'info');
   let error;
   if(currentEinheitId){
     ({error}=await supa.from('einheiten').update(payload).eq('id',currentEinheitId));
@@ -1641,8 +1667,8 @@ async function saveAll(){
     error=e; if(data) currentEinheitId=data.id;
   }
   btn.textContent='💾 Speichern'; btn.disabled=false;
-  if(error){setStatus('error','❌ '+error.message);dbg('Einheit Speichern Fehler: '+error.message+' code:'+error.code,'err');}
-  else{setStatus('connected','✅ Gespeichert '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr');dbg('Einheit gespeichert ✅ id:'+currentEinheitId,'ok');showToast('✅ Gespeichert','success');}
+  if(error){setStatus('error','❌ '+error.message);console.log('Einheit Speichern Fehler: '+error.message+' code:'+error.code,'err');}
+  else{setStatus('connected','✅ Gespeichert '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr');console.log('Einheit gespeichert ✅ id:'+currentEinheitId,'ok');showToast('✅ Gespeichert','success');}
 }
 
 // ══════════════════════════════════════════
@@ -1674,27 +1700,7 @@ function slugify(n){
     .replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 }
 // ── DEBUG ──
-function toggleDebug(){
-  const p=document.getElementById('debug-panel');
-  p.classList.toggle('open');
-}
-function dbg(msg,type='info'){
-  console.log(msg);
-  const log=document.getElementById('debug-log');
-  if(!log) return;
-  const d=document.createElement('div');
-  d.className='debug-line '+type;
-  d.textContent=new Date().toLocaleTimeString('de-DE')+' '+msg;
-  log.appendChild(d);
-  log.scrollTop=log.scrollHeight;
-  // Show panel automatically on error
-  if(type==='err') document.getElementById('debug-panel').classList.add('open');
-}
-// Override console.error to show in debug panel
-const _origError=console.error;
-console.error=function(...args){_origError(...args);dbg('ERROR: '+args.join(' '),'err');};
-const _origWarn=console.warn;
-console.warn=function(...args){_origWarn(...args);dbg('WARN: '+args.join(' '),'info');};
+
 
 function showToast(msg,type='info'){
   const t=document.getElementById('toast');
@@ -1719,7 +1725,7 @@ function render(){
 
   const card=document.getElementById('plan-card');
   card.querySelectorAll('.phase-separator,.cat-separator,.drill-row,.notes-area,.total-bar').forEach(e=>e.remove());
-  dbg('render() drills.length='+drills.length,'info');
+  console.log('render() drills.length='+drills.length,'info');
   document.getElementById('empty-state').style.display=drills.length?'none':'';
   if(!drills.length) return;
 
@@ -1752,7 +1758,7 @@ function render(){
       const gi=drills.indexOf(drill);
       if(rendered.has(gi)) return;
       rendered.add(gi);
-      dbg('Unknown cat render: "'+drill.name+'" cat='+drill.cat,'info');
+      console.log('Unknown cat render: "'+drill.name+'" cat='+drill.cat,'info');
       card.appendChild(makeRow(drill,gi,offset));
       offset+=parseInt(drill.duration)||0;
     });
@@ -1760,7 +1766,7 @@ function render(){
   // Render any remaining drills with unknown phase/cat
   drills.forEach((drill,gi)=>{
     if(rendered.has(gi)) return;
-    dbg('Fallback render: "'+drill.name+'" phase='+drill.phase+' cat='+drill.cat,'info');
+    console.log('Fallback render: "'+drill.name+'" phase='+drill.phase+' cat='+drill.cat,'info');
     card.appendChild(makeRow(drill,gi,offset));
     offset+=parseInt(drill.duration)||0;
   });
@@ -2313,11 +2319,32 @@ const DHB_STANDARD=[
    augenmerk:'Reflexion, Kommunikation, Teambinding',youtube:'',bilder:[]},
 ];
 async function loadDHBStandard(){
-  if(!confirm(DHB_STANDARD.length+' DHB-Standardübungen laden?')) return;
+  if(!confirm(DHB_STANDARD.length+' DHB-Standardübungen laden? Bereits vorhandene werden übersprungen.')) return;
   setStatus('saving','⏳ Lade DHB-Übungen…');
-  for(const u of DHB_STANDARD){const id=await saveUebungToSupabase(u);if(id) customDB.push({...u,id});}
-  applyFilters();setStatus('connected','✅ DHB-Übungen geladen');
-  showToast('✅ DHB-Standardübungen geladen','success');
+
+  // Bestehende Namen laden um Duplikate zu vermeiden
+  const {data:existing} = await supa.from('uebungen')
+    .select('name')
+    .eq('user_id', currentUser.id);
+  const vorhandeneNamen = new Set((existing||[]).map(e => e.name.trim().toLowerCase()));
+
+  let geladen=0, uebersprungen=0;
+  for(const u of DHB_STANDARD){
+    if(vorhandeneNamen.has(u.name.trim().toLowerCase())){
+      uebersprungen++;
+      continue;
+    }
+    const id=await saveUebungToSupabase(u);
+    if(id){ customDB.push({...u,id}); geladen++; }
+  }
+
+  applyFilters();
+  setStatus('connected','✅ DHB-Übungen geladen');
+  if(uebersprungen>0){
+    showToast(`✅ ${geladen} Übungen geladen, ${uebersprungen} bereits vorhanden übersprungen`,'success');
+  } else {
+    showToast(`✅ ${geladen} DHB-Standardübungen geladen`,'success');
+  }
 }
 
 // PDF Import
@@ -2404,12 +2431,21 @@ async function renderAdminNutzer(){
 }
 
 async function updateUserRole(userId,role){
-  await supa.from('profiles').update({role}).eq('id',userId);
+  const {error} = await supa.from('profiles').update({role}).eq('id',userId);
+  if(error){
+    showToast('❌ Rolle konnte nicht geändert werden: '+error.message,'error');
+    renderAdminNutzer(); // Select zurücksetzen
+    return;
+  }
   showToast('✅ Rolle aktualisiert','success');
 }
 
 async function toggleAktiv(userId,aktiv){
-  await supa.from('profiles').update({aktiv}).eq('id',userId);
+  const {error} = await supa.from('profiles').update({aktiv}).eq('id',userId);
+  if(error){
+    showToast('❌ Status konnte nicht geändert werden: '+error.message,'error');
+    return;
+  }
   showToast(aktiv?'✅ Nutzer aktiviert':'❌ Nutzer deaktiviert','success');
   renderAdminNutzer();
 }
@@ -2680,6 +2716,166 @@ function saveSessionEdit(){
 }
 
 
+
+// ══════════════════════════════════════════
+// EINHEIT LÖSCHEN
+// ══════════════════════════════════════════
+async function deleteEinheit(){
+  if(!currentEinheitId){ showToast('Keine gespeicherte Einheit zum Löschen','info'); return; }
+  if(!confirm('Diese Trainingseinheit wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
+  const {error} = await supa.from('einheiten').delete().eq('id', currentEinheitId);
+  if(error){ showToast('❌ Löschen fehlgeschlagen: '+error.message,'error'); return; }
+  currentEinheitId = null;
+  drills = [];
+  sessionMeta = {name:'Trainingseinheit',group:'',date:'',time:'',ort:'',focus:'',notes:''};
+  render();
+  updateTopbar();
+  showToast('🗑 Einheit gelöscht','info');
+  // Kalender aktualisieren falls offen
+  if(currentView==='kalender') renderKalender();
+}
+
+// ══════════════════════════════════════════
+// EINHEIT TEILEN
+// ══════════════════════════════════════════
+let currentShareMode = 'off';
+
+// ══════════════════════════════════════════
+// EINHEIT TEILEN – Nutzer-spezifische Freigaben
+// ══════════════════════════════════════════
+let shareAllUsers = [];       // alle Profile außer eigenem
+let shareFreigaben = {};      // { user_id: 'view'|'edit' } – aktuelle DB-Freigaben
+let sharePending = {};        // { user_id: 'view'|'edit'|null } – Änderungen im Modal
+
+async function shareEinheit(){
+  if(!currentEinheitId){ showToast('Bitte zuerst speichern','info'); return; }
+
+  document.getElementById('share-modal-name').textContent = sessionMeta.name || 'Trainingseinheit';
+  document.getElementById('share-modal').style.display = 'flex';
+  document.getElementById('share-search').value = '';
+  document.getElementById('share-user-list').innerHTML =
+    '<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">⏳ Lade Nutzer…</div>';
+
+  // Alle Nutzer außer sich selbst laden
+  const {data: profiles} = await supa.from('profiles')
+    .select('id,full_name,email,verein,mannschaft')
+    .neq('id', currentUser.id)
+    .order('full_name');
+  shareAllUsers = profiles || [];
+
+  // Bestehende Freigaben laden
+  const {data: freigaben} = await supa.from('einheit_freigaben')
+    .select('user_id,mode')
+    .eq('einheit_id', currentEinheitId);
+  shareFreigaben = {};
+  (freigaben||[]).forEach(f => shareFreigaben[f.user_id] = f.mode);
+
+  // Pending-State initialisieren (Kopie der aktuellen Freigaben)
+  sharePending = {...shareFreigaben};
+
+  renderShareUserList(shareAllUsers);
+  updateShareCount();
+}
+
+function filterShareUsers(){
+  const q = document.getElementById('share-search').value.toLowerCase();
+  const filtered = q
+    ? shareAllUsers.filter(u =>
+        (u.full_name||'').toLowerCase().includes(q) ||
+        (u.email||'').toLowerCase().includes(q) ||
+        (u.verein||'').toLowerCase().includes(q) ||
+        (u.mannschaft||'').toLowerCase().includes(q))
+    : shareAllUsers;
+  renderShareUserList(filtered);
+}
+
+function renderShareUserList(users){
+  const list = document.getElementById('share-user-list');
+  if(!users.length){
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Keine Nutzer gefunden</div>';
+    return;
+  }
+  list.innerHTML = users.map(u => {
+    const mode = sharePending[u.id] || null;
+    const isShared = !!mode;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border);transition:background .1s;" id="share-row-${u.id}">
+      <input type="checkbox" id="share-cb-${u.id}" ${isShared?'checked':''} onchange="toggleShareUser('${u.id}')"
+        style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13.5px;font-weight:500;">${u.full_name||u.email}</div>
+        <div style="font-size:11.5px;color:var(--xsoft);">${u.verein||''}${u.mannschaft?' · '+u.mannschaft:''}</div>
+      </div>
+      <select id="share-mode-${u.id}" onchange="changeShareMode('${u.id}',this.value)"
+        style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;background:white;${isShared?'':'opacity:.35;pointer-events:none;'}">
+        <option value="view" ${mode==='view'?'selected':''}>👁 Ansicht</option>
+        <option value="edit" ${mode==='edit'?'selected':''}>✏ Bearbeiten</option>
+      </select>
+    </div>`;
+  }).join('');
+}
+
+function toggleShareUser(userId){
+  const cb = document.getElementById('share-cb-'+userId);
+  const sel = document.getElementById('share-mode-'+userId);
+  if(cb.checked){
+    sharePending[userId] = sel.value || 'view';
+    sel.style.opacity = '1';
+    sel.style.pointerEvents = 'auto';
+  } else {
+    delete sharePending[userId];
+    sel.style.opacity = '.35';
+    sel.style.pointerEvents = 'none';
+  }
+  updateShareCount();
+}
+
+function changeShareMode(userId, mode){
+  if(sharePending[userId]) sharePending[userId] = mode;
+}
+
+function updateShareCount(){
+  const n = Object.keys(sharePending).length;
+  const el = document.getElementById('share-count');
+  if(el) el.textContent = n > 0 ? `Geteilt mit ${n} Nutzer${n!==1?'n':''}` : 'Nicht geteilt';
+  const btn = document.getElementById('share-btn');
+  if(btn) btn.style.color = n > 0 ? 'var(--accent)' : '';
+}
+
+function closeShareModal(){
+  document.getElementById('share-modal').style.display = 'none';
+}
+
+async function saveShareFreigaben(){
+  try {
+    // Entfernte Freigaben löschen
+    const zuLoeschen = Object.keys(shareFreigaben).filter(uid => !sharePending[uid]);
+    for(const uid of zuLoeschen){
+      await supa.from('einheit_freigaben').delete()
+        .eq('einheit_id', currentEinheitId).eq('user_id', uid);
+    }
+
+    // Neue oder geänderte Freigaben upserten
+    const zuUpserten = Object.entries(sharePending).map(([user_id, mode]) => ({
+      einheit_id: currentEinheitId, user_id, mode
+    }));
+    if(zuUpserten.length){
+      const {error} = await supa.from('einheit_freigaben')
+        .upsert(zuUpserten, {onConflict: 'einheit_id,user_id'});
+      if(error) throw error;
+    }
+
+    // State aktualisieren
+    shareFreigaben = {...sharePending};
+    updateShareCount();
+    closeShareModal();
+
+    const n = Object.keys(sharePending).length;
+    showToast(n > 0 ? `✅ Einheit mit ${n} Nutzer${n!==1?'n':''} geteilt` : '✅ Freigaben entfernt', 'success');
+  } catch(e){
+    showToast('❌ Fehler: '+e.message, 'error');
+  }
+}
+
 // MEHR-MENU (Mobile)
 function toggleMehrMenu() {
   const menu = document.getElementById('mehr-menu');
@@ -2787,7 +2983,7 @@ function newEinheitOnDate(year,month,day){
 async function loadMostRecentEinheit(){
   if(!currentUser) return;
   try {
-    dbg('Lade letzte Einheit…','info');
+    console.console.log('Lade letzte Einheit…');
     const {data,error}=await supa.from('einheiten')
       .select('*')
       .eq('user_id',currentUser.id)
@@ -2795,11 +2991,11 @@ async function loadMostRecentEinheit(){
       .limit(1)
       .maybeSingle();
     if(error){
-      dbg('Einheit laden Fehler: '+error.message+' ('+error.code+')','err');
+      console.log('Einheit laden Fehler: '+error.message+' ('+error.code+')','err');
       return;
     }
-    if(!data){dbg('Keine gespeicherte Einheit vorhanden','info');return;}
-    dbg('Einheit gefunden: '+data.name+' drills='+JSON.stringify(data.drills||[]).slice(0,80),'ok');
+    if(!data){console.console.log('Keine gespeicherte Einheit vorhanden');return;}
+    console.log('Einheit gefunden: '+data.name+' drills='+JSON.stringify(data.drills||[]).slice(0,80),'ok');
     currentEinheitId=data.id;
     sessionMeta={
       name:data.name||'Einheit',
@@ -2818,18 +3014,18 @@ async function loadMostRecentEinheit(){
     } else {
       drills=[];
     }
-    dbg('Drills geladen: '+drills.length+' Stück','ok');
+    console.log('Drills geladen: '+drills.length+' Stück','ok');
     // Show first drill details for debugging
     if(drills.length>0){
       const d=drills[0];
-      dbg('Drill[0]: phase='+d.phase+' cat='+d.cat+' name='+d.name,'info');
+      console.log('Drill[0]: phase='+d.phase+' cat='+d.cat+' name='+d.name,'info');
     }
     document.getElementById('s-title').innerText=sessionMeta.name;
     setStatus('connected','✅ Letzte Einheit: '+sessionMeta.name+' ('+drills.length+' Übungen)');
     // Render immediately with loaded data
     render();
   } catch(e){
-    dbg('loadMostRecentEinheit Exception: '+e.message,'err');
+    console.log('loadMostRecentEinheit Exception: '+e.message,'err');
   }
 }
 
@@ -2850,9 +3046,13 @@ async function loadEinheit(id){
   // drills is stored as jsonb - parse if string
   drills = Array.isArray(data.drills) ? data.drills : 
            (typeof data.drills === 'string' ? JSON.parse(data.drills) : []);
-  console.log('Loaded einheit with', drills.length, 'drills');
   document.getElementById('s-title').innerText=sessionMeta.name;
   setStatus('connected','✅ Einheit geladen: '+drills.length+' Übungen');
+  // Share-Button aktualisieren
+  supa.from('einheit_freigaben').select('user_id').eq('einheit_id',data.id).then(({data:ef})=>{
+    const btn=document.getElementById('share-btn');
+    if(btn) btn.style.color=(ef&&ef.length>0)?'var(--accent)':'';
+  });
   showView('planer'); render();
 }
 
@@ -2870,17 +3070,6 @@ supa.auth.onAuthStateChange((event)=>{
 });
 </script>
 
-<!-- DEBUG PANEL -->
-<button id="debug-toggle" onclick="toggleDebug()" style="position:fixed;bottom:70px;right:0;z-index:9999;background:#222;color:#0f0;border:none;font-size:14px;padding:8px 10px;cursor:pointer;border-radius:8px 0 0 8px;display:block!important;">🐛</button>
-<div id="debug-panel">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;color:white;padding:0 4px;">
-    <strong>Debug Log</strong>
-    <div style="display:flex;gap:8px;">
-      <span onclick="document.getElementById('debug-log').innerHTML=''" style="cursor:pointer;font-size:11px;color:#ff0;">🗑 Clear</span>
-      <span onclick="toggleDebug()" style="cursor:pointer;font-size:11px;">✕</span>
-    </div>
-  </div>
-  <div id="debug-log"></div>
-</div>
+
 </body>
 </html>
