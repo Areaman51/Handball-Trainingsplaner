@@ -1120,7 +1120,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 
 <!-- EINHEIT TEILEN MODAL -->
-<div class="modal-overlay" id="share-modal" onclick="if(event.target.id==='share-modal')closeShareModal()" style="display:none;">
+<div class="modal-overlay" id="share-modal" onclick="if(event.target.id==='share-modal')closeShareModal()">
   <div class="modal" style="max-width:500px;">
     <div class="modal-header">
       <div>
@@ -2774,7 +2774,7 @@ async function shareEinheit(){
   }
 
   document.getElementById('share-modal-name').textContent = sessionMeta.name || 'Trainingseinheit';
-  document.getElementById('share-modal').style.display = 'flex';
+  document.getElementById('share-modal').classList.add('open');
   document.getElementById('share-search').value = '';
   document.getElementById('share-user-list').innerHTML =
     '<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">⏳ Lade Nutzer…</div>';
@@ -2865,7 +2865,7 @@ function updateShareCount(){
 }
 
 function closeShareModal(){
-  document.getElementById('share-modal').style.display = 'none';
+  document.getElementById('share-modal').classList.remove('open');
 }
 
 async function saveShareFreigaben(){
