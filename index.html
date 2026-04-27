@@ -2696,11 +2696,11 @@ function saveMannschaften(arr) {
 
 // ── Modal open/close ──
 function openMannschaftenModal() {
-  document.getElementById('mannschaften-modal').style.display='flex';
+  document.getElementById('mannschaften-modal').classList.add('open');
   renderMannschaftenList();
 }
 function closeMannschaftenModal() {
-  document.getElementById('mannschaften-modal').style.display='none';
+  document.getElementById('mannschaften-modal').classList.remove('open');
   document.getElementById('msc-form').style.display='none';
   document.getElementById('msc-add-btn').style.display='';
 }
@@ -3316,7 +3316,7 @@ supa.auth.onAuthStateChange((event)=>{
 </script>
 
 <!-- MANNSCHAFTEN MODAL -->
-<div class="modal-overlay" id="mannschaften-modal" onclick="if(event.target.id==='mannschaften-modal')closeMannschaftenModal()" style="display:none;">
+<div class="modal-overlay" id="mannschaften-modal" onclick="if(event.target.id==='mannschaften-modal')closeMannschaftenModal()">
   <div class="msc-modal">
     <div class="msc-header">
       <div>
@@ -3350,7 +3350,7 @@ supa.auth.onAuthStateChange((event)=>{
 </div>
 
 <!-- DEBUG PANEL -->
-<button id="debug-toggle" onclick="toggleDebug()" style="position:fixed;bottom:70px;right:0;z-index:9999;background:#222;color:#0f0;border:none;font-size:14px;padding:8px 10px;cursor:pointer;border-radius:8px 0 0 8px;display:block!important;">🐛</button>
+<button id="debug-toggle" onclick="toggleDebug()" style="position:fixed;bottom:70px;right:0;z-index:9999;background:#222;color:#0f0;border:none;font-size:14px;padding:8px 10px;cursor:pointer;border-radius:8px 0 0 8px;display:none;">🐛</button>
 <div id="debug-panel">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;color:white;padding:0 4px;">
     <strong>Debug Log</strong>
