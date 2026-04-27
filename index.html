@@ -3743,25 +3743,57 @@ async function testFeed(inputId, statusId){
 
 // ── iCal-Fetch via Supabase Edge Function ──
 const ICAL_PROXY_URL = SUPA_URL + '/functions/v1/ical-proxy';
+const CORS_FALLBACKS = [
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/raw?url=',
+];
 
 async function fetchICalFeed(url){
-  const {data:{session}}=await supa.auth.getSession();
-  if(!session?.access_token) throw new Error('Nicht eingeloggt');
-  let res;
-  try{
-    res=await fetch(ICAL_PROXY_URL+'?url='+encodeURIComponent(url),{
-      headers:{'Authorization':'Bearer '+session.access_token},
-      signal:AbortSignal.timeout(12000)
-    });
-  }catch(e){throw new Error('Verbindung fehlgeschlagen: '+e.message);}
-  if(!res.ok){
-    let msg='HTTP '+res.status;
-    try{const j=await res.json();msg=j.error||msg;}catch(_){}
-    throw new Error(msg);
+  // webcal:// → https:// normalisieren (handball.net liefert webcal-Links)
+  url = url.replace(/^webcal:\/\//i, 'https://');
+
+  // Erst Supabase Edge Function versuchen
+  try {
+    const {data:{session}} = await supa.auth.getSession();
+    if(session?.access_token){
+      const res = await fetch(ICAL_PROXY_URL+'?url='+encodeURIComponent(url),{
+        headers:{'Authorization':'Bearer '+session.access_token},
+        signal:AbortSignal.timeout(12000)
+      });
+      if(res.ok){
+        const text = await res.text();
+        if(text.includes('BEGIN:VCALENDAR')) return parseICal(text);
+      }
+      // Edge Function gibt Fehler zurück — Meldung ausgeben statt lautlos fallback
+      if(res.status===404){
+        console.warn('Edge Function nicht gefunden – falle auf CORS-Proxies zurück. Bitte ical-proxy deployen.');
+      } else {
+        let msg='HTTP '+res.status;
+        try{const j=await res.json();msg=j.error||msg;}catch(_){}
+        // Bei klarem Fehler (Auth, Domain, etc.) sofort werfen, kein Fallback
+        if(res.status===401||res.status===403||res.status===422) throw new Error(msg);
+        console.warn('Edge Function Fehler: '+msg+' – versuche Fallback');
+      }
+    }
+  } catch(e){
+    if(e.message&&(e.message.includes('Nicht')||e.message.includes('erlaubt')||e.message.includes('gültig')))
+      throw e; // Echte Fehler direkt weiterwerfen
+    console.warn('Edge Function nicht erreichbar: '+e.message);
   }
-  const text=await res.text();
-  if(!text.includes('BEGIN:VCALENDAR'))throw new Error('Kein gültiger iCal-Feed');
-  return parseICal(text);
+
+  // Fallback: öffentliche CORS-Proxies (funktioniert ohne Edge Function)
+  let lastErr;
+  for(const proxy of CORS_FALLBACKS){
+    try{
+      const res = await fetch(proxy+encodeURIComponent(url),{signal:AbortSignal.timeout(8000)});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const text = await res.text();
+      if(!text.includes('BEGIN:VCALENDAR')) throw new Error('Kein gültiger iCal-Feed');
+      console.info('iCal via Fallback-Proxy geladen: '+proxy);
+      return parseICal(text);
+    }catch(e){lastErr=e;}
+  }
+  throw lastErr||new Error('Feed nicht abrufbar');
 }
 
 // ── iCal Parser ──
