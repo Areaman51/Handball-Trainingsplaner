@@ -20,54 +20,16 @@
 html,body{overflow-x:hidden;max-width:100vw;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
 
-/* ── MANNSCHAFTEN MODAL ── */
-.msc-modal{background:white;border-radius:16px;box-shadow:var(--shadow-lg);width:min(680px,95vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
-.msc-header{padding:22px 26px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-.msc-title{font-size:17px;font-weight:700;letter-spacing:-.3px;}
-.msc-body{padding:20px 26px;overflow-y:auto;flex:1;}
-.msc-footer{padding:14px 26px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
-.team-card{border:1.5px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;gap:14px;transition:border-color .15s;}
-.team-card:hover{border-color:#c7d2fe;}
-.team-color-preview{width:40px;height:40px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;color:white;font-weight:700;}
-.team-card-info{flex:1;min-width:0;}
-.team-card-name{font-size:14px;font-weight:600;margin-bottom:2px;}
-.team-card-feeds{font-size:11.5px;color:var(--soft);display:flex;gap:6px;flex-wrap:wrap;margin-top:3px;}
-.feed-chip{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-size:10.5px;}
-.feed-chip.ok{background:#f0fdf4;border-color:#86efac;color:#15803d;}
-.feed-chip.err{background:#fef2f2;border-color:#fca5a5;color:#dc2626;}
-.team-card-actions{display:flex;gap:6px;flex-shrink:0;}
-.team-edit-btn{background:none;border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--soft);}
-.team-edit-btn:hover{background:var(--bg);color:var(--text);}
-.team-delete-btn{background:none;border:1px solid #fca5a5;border-radius:7px;padding:5px 8px;font-size:12px;cursor:pointer;color:#dc2626;}
-.team-delete-btn:hover{background:#fef2f2;}
-/* Team Edit Form */
-.team-form{border:2px solid var(--accent);border-radius:12px;padding:18px 20px;margin-bottom:12px;background:#f8faff;}
-.feed-row{display:flex;gap:8px;align-items:center;}
-.feed-row .form-input{flex:1;}
-.feed-status{font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap;}
-.feed-status.ok{background:#f0fdf4;color:#15803d;border:1px solid #86efac;}
-.feed-status.err{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;}
-.feed-status.loading{background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;}
-/* Color pickers row */
-.color-pair{display:flex;gap:12px;}
-.color-swatch-wrap{flex:1;display:flex;flex-direction:column;gap:5px;}
-.color-swatch-label{font-size:11.5px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:.05em;}
-.color-swatch{width:100%;height:36px;border-radius:8px;border:2px solid var(--border);cursor:pointer;padding:2px;}
-
-/* ── KALENDER iCal EVENTS ── */
-.kal-ical-event{margin-top:2px;border-radius:3px;font-size:9px;padding:1px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-left:2px solid rgba(0,0,0,.15);}
-.kal-spiel{font-weight:600;font-size:9px;}
-.kal-legend{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 18px;border-top:1px solid var(--border);background:#fafafa;}
-.kal-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--soft);}
-.kal-legend-dot{width:10px;height:10px;border-radius:2px;}
-/* Sync button */
-.ical-sync-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;font-size:11.5px;font-weight:500;background:var(--accent-light);color:var(--accent);border:none;cursor:pointer;transition:all .15s;}
-.ical-sync-btn:hover{background:#dce8ff;}
-.ical-sync-btn.spinning svg{animation:spin .8s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg)}}
-
 /* ── SIDEBAR ── */
-.sidebar{width:210px;min-height:100vh;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;}
+.sidebar{width:220px;min-height:100vh;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;overflow-y:auto;}
+.sidebar-footer{margin-top:auto;padding:12px 10px;border-top:1px solid rgba(255,255,255,.06);}
+.sidebar-user{font-size:11px;color:rgba(255,255,255,.35);padding:6px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sidebar-actions{padding:8px 10px 4px;}
+.sidebar-save-btn{width:100%;padding:10px 14px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;font-family:"DM Sans",sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:6px;transition:background .15s;}
+.sidebar-save-btn:hover{background:#0044cc;}
+.sidebar-save-btn.saving{background:#15803d;}
+.sidebar-add-btn{width:100%;padding:8px 14px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.12);border-radius:8px;font-size:12.5px;font-weight:500;font-family:"DM Sans",sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .15s;}
+.sidebar-add-btn:hover{background:rgba(255,255,255,.14);color:white;}
 .sidebar-logo{padding:22px 18px 18px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;}
 .logo-icon{width:30px;height:30px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;}
 .logo-text{color:white;font-size:14px;font-weight:600;letter-spacing:-.3px;}
@@ -79,10 +41,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sidebar-item.active{background:rgba(0,87,255,.18);color:white;font-weight:500;}
 
 /* ── MAIN ── */
-.main{margin-left:210px;flex:1;min-height:100vh;display:flex;flex-direction:column;min-width:0;overflow-x:hidden;}
+.main{margin-left:220px;flex:1;min-height:100vh;display:flex;flex-direction:column;min-width:0;overflow-x:hidden;}
 
-/* ── TOPBAR ── */
-.topbar{background:white;border-bottom:1px solid var(--border);padding:0 28px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:15;}
+/* ── TOPBAR (mobile only) ── */
+.topbar{display:none;}
 .topbar-title{font-size:13.5px;font-weight:500;color:var(--soft);}
 .topbar-title span{color:var(--text);font-weight:600;}
 .topbar-actions{display:flex;gap:8px;align-items:center;}
@@ -127,6 +89,37 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .tab{padding:11px 14px;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--xsoft);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 
+
+/* ── SPLIT / MERGE STRÄNGE ── */
+.split-header{display:flex;align-items:center;gap:0;border:2px dashed #cbd5e1;border-radius:10px 10px 0 0;margin:10px 0 0;background:#f8faff;overflow:hidden;}
+.split-track-header{flex:1;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:6px;border-right:2px dashed #cbd5e1;}
+.split-track-header:last-child{border-right:none;}
+.split-rename-input{background:none;border:none;font:inherit;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);outline:none;width:100%;cursor:text;}
+.split-body{display:flex;border:2px dashed #cbd5e1;border-top:none;border-radius:0 0 10px 10px;margin-bottom:0;overflow:hidden;}
+.split-track{flex:1;border-right:2px dashed #cbd5e1;min-height:60px;}
+.split-track:last-child{border-right:none;}
+.split-row{display:flex;flex-direction:column;border-bottom:1px solid var(--border);padding:10px 12px;gap:3px;background:white;transition:background .1s;}
+.split-row:hover{background:#f8f9ff;}
+.split-row-top{display:flex;align-items:center;gap:8px;}
+.split-row-name{flex:1;font-size:13px;font-weight:500;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+.split-row-meta{font-size:11px;color:var(--xsoft);}
+.split-row-dur{font-size:16px;font-weight:700;font-family:"DM Mono",monospace;color:var(--text);flex-shrink:0;}
+.split-row-actions{display:flex;gap:3px;opacity:0;transition:opacity .15s;flex-shrink:0;}
+.split-row:hover .split-row-actions{opacity:1;}
+.split-row-sub{font-size:11px;color:var(--soft);}
+.split-row-note{background:#fffbf0;border-top:1px solid #fde68a;margin:4px -12px -10px;padding:4px 12px;}
+.split-row-note textarea{width:100%;border:none;background:transparent;font-family:"DM Sans",sans-serif;font-size:11px;color:#92400e;resize:none;outline:none;padding:0;}
+.split-row-note textarea::placeholder{color:#d97706;}
+.split-add-btn{width:100%;padding:7px;font-size:11.5px;color:rgba(0,87,255,.6);background:rgba(0,87,255,.04);border:none;border-top:1px dashed #cbd5e1;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:500;transition:background .15s;}
+.split-add-btn:hover{background:rgba(0,87,255,.1);}
+.split-merge-row{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#f0f4ff;border:2px dashed #cbd5e1;border-top:none;border-radius:0 0 10px 10px;margin-bottom:12px;}
+.split-ctrl{display:flex;gap:6px;margin-left:auto;}
+.split-ctrl button{font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid var(--border);background:white;font-family:"DM Sans",sans-serif;}
+.split-ctrl button:hover{background:var(--bg);}
+.split-ctrl button.del{color:#dc2626;border-color:#fca5a5;}
+.add-split-btn{width:100%;padding:8px 14px;font-size:12px;color:rgba(0,87,255,.6);background:rgba(0,87,255,.04);border:1px dashed #93c5fd;border-radius:8px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:500;margin:6px 0;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s;}
+.add-split-btn:hover{background:rgba(0,87,255,.09);}
+
 /* ── PLAN CARD ── */
 .plan-card{background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;width:100%;}
 .phase-separator{display:flex;align-items:center;gap:10px;padding:10px 22px;background:#f7f8fa;border-bottom:1px solid var(--border);}
@@ -164,6 +157,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .notes-area{padding:12px 22px;background:#fffbf0;border-top:1px solid #fde68a;}
 .notes-ta{width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;color:#92400e;resize:none;outline:none;min-height:34px;}
 .notes-ta::placeholder{color:#d97706;}
+.drill-session-note{font-size:11.5px;color:#92400e;background:#fffbf0;border-top:1px solid #fde68a;padding:5px 12px 5px 44px;font-style:italic;white-space:pre-wrap;cursor:text;}
+.drill-session-note:empty::before{content:'📝 Notiz für heute hinzufügen…';color:#d97706;font-style:normal;}
+.drill-note-input{width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:11.5px;color:#92400e;resize:none;outline:none;padding:0;min-height:20px;}
+.drill-note-input::placeholder{color:#d97706;}
 .total-bar{display:flex;align-items:center;justify-content:space-between;padding:13px 22px;background:var(--sidebar);}
 .total-lbl{font-size:11px;font-weight:600;color:rgba(255,255,255,.4);letter-spacing:.06em;text-transform:uppercase;}
 .total-val{font-family:'DM Mono',monospace;font-size:19px;font-weight:500;color:white;}
@@ -349,13 +346,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .show-mobile { display: none; }
 
 /* ── DEBUG PANEL ── */
-#debug-panel{position:fixed;bottom:70px;left:0;right:0;z-index:999;background:rgba(0,0,0,0.92);color:#0f0;font-family:monospace;font-size:11px;max-height:40vh;overflow-y:auto;padding:8px;display:none;border-top:2px solid #0f0;}
-#debug-panel.open{display:block;}
-.debug-line{padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.1);word-break:break-all;}
-.debug-line.err{color:#f55;}
-.debug-line.ok{color:#0f0;}
-.debug-line.info{color:#ff0;}
-#debug-toggle{position:fixed;bottom:70px;right:0;z-index:1000;background:#333;color:#0f0;border:none;font-size:10px;padding:4px 6px;cursor:pointer;font-family:monospace;border-radius:4px 0 0 4px;}
+
 
 /* ── SAVE TOAST ── */
 .toast{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);z-index:200;display:flex;align-items:center;gap:8px;transform:translateY(80px);opacity:0;transition:all .3s ease;}
@@ -390,7 +381,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 @media (max-width: 860px) {
   .sidebar { width: 170px; }
   .main { margin-left: 170px; }
-  .topbar { padding: 0 16px; }
+  .topbar { display:none; }
+  .sidebar-save-btn, .sidebar-add-btn { font-size:11.5px; padding:8px 10px; }
   .content { padding: 18px; }
   .form-row { grid-template-columns: 1fr; }
   .modal-sm,.modal-lg { max-width: 96vw; }
@@ -415,6 +407,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   }
   .sidebar-logo { display: none !important; }
   .sidebar > div:last-child { display: none !important; }
+  .sidebar-footer { display: none !important; }
   .sidebar-section { display: contents; }
   .sidebar-label { display: none !important; }
   .sidebar-item {
@@ -455,8 +448,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Topbar */
-  .topbar { padding: 0 12px; height: 50px; gap: 4px; }
+  /* Topbar – auf Mobile sichtbar */
+  .topbar { display:flex; padding: 0 12px; height: 50px; gap: 4px; }
+  .sidebar-footer, .sidebar-actions, .sidebar-save-btn, .sidebar-add-btn { display: none !important; }
   .topbar-title { font-size: 12.5px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .topbar-actions { gap: 4px; }
   .topbar-actions .btn { padding: 6px 9px; font-size: 11px; }
@@ -480,7 +474,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .session-info-row { gap: 10px; }
   .session-info-item { font-size: 11.5px; }
   .tab { padding: 9px 11px; font-size: 10.5px; letter-spacing: 0; }
-  .session-edit-btn { top: 12px; right: 12px; width: 27px; height: 27px; font-size: 12px; }
+  .session-action-btns { top: 12px; right: 12px; } .session-action-btns button { width: 27px; height: 27px; font-size: 12px; }
 
   /* Plan */
   .plan-card { border-radius: 10px; }
@@ -672,7 +666,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--xsoft);">
       Deine Daten sind privat und nur für dich sichtbar.
     </div>
-    <div id="auth-debug" style="display:none;margin-top:12px;padding:10px;background:#f0f2f5;border-radius:8px;font-size:11px;font-family:monospace;color:#374151;line-height:1.6;max-height:120px;overflow-y:auto;"></div>
+
   </div>
 </div>
 
@@ -686,7 +680,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="sidebar-label">Arbeitsbereich</div>
     <div class="sidebar-item" id="nav-kalender" onclick="showView('kalender')"><span>📅</span> Kalender</div>
     <div class="sidebar-item active" id="nav-planer" onclick="showView('planer')"><span>📋</span> Trainingsplaner</div>
-    <div class="sidebar-item" id="nav-mannschaften" onclick="openMannschaftenModal()"><span>👥</span> Mannschaften</div>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Library</div>
@@ -701,19 +694,26 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="sidebar-item" onclick="openAdmin('freigabe')"><span>✅</span> Freigaben <span id="pending-count"></span></div>
     <div class="sidebar-item" onclick="openAdmin('kategorien')"><span>🏷</span> Kategorien</div>
   </div>
+  <!-- Desktop: Aktionen -->
+  <div class="sidebar-actions hide-mobile">
+    <button class="sidebar-save-btn" id="sidebar-save-btn" onclick="saveAll()">💾 Speichern</button>
+    <button class="sidebar-add-btn" onclick="openAddModal(-1)">+ Übung hinzufügen</button>
+  </div>
+  <div class="sidebar-footer hide-mobile">
+    <div class="sidebar-user" id="sidebar-user-email">–</div>
+    <div style="display:flex;gap:6px;padding:4px 10px 0;">
+      <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;" onclick="window.print()"><span>🖨</span> Drucken</div>
+      <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;" onclick="resetSession()"><span>↺</span> Reset</div>
+      <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;color:rgba(255,100,100,.7);" onclick="signOut()"><span>⏻</span></div>
+    </div>
+  </div>
+
   <!-- Mobile: Mehr Button -->
   <div id="nav-mehr" style="display:none;" onclick="toggleMehrMenu()">
     <span>☰</span>
     <span>Mehr</span>
   </div>
-  <div style="margin-top:auto;padding:16px 10px;border-top:1px solid rgba(255,255,255,.06);">
-    <div style="font-size:10px;color:rgba(255,255,255,.25);padding:0 8px;margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Ordner</div>
-    <div style="font-size:11px;color:rgba(255,255,255,.35);padding:6px 10px;line-height:1.6;">
-      📁 Handball Trainer/<br>
-      &nbsp;&nbsp;📄 uebungsdatenbank.json<br>
-      &nbsp;&nbsp;📁 Bilder/
-    </div>
-  </div>
+
 </nav>
 
 <!-- Mehr-Menü (mobile only) -->
@@ -756,7 +756,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
       <!-- Session Header -->
       <div class="session-header" onclick="openSessionEdit()" style="cursor:pointer;position:relative;" title="Einheit bearbeiten">
-        <button class="session-edit-btn" onclick="event.stopPropagation();openSessionEdit()" title="Einheit bearbeiten">✏</button>
+        <div class="session-action-btns" style="position:absolute;top:14px;right:16px;display:flex;gap:6px;" onclick="event.stopPropagation()">
+          <button onclick="shareEinheit()" title="Einheit teilen" style="background:none;border:1px solid var(--border);border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;" id="share-btn">🔗</button>
+          <button onclick="deleteEinheit()" title="Einheit löschen" style="background:none;border:1px solid var(--border);border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:#dc2626;">🗑</button>
+          <button onclick="openSessionEdit()" title="Einheit bearbeiten" style="background:none;border:1px solid var(--border);border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">✏</button>
+        </div>
         <div class="session-meta-top">
           <div class="team-badge" id="team-badge">M</div>
           <div class="session-datetime" id="s-datetime" style="font-size:12px;color:var(--soft);">Datum & Uhrzeit einstellen →</div>
@@ -767,6 +771,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div class="session-info-item">📍 <span id="s-ort">–</span></div>
           <div class="session-info-item">⏱ <strong id="s-total">0 Min</strong></div>
           <div class="session-info-item"><span class="focus-tag" id="s-focus" style="display:none"></span></div>
+        </div>
+        <div id="s-notes-bar" style="display:none;padding:8px 0 10px;border-top:1px solid var(--border);margin-top:10px;">
+          <div style="font-size:11px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">📝 Trainernotizen</div>
+          <div id="s-notes-text" style="font-size:13px;color:#92400e;white-space:pre-wrap;"></div>
         </div>
         <div class="tabs" onclick="event.stopPropagation()">
           <div class="tab active">Planung</div>
@@ -782,14 +790,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
               <div style="font-size:18px;font-weight:700;letter-spacing:-.3px;" id="kal-monat">April 2026</div>
               <div style="font-size:12px;color:var(--soft);margin-top:2px;" id="kal-subtitle">Trainingseinheiten</div>
             </div>
-            <div style="display:flex;gap:6px;align-items:center;">
-              <button class="ical-sync-btn" id="ical-sync-btn" onclick="refreshAllFeeds()" title="Feeds aktualisieren">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10"/><path d="M20.49 15a9 9 0 01-14.85 3.36L1 14"/></svg>
-                Feeds sync
-              </button>
+            <div style="display:flex;gap:6px;">
               <button class="btn btn-ghost" style="padding:6px 10px;" onclick="kalNav(-1)">‹</button>
               <button class="btn btn-ghost" style="padding:6px 10px;" onclick="kalNav(1)">›</button>
-              <button class="btn btn-primary" style="font-size:12px;" onclick="showView('planer')">+ Neue Einheit</button>
+              <button class="btn btn-primary" style="font-size:12px;" onclick="newEinheit()">+ Neue Einheit</button>
             </div>
           </div>
           <!-- Wochentage -->
@@ -804,11 +808,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           </div>
           <!-- Kalender Grid -->
           <div id="kal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);"></div>
-          <!-- Legende -->
-          <div class="kal-legend" id="kal-legend" style="display:none;">
-            <span style="font-size:10.5px;font-weight:700;color:var(--xsoft);text-transform:uppercase;letter-spacing:.06em;margin-right:4px;">Legende:</span>
-            <div id="kal-legend-items" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
-          </div>
         </div>
         <!-- Einheiten dieser Woche/Monat -->
         <div style="margin-top:14px;background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);">
@@ -917,6 +916,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="modal-close" onclick="closeDB()">✕</button>
     </div>
   </div>
+  <!-- Insert-Hinweis (nur sichtbar wenn aus Split/Merge aufgerufen) -->
+  <div id="db-insert-hint" style="display:none;padding:7px 18px;background:#eff6ff;border-bottom:1px solid #bfdbfe;font-size:12px;font-weight:600;color:var(--accent);"></div>
   <!-- Dual Tab: Meine / Geteilt -->
   <div class="db-tab-row">
     <div class="db-tab active" id="dbtab-meine" onclick="switchDBTab('meine')">📋 Meine Übungen</div>
@@ -1176,6 +1177,36 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </div>
 
 
+<!-- EINHEIT TEILEN MODAL -->
+<div class="modal-overlay" id="share-modal" onclick="if(event.target.id==='share-modal')closeShareModal()">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">🔗 Einheit teilen</div>
+        <div class="modal-subtitle" id="share-modal-name"></div>
+      </div>
+      <button class="modal-close" onclick="closeShareModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <!-- Suche -->
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);">
+        <input class="form-input" id="share-search" placeholder="Nutzer suchen…" oninput="filterShareUsers()" style="margin:0;">
+      </div>
+      <!-- Nutzerliste -->
+      <div id="share-user-list" style="max-height:340px;overflow-y:auto;padding:8px 0;">
+        <div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">⏳ Lade Nutzer…</div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <div style="font-size:12px;color:var(--xsoft);" id="share-count"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="closeShareModal()">Schließen</button>
+        <button class="btn btn-primary" onclick="saveShareFreigaben()">Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ADMIN PANEL -->
 <div class="admin-overlay" id="admin-overlay" style="display:none" onclick="if(event.target===this)closeAdmin()">
   <div class="admin-panel">
@@ -1337,11 +1368,9 @@ async function authSubmit(){
   const email=document.getElementById('auth-email').value.trim();
   const pw=document.getElementById('auth-password').value;
   const btn=document.getElementById('auth-btn');
-  const dbg=document.getElementById('auth-debug');
-  function log(msg){console.log(msg);if(dbg){dbg.style.display='';dbg.innerHTML+='<div>'+msg+'</div>';}}
   if(!email||!pw){showAuthError('Bitte E-Mail und Passwort eingeben.');return;}
   btn.textContent='⏳…'; btn.disabled=true;
-  log('1. Starte Login…');
+  console.log('1. Starte Login…');
 
   if(authMode==='register'){
     const verein=document.getElementById('auth-verein')?.value.trim()||'';
@@ -1360,11 +1389,11 @@ async function authSubmit(){
     }
     await onAuthSuccess(data.session.user);
   } else {
-    log('1b. Sende Login-Anfrage an Supabase…');
+    console.log('1b. Sende Login-Anfrage an Supabase…');
     const {data,error}=await supa.auth.signInWithPassword({email,password:pw});
     btn.disabled=false; btn.textContent='Anmelden';
     if(error){log('❌ Login-Fehler: '+error.message);showAuthError(error.message);return;}
-    log('✅ Supabase Auth OK');
+    console.log('✅ Supabase Auth OK');
     await onAuthSuccess(data.user);
   }
 }
@@ -1385,24 +1414,24 @@ function switchAuthTabExtended(m){
 }
 
 async function onAuthSuccess(user){
-  dbg('Auth OK: '+user.email,'ok');
+  console.log('Auth OK: '+user.email,'ok');
   currentUser=user;
 
   // Profil laden mit Timeout-Schutz
-  dbg('Lade Profil…','info');
+  console.log('Lade Profil…');
   let profile=null;
   try {
     const result=await Promise.race([
       supa.from('profiles').select('*').eq('id',user.id).maybeSingle(),
       new Promise((_,rej)=>setTimeout(()=>rej(new Error('Profil-Timeout nach 8s')),8000))
     ]);
-    if(result.error) dbg('Profil Fehler: '+result.error.message,'err');
-    else { profile=result.data; dbg('Profil: '+(profile?'aktiv='+profile.aktiv+' role='+profile.role:'nicht vorhanden'),'ok'); }
-  } catch(e){ dbg('Profil Exception: '+e.message,'err'); }
+    if(result.error) console.log('Profil Fehler: '+result.error.message,'err');
+    else { profile=result.data; console.log('Profil: '+(profile?'aktiv='+profile.aktiv+' role='+profile.role:'nicht vorhanden'),'ok'); }
+  } catch(e){ console.log('Profil Exception: '+e.message,'err'); }
 
   // Kein Profil → anlegen
   if(!profile){
-    dbg('Lege Profil an…','info');
+    console.log('Lege Profil an…');
     try {
       const {data:np,error:ie}=await supa.from('profiles').insert({
         id:user.id,email:user.email,
@@ -1411,16 +1440,16 @@ async function onAuthSuccess(user){
         mannschaft:user.user_metadata?.mannschaft||'',
         role:'trainer',aktiv:false
       }).select().maybeSingle();
-      if(ie) dbg('Profil anlegen Fehler: '+ie.message,'err');
-      else { profile=np; dbg('Profil angelegt','ok'); }
-    } catch(e){ dbg('Profil anlegen Exception: '+e.message,'err'); }
+      if(ie) console.log('Profil anlegen Fehler: '+ie.message,'err');
+      else { profile=np; console.log('Profil angelegt'); }
+    } catch(e){ console.log('Profil anlegen Exception: '+e.message,'err'); }
   }
 
   currentProfile=profile;
 
   // Aktivierungs-Check
   if(profile && !profile.aktiv){
-    dbg('Konto NICHT aktiviert – Abbruch','err');
+    console.log('Konto NICHT aktiviert – Abbruch');
     showAuthError('Dein Konto ist noch nicht aktiviert. Bitte wende dich an den Administrator.',true);
     await supa.auth.signOut();
     currentUser=null;
@@ -1430,7 +1459,7 @@ async function onAuthSuccess(user){
   }
 
   // App starten
-  dbg('Auth-Screen ausblenden…','info');
+  console.log('Auth-Screen ausblenden…');
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('topbar-user').textContent=(profile?.full_name||profile?.email||user.email);
 
@@ -1447,17 +1476,17 @@ async function onAuthSuccess(user){
     if(mb) mb.style.display='';
   }
 
-  dbg('Lade Kategorien…','info');
+  console.log('Lade Kategorien…');
   await loadKategorien();
-  dbg('Lade Übungsdatenbank…','info');
+  console.log('Lade Übungsdatenbank…');
   await loadDBFromSupabase();
-  dbg('Lade geteilte DB…','info');
+  console.log('Lade geteilte DB…');
   await loadGeteilteDB();
   if(profile?.role==='admin'||profile?.role==='manager') checkPending();
-  dbg('Lade letzte Einheit…','info');
+  console.log('Lade letzte Einheit…');
   await loadMostRecentEinheit();
   render();
-  dbg('App bereit ✅','ok');
+  console.log('App bereit ✅');
 }
 async function signOut(){
   if(!confirm('Abmelden?')) return;
@@ -1492,6 +1521,8 @@ function setStatus(type,msg){
   const bar=document.getElementById('status-bar');
   bar.className='status-bar'+(type!=='connected'?' '+type:'');
   document.getElementById('status-text').textContent=msg;
+  const ssb=document.getElementById('sidebar-save-btn');
+  if(ssb) ssb.className='sidebar-save-btn'+(type==='saving'?' saving':'');
 }
 
 // ══════════════════════════════════════════
@@ -1499,21 +1530,21 @@ function setStatus(type,msg){
 // ══════════════════════════════════════════
 async function loadDBFromSupabase(){
   try {
-    dbg('Lade Übungsdatenbank…','info');
+    console.log('Lade Übungsdatenbank…');
     const {data,error}=await supa.from('uebungen')
       .select('*')
       .eq('user_id',currentUser.id)
       .order('created_at',{ascending:true});
     if(error){
-      dbg('DB Fehler: '+error.message+' code:'+error.code,'err');
+      console.log('DB Fehler: '+error.message+' code:'+error.code,'err');
       setStatus('error','❌ DB: '+error.message);
       return;
     }
     customDB=data||[];
-    dbg('DB geladen: '+customDB.length+' Übungen','ok');
+    console.log('DB geladen: '+customDB.length+' Übungen','ok');
     if(dbActiveTab==='meine') applyFilters();
   } catch(e){
-    dbg('loadDB Exception: '+e.message,'err');
+    console.log('loadDB Exception: '+e.message,'err');
   }
 }
 
@@ -1531,11 +1562,11 @@ async function saveUebungToSupabase(u){
   };
   if(u.id){
     const {error}=await supa.from('uebungen').update(payload).eq('id',u.id);
-    if(error){console.error('Update error:',error);dbg('Update Fehler: '+error.message+' hint:'+error.hint,'err');setStatus('error','❌ '+error.message);return null;}
+    if(error){console.error('Update error:',error);console.log('Update Fehler: '+error.message+' hint:'+error.hint,'err');setStatus('error','❌ '+error.message);return null;}
     return u.id;
   } else {
     const {data,error}=await supa.from('uebungen').insert(payload).select().single();
-    if(error){console.error('Insert error:',error);dbg('Insert Fehler: '+error.message+' hint:'+error.hint,'err');setStatus('error','❌ '+error.message);return null;}
+    if(error){console.error('Insert error:',error);console.log('Insert Fehler: '+error.message+' hint:'+error.hint,'err');setStatus('error','❌ '+error.message);return null;}
     return data?.id||null;
   }
 }
@@ -1634,11 +1665,19 @@ async function submitRejection(){
 
 async function deleteGeteilteUebung(id){
   if(!confirm('Übung aus der geteilten Datenbank löschen?')) return;
-  await supa.from('geteilte_uebungen').delete().eq('id',id);
-  await supa.from('freigabe_log').insert({uebung_id:id,aktion:'geloescht',von_user:currentUser.id});
-  showToast('🗑 Übung gelöscht','info');
-  await loadGeteilteDB();
-  applyFilters();
+  try {
+    // Erst Log schreiben (FK zeigt auf geteilte_uebungen – muss vor dem Loeschen passieren)
+    await supa.from('freigabe_log').insert({uebung_id:id, aktion:'geloescht', von_user:currentUser.id});
+    // Dann Uebung loeschen
+    const {error} = await supa.from('geteilte_uebungen').delete().eq('id',id);
+    if(error) throw error;
+    showToast('🗑 Übung gelöscht','info');
+    await loadGeteilteDB();
+    applyFilters();
+  } catch(e) {
+    console.error('Fehler beim Loeschen:', e);
+    showToast('❌ Löschen fehlgeschlagen: '+e.message,'error');
+  }
 }
 
 // ══════════════════════════════════════════
@@ -1650,23 +1689,33 @@ async function saveAll(){
   btn.textContent='⏳…'; btn.disabled=true;
   setStatus('saving','⏳ Speichere…');
   
-  // Clean drills - remove any non-serializable data
-  const drillsClean = drills.map(d => ({
-    phase: d.phase||'',
-    cat: d.cat||'',
-    name: d.name||'',
-    duration: d.duration||'0',
-    players: d.players||'',
-    aufbau: d.aufbau||'',
-    ablauf: d.ablauf||'',
-    variationen: d.variationen||'',
-    augenmerk: d.augenmerk||'',
-    youtube: d.youtube||'',
-    bilder: (d.bilder||[]).map(b => typeof b==='string' ? b : (b.objectUrl||b.filename||'')).filter(Boolean),
-    id: d.id||undefined,
-  }));
+  // Clean drills – alle Felder inkl. sessionNote, Split-Metadaten erhalten
+  const drillsClean = drills.map(d => {
+    // Split/Merge-Marker komplett speichern
+    if(d.type === 'split') return {type:'split', id:d.id, labels:d.labels||['Gruppe A','Gruppe B']};
+    if(d.type === 'merge') return {type:'merge', splitId:d.splitId};
+    // Normale Übung + optionale Felder
+    const entry = {
+      phase: d.phase||'',
+      cat: d.cat||'',
+      name: d.name||'',
+      duration: d.duration||'0',
+      players: d.players||'',
+      aufbau: d.aufbau||'',
+      ablauf: d.ablauf||'',
+      variationen: d.variationen||'',
+      augenmerk: d.augenmerk||'',
+      youtube: d.youtube||'',
+      bilder: (d.bilder||[]).map(b => typeof b==='string' ? b : (b.objectUrl||b.filename||'')).filter(Boolean),
+      id: d.id||undefined,
+    };
+    if(d.sessionNote) entry.sessionNote = d.sessionNote;
+    if(d.splitId !== undefined) entry.splitId = d.splitId;
+    if(d.track !== undefined) entry.track = d.track;
+    return entry;
+  });
   
-  dbg('Speichere: '+drillsClean.length+' Übungen, name='+sessionMeta.name,'info');
+  console.log('Speichere: '+drillsClean.length+' Übungen, name='+sessionMeta.name,'info');
   
   const payload={
     user_id:currentUser.id,
@@ -1677,10 +1726,10 @@ async function saveAll(){
     ort:sessionMeta.ort||'',
     focus:sessionMeta.focus||'',
     notes:sessionMeta.notes||'',
-    drills:drillsClean,
+    drills:JSON.stringify(drillsClean),
     updated_at:new Date().toISOString()
   };
-  dbg('Payload drills count: '+drillsClean.length,'info');
+  console.log('Payload drills count: '+drillsClean.length,'info');
   let error;
   if(currentEinheitId){
     ({error}=await supa.from('einheiten').update(payload).eq('id',currentEinheitId));
@@ -1689,8 +1738,8 @@ async function saveAll(){
     error=e; if(data) currentEinheitId=data.id;
   }
   btn.textContent='💾 Speichern'; btn.disabled=false;
-  if(error){setStatus('error','❌ '+error.message);dbg('Einheit Speichern Fehler: '+error.message+' code:'+error.code,'err');}
-  else{setStatus('connected','✅ Gespeichert '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr');dbg('Einheit gespeichert ✅ id:'+currentEinheitId,'ok');showToast('✅ Gespeichert','success');}
+  if(error){setStatus('error','❌ '+error.message);console.log('Einheit Speichern Fehler: '+error.message+' code:'+error.code,'err');}
+  else{setStatus('connected','✅ Gespeichert '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr');console.log('Einheit gespeichert ✅ id:'+currentEinheitId,'ok');showToast('✅ Gespeichert','success');}
 }
 
 // ══════════════════════════════════════════
@@ -1708,41 +1757,43 @@ async function uploadImageToSupabase(file,drillName){
 // ══════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════
-function totalMin(){return drills.reduce((s,d)=>s+(parseInt(d.duration)||0),0);}
+function totalMin(){
+  const splitIds=[...new Set(drills.filter(d=>d.type==='split').map(d=>d.id))];
+  let total=0;
+  drills.forEach(d=>{ if(!d.type&&!d.splitId) total+=parseInt(d.duration)||0; });
+  splitIds.forEach(sid=>{
+    const tracks=[...new Set(drills.filter(d=>d.splitId===sid).map(d=>d.track))];
+    const maxDur=Math.max(...tracks.map(t=>
+      drills.filter(d=>d.splitId===sid&&d.track===t).reduce((s,d)=>s+(parseInt(d.duration)||0),0)
+    ),0);
+    total+=maxDur;
+  });
+  return total;
+}
 function addMinutes(base,offset){
   if(!base) return '–:––';
   const [h,m]=base.split(':').map(Number);
   const t=h*60+m+offset;
   return String(Math.floor(t/60)%24).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
 }
-function updateTopbar(){document.getElementById('topbar-name').textContent=sessionMeta.name||'Neue Einheit';}
+function updateTopbar(){
+  document.getElementById('topbar-name').textContent = sessionMeta.name||'Neue Einheit';
+  // Trainernotizen im Session-Header
+  const bar = document.getElementById('s-notes-bar');
+  const txt = document.getElementById('s-notes-text');
+  if(bar && txt){
+    const n = sessionMeta.notes||'';
+    bar.style.display = n.trim() ? '' : 'none';
+    txt.textContent = n;
+  }
+}
 function slugify(n){
   return (n||'uebung').trim()
     .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
     .replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 }
 // ── DEBUG ──
-function toggleDebug(){
-  const p=document.getElementById('debug-panel');
-  p.classList.toggle('open');
-}
-function dbg(msg,type='info'){
-  console.log(msg);
-  const log=document.getElementById('debug-log');
-  if(!log) return;
-  const d=document.createElement('div');
-  d.className='debug-line '+type;
-  d.textContent=new Date().toLocaleTimeString('de-DE')+' '+msg;
-  log.appendChild(d);
-  log.scrollTop=log.scrollHeight;
-  // Show panel automatically on error
-  if(type==='err') document.getElementById('debug-panel').classList.add('open');
-}
-// Override console.error to show in debug panel
-const _origError=console.error;
-console.error=function(...args){_origError(...args);dbg('ERROR: '+args.join(' '),'err');};
-const _origWarn=console.warn;
-console.warn=function(...args){_origWarn(...args);dbg('WARN: '+args.join(' '),'info');};
+
 
 function showToast(msg,type='info'){
   const t=document.getElementById('toast');
@@ -1766,8 +1817,8 @@ function render(){
   if(sessionMeta.focus){ft.style.display='';ft.textContent=sessionMeta.focus;}else ft.style.display='none';
 
   const card=document.getElementById('plan-card');
-  card.querySelectorAll('.phase-separator,.cat-separator,.drill-row,.notes-area,.total-bar').forEach(e=>e.remove());
-  dbg('render() drills.length='+drills.length,'info');
+  card.querySelectorAll('.phase-separator,.cat-separator,.drill-row,.notes-area,.total-bar,.split-header,.split-body,.split-merge-row,.add-split-btn').forEach(e=>e.remove());
+  console.log('render() drills.length='+drills.length,'info');
   document.getElementById('empty-state').style.display=drills.length?'none':'';
   if(!drills.length) return;
 
@@ -1775,8 +1826,12 @@ function render(){
   // Track which drills have been rendered
   const rendered = new Set();
   
+  // Split/Merge-Marker vorverarbeiten: alle splitId-Drills aus normalem Flow ausschließen
+  const inSplit = new Set(drills.filter(d=>d.splitId).map((_,i)=>drills.findIndex(x=>x===_)));
+  const splitsDone = new Set();
+
   PHASES.forEach(phase=>{
-    const pd=drills.filter(d=>d.phase===phase);
+    const pd=drills.filter(d=>d.phase===phase&&!d.type&&!d.splitId);
     if(!pd.length) return;
     const pm=PHASE_META[phase];
     const sep=document.createElement('div');sep.className='phase-separator';
@@ -1800,21 +1855,42 @@ function render(){
       const gi=drills.indexOf(drill);
       if(rendered.has(gi)) return;
       rendered.add(gi);
-      dbg('Unknown cat render: "'+drill.name+'" cat='+drill.cat,'info');
+      console.log('Unknown cat render: "'+drill.name+'" cat='+drill.cat,'info');
       card.appendChild(makeRow(drill,gi,offset));
       offset+=parseInt(drill.duration)||0;
     });
   });
-  // Render any remaining drills with unknown phase/cat
+  // Render Split-Marker + ihre Tracks
   drills.forEach((drill,gi)=>{
     if(rendered.has(gi)) return;
-    dbg('Fallback render: "'+drill.name+'" phase='+drill.phase+' cat='+drill.cat,'info');
-    card.appendChild(makeRow(drill,gi,offset));
-    offset+=parseInt(drill.duration)||0;
+    if(drill.type==='split' && !splitsDone.has(drill.id)){
+      splitsDone.add(drill.id);
+      rendered.add(gi);
+      // Merge-Marker auch als rendered markieren
+      const mi=drills.findIndex(d=>d.type==='merge'&&d.splitId===drill.id);
+      if(mi>=0) rendered.add(mi);
+      // Alle Track-Drills als rendered markieren
+      drills.forEach((d,i)=>{ if(d.splitId===drill.id) rendered.add(i); });
+      const dur = renderSplitSection(card, drill, offset);
+      offset += dur;
+    } else if(!drill.type && !drill.splitId && !rendered.has(gi)){
+      rendered.add(gi);
+      console.log('Fallback render: "'+drill.name+'"');
+      card.appendChild(makeRow(drill,gi,offset));
+      offset+=parseInt(drill.duration)||0;
+    } else {
+      rendered.add(gi);
+    }
   });
-  const na=document.createElement('div');na.className='notes-area';
-  na.innerHTML=`<textarea class="notes-ta" placeholder="📝 Trainer-Notizen…" oninput="sessionMeta.notes=this.value">${sessionMeta.notes||''}</textarea>`;
-  card.appendChild(na);
+  updateTopbar();
+  // "Strang teilen"-Button vor Total-Bar
+  if(drills.length){
+    const sb=document.createElement('button');
+    sb.className='add-split-btn';
+    sb.innerHTML='⚡ Strang hier aufteilen';
+    sb.onclick=()=>addSplit();
+    card.appendChild(sb);
+  }
   const tb=document.createElement('div');tb.className='total-bar';
   tb.innerHTML=`<div class="total-lbl">Gesamtdauer</div><div class="total-val">${totalMin()} Min</div>`;
   card.appendChild(tb);
@@ -1826,6 +1902,7 @@ function makeRow(drill,gi,offset){
   const tLabel=sessionMeta.time?addMinutes(sessionMeta.time,offset):'–:––';
   const cat=catMeta(drill.phase,drill.cat);
   const firstImg=drill.bilder&&drill.bilder.length?`<img class="drill-img-thumb" src="${drill.bilder[0]}" onerror="this.style.display='none'" alt="">`:'';
+  const noteVal = drill.sessionNote || '';
   row.innerHTML=`
     <div class="drag-handle">⠿</div>
     <div class="drill-time">${tLabel}</div>
@@ -1838,6 +1915,14 @@ function makeRow(drill,gi,offset){
     <div class="row-actions">
       <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
       <button class="action-btn del" onclick="deleteDrill(${gi})">🗑</button>
+    </div>
+    <div style="grid-column:1/-1;padding:0;">
+      <div class="drill-session-note" onclick="focusDrillNote(this)" title="Notiz für heute (wird nicht in der Übungsdatenbank gespeichert)">
+        <textarea class="drill-note-input" rows="1"
+          placeholder="📝 Notiz für heute hinzufügen…"
+          oninput="saveDrillNote(${gi},this.value);autoResizeTA(this)"
+          onfocus="autoResizeTA(this)">${noteVal}</textarea>
+      </div>
     </div>`;
   return row;
 }
@@ -1907,12 +1992,18 @@ function openAddModal(idx){
   editIdx=idx;const isEdit=idx>=0;
   document.getElementById('add-modal-title').textContent=isEdit?'Übung bearbeiten':'Übung hinzufügen';
   document.getElementById('f-save-db').checked=false;
-  document.getElementById('f-sname').value=sessionMeta.name!=='Trainingseinheit'?sessionMeta.name:'';
-  document.getElementById('f-sgroup').value=sessionMeta.group;
-  document.getElementById('f-date').value=sessionMeta.date;
-  document.getElementById('f-time').value=sessionMeta.time;
-  document.getElementById('f-ort').value=sessionMeta.ort;
-  document.getElementById('f-sfocus').value=sessionMeta.focus;
+  // Session-Info im Modal aktualisieren (nur Anzeige, keine Inputs)
+  const mName = document.getElementById('modal-session-name');
+  const mInfo = document.getElementById('modal-session-info');
+  if(mName) mName.textContent = sessionMeta.name||'Trainingseinheit';
+  if(mInfo){
+    const parts=[];
+    if(sessionMeta.date) parts.push(sessionMeta.date);
+    if(sessionMeta.time) parts.push(sessionMeta.time+' Uhr');
+    if(sessionMeta.group) parts.push(sessionMeta.group);
+    if(sessionMeta.ort) parts.push(sessionMeta.ort);
+    mInfo.textContent=parts.join(' · ');
+  }
   updateCatOptions();
   if(isEdit){
     const d=drills[idx];
@@ -1983,8 +2074,16 @@ async function saveDrill(){
     youtube:document.getElementById('f-yt').value.trim(),
     bilder:resolvedImages,
   };
-  if(editIdx>=0) drills[editIdx]=drill;
-  else drills.push(drill);
+  if(editIdx>=0){
+    // Bei Edit: Split-Metadaten erhalten
+    if(drills[editIdx]){
+      if(drills[editIdx].splitId!==undefined) drill.splitId=drills[editIdx].splitId;
+      if(drills[editIdx].track!==undefined) drill.track=drills[editIdx].track;
+    }
+    drills[editIdx]=drill;
+  } else {
+    insertPendingDrill(drill);
+  }
   if(document.getElementById('f-save-db').checked){
     const id=await saveUebungToSupabase(drill);
     if(id){drill.id=id;customDB.push({...drill});}
@@ -2014,11 +2113,26 @@ function openDB(tab='meine'){
   switchDBTab(tab);
   document.getElementById('db-search-input').value='';
   document.getElementById('db-panel').classList.add('open');
+  // Hinweis wenn mit pending insert geöffnet
+  const hint = document.getElementById('db-insert-hint');
+  if(hint){
+    hint.style.display = pendingInsert ? '' : 'none';
+    if(pendingInsert && pendingInsert.type==='track'){
+      const marker = drills.find(d=>d.type==='split'&&d.id===pendingInsert.splitId);
+      const lbl = marker?.labels?.[pendingInsert.trackIdx]||'Gruppe';
+      hint.textContent = '➕ Wird in: '+lbl+' eingefügt';
+    } else if(pendingInsert && pendingInsert.type==='after'){
+      hint.textContent = '➕ Wird nach dem Split-Block eingefügt';
+    }
+  }
   document.getElementById('db-overlay').classList.add('open');
 }
 function closeDB(){
   document.getElementById('db-panel').classList.remove('open');
   document.getElementById('db-overlay').classList.remove('open');
+  pendingInsert = null;
+  const hint = document.getElementById('db-insert-hint');
+  if(hint) hint.style.display='none';
 }
 
 function switchDBTab(tab){
@@ -2100,8 +2214,9 @@ function renderDB(q='',phaseFilter='all'){
 function addFromDB(idx){
   const source=dbActiveTab==='meine'?customDB:geteilteDB.filter(u=>u.status==='freigegeben');
   const item=source[idx];
-  drills.push({...item,bilder:item.bilder?[...item.bilder]:[]});
-  closeDB();render();
+  const drillObj={...item,bilder:item.bilder?[...item.bilder]:[]};
+  insertPendingDrill(drillObj);
+  closeDB();render();saveAll();
   showToast(`✅ "${item.name}" zum Plan hinzugefügt`,'success');
 }
 
@@ -2355,11 +2470,32 @@ const DHB_STANDARD=[
    augenmerk:'Reflexion, Kommunikation, Teambinding',youtube:'',bilder:[]},
 ];
 async function loadDHBStandard(){
-  if(!confirm(DHB_STANDARD.length+' DHB-Standardübungen laden?')) return;
+  if(!confirm(DHB_STANDARD.length+' DHB-Standardübungen laden? Bereits vorhandene werden übersprungen.')) return;
   setStatus('saving','⏳ Lade DHB-Übungen…');
-  for(const u of DHB_STANDARD){const id=await saveUebungToSupabase(u);if(id) customDB.push({...u,id});}
-  applyFilters();setStatus('connected','✅ DHB-Übungen geladen');
-  showToast('✅ DHB-Standardübungen geladen','success');
+
+  // Bestehende Namen laden um Duplikate zu vermeiden
+  const {data:existing} = await supa.from('uebungen')
+    .select('name')
+    .eq('user_id', currentUser.id);
+  const vorhandeneNamen = new Set((existing||[]).map(e => e.name.trim().toLowerCase()));
+
+  let geladen=0, uebersprungen=0;
+  for(const u of DHB_STANDARD){
+    if(vorhandeneNamen.has(u.name.trim().toLowerCase())){
+      uebersprungen++;
+      continue;
+    }
+    const id=await saveUebungToSupabase(u);
+    if(id){ customDB.push({...u,id}); geladen++; }
+  }
+
+  applyFilters();
+  setStatus('connected','✅ DHB-Übungen geladen');
+  if(uebersprungen>0){
+    showToast(`✅ ${geladen} Übungen geladen, ${uebersprungen} bereits vorhanden übersprungen`,'success');
+  } else {
+    showToast(`✅ ${geladen} DHB-Standardübungen geladen`,'success');
+  }
 }
 
 // PDF Import
@@ -2446,12 +2582,21 @@ async function renderAdminNutzer(){
 }
 
 async function updateUserRole(userId,role){
-  await supa.from('profiles').update({role}).eq('id',userId);
+  const {error} = await supa.from('profiles').update({role}).eq('id',userId);
+  if(error){
+    showToast('❌ Rolle konnte nicht geändert werden: '+error.message,'error');
+    renderAdminNutzer(); // Select zurücksetzen
+    return;
+  }
   showToast('✅ Rolle aktualisiert','success');
 }
 
 async function toggleAktiv(userId,aktiv){
-  await supa.from('profiles').update({aktiv}).eq('id',userId);
+  const {error} = await supa.from('profiles').update({aktiv}).eq('id',userId);
+  if(error){
+    showToast('❌ Status konnte nicht geändert werden: '+error.message,'error');
+    return;
+  }
   showToast(aktiv?'✅ Nutzer aktiviert':'❌ Nutzer deaktiviert','success');
   renderAdminNutzer();
 }
@@ -2674,318 +2819,9 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowLeft')lbNav(-1);
 });
 
-
 // ══════════════════════════════════════════
-// MANNSCHAFTEN & iCAL FEEDS
+// MOBILE
 // ══════════════════════════════════════════
-
-// Storage key
-const MSC_KEY = 'handball_mannschaften';
-
-// In-memory cache of fetched iCal events
-// [{uid, summary, dtstart, dtend, typ:'training'|'spiel', mannschaftId, farbe, farbe_ungeplant}]
-let icalEvents = [];
-let icalFetchTs = 0; // last fetch timestamp
-
-function loadMannschaften() {
-  try { return JSON.parse(localStorage.getItem(MSC_KEY)||'[]'); } catch(e){ return []; }
-}
-function saveMannschaften(arr) {
-  localStorage.setItem(MSC_KEY, JSON.stringify(arr));
-}
-
-// ── Modal open/close ──
-function openMannschaftenModal() {
-  document.getElementById('mannschaften-modal').classList.add('open');
-  renderMannschaftenList();
-}
-function closeMannschaftenModal() {
-  document.getElementById('mannschaften-modal').classList.remove('open');
-  document.getElementById('msc-form').style.display='none';
-  document.getElementById('msc-add-btn').style.display='';
-}
-
-// ── Render list of existing teams ──
-function renderMannschaftenList() {
-  const teams = loadMannschaften();
-  const el = document.getElementById('msc-list');
-  if(!teams.length) {
-    el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--xsoft);font-size:13px;">Noch keine Mannschaft angelegt.</div>';
-    return;
-  }
-  el.innerHTML = teams.map(t => `
-    <div class="team-card">
-      <div class="team-color-preview" style="background:${t.farbe_geplant||'#0057ff'};">${(t.name||'M')[0].toUpperCase()}</div>
-      <div class="team-card-info">
-        <div class="team-card-name">${t.name}</div>
-        <div class="team-card-feeds">
-          ${t.ical_training ? `<span class="feed-chip ok">🏋 Training-Feed</span>` : '<span class="feed-chip">🏋 Kein Training-Feed</span>'}
-          ${t.ical_spiele ? `<span class="feed-chip ok">🏆 Spiel-Feed</span>` : '<span class="feed-chip">🏆 Kein Spiel-Feed</span>'}
-        </div>
-        <div style="display:flex;gap:8px;margin-top:5px;">
-          <span title="Geplant" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--soft);">
-            <span style="width:12px;height:12px;border-radius:3px;background:${t.farbe_geplant||'#0057ff'};display:inline-block;"></span> Geplant
-          </span>
-          <span title="Ungeplant" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--soft);">
-            <span style="width:12px;height:12px;border-radius:3px;background:${t.farbe_ungeplant||'#94a3b8'};display:inline-block;"></span> Ungeplant
-          </span>
-        </div>
-      </div>
-      <div class="team-card-actions">
-        <button class="team-edit-btn" onclick="showTeamForm('${t.id}')">✏ Bearbeiten</button>
-        <button class="team-delete-btn" onclick="deleteTeam('${t.id}')">🗑</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-// ── Show add/edit form ──
-function showTeamForm(id) {
-  const teams = loadMannschaften();
-  const t = id ? teams.find(x=>x.id===id) : null;
-  document.getElementById('msc-add-btn').style.display='none';
-  const formEl = document.getElementById('msc-form');
-  formEl.style.display='';
-  formEl.innerHTML = `
-    <div class="team-form">
-      <input type="hidden" id="tf-id" value="${t?t.id:''}">
-      <div class="form-group" style="margin-bottom:12px;">
-        <label class="form-label">Mannschaftsname *</label>
-        <input class="form-input" id="tf-name" placeholder="z.B. Herren 1" value="${t?t.name:''}">
-      </div>
-      <div class="color-pair" style="margin-bottom:12px;">
-        <div class="color-swatch-wrap">
-          <div class="color-swatch-label">🟢 Farbe geplante Einheit</div>
-          <input type="color" class="form-input" id="tf-farbe-geplant" value="${t?t.farbe_geplant:'#0057ff'}" style="height:40px;padding:3px 6px;cursor:pointer;">
-          <div style="font-size:10.5px;color:var(--xsoft);margin-top:3px;">Einheiten mit Übungen</div>
-        </div>
-        <div class="color-swatch-wrap">
-          <div class="color-swatch-label">⬜ Farbe ungeplante Einheit</div>
-          <input type="color" class="form-input" id="tf-farbe-ungeplant" value="${t?t.farbe_ungeplant:'#94a3b8'}" style="height:40px;padding:3px 6px;cursor:pointer;">
-          <div style="font-size:10.5px;color:var(--xsoft);margin-top:3px;">Slots ohne Inhalt (aus Feed)</div>
-        </div>
-      </div>
-      <div class="form-group" style="margin-bottom:12px;">
-        <label class="form-label">🏋 iCal-Feed Training (Sportsmember)</label>
-        <div class="feed-row">
-          <input class="form-input" id="tf-ical-training" placeholder="https://sportsmember.com/ical/…" value="${t?t.ical_training||'':''}">
-          <button class="btn btn-ghost" style="font-size:12px;white-space:nowrap;" onclick="testFeed('tf-ical-training','tf-training-status')">Testen</button>
-        </div>
-        <div id="tf-training-status" style="margin-top:5px;"></div>
-        <div style="font-size:11px;color:var(--xsoft);margin-top:4px;">
-          In Sportsmember: Kalender → Export → iCal-Link kopieren
-        </div>
-      </div>
-      <div class="form-group" style="margin-bottom:16px;">
-        <label class="form-label">🏆 iCal-Feed Spiele (handball.net)</label>
-        <div class="feed-row">
-          <input class="form-input" id="tf-ical-spiele" placeholder="https://handball.net/ical/…" value="${t?t.ical_spiele||'':''}">
-          <button class="btn btn-ghost" style="font-size:12px;white-space:nowrap;" onclick="testFeed('tf-ical-spiele','tf-spiele-status')">Testen</button>
-        </div>
-        <div id="tf-spiele-status" style="margin-top:5px;"></div>
-        <div style="font-size:11px;color:var(--xsoft);margin-top:4px;">
-          Auf handball.net: Team-Spielplan → Kalender-Icon → iCal-Link kopieren
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;">
-        <button class="btn btn-ghost" onclick="cancelTeamForm()">Abbrechen</button>
-        <button class="btn btn-primary" onclick="saveTeamForm()">✅ Speichern</button>
-      </div>
-    </div>
-  `;
-}
-
-function cancelTeamForm() {
-  document.getElementById('msc-form').style.display='none';
-  document.getElementById('msc-add-btn').style.display='';
-}
-
-function saveTeamForm() {
-  const id   = document.getElementById('tf-id').value;
-  const name = document.getElementById('tf-name').value.trim();
-  if(!name){showToast('⚠️ Bitte Mannschaftsname eingeben','info');return;}
-  const entry = {
-    id:   id || crypto.randomUUID(),
-    name,
-    farbe_geplant:   document.getElementById('tf-farbe-geplant').value,
-    farbe_ungeplant: document.getElementById('tf-farbe-ungeplant').value,
-    ical_training:   document.getElementById('tf-ical-training').value.trim(),
-    ical_spiele:     document.getElementById('tf-ical-spiele').value.trim(),
-  };
-  let teams = loadMannschaften();
-  if(id) { const idx=teams.findIndex(x=>x.id===id); if(idx>=0) teams[idx]=entry; else teams.push(entry); }
-  else teams.push(entry);
-  saveMannschaften(teams);
-  cancelTeamForm();
-  renderMannschaftenList();
-  showToast('✅ Mannschaft gespeichert','success');
-  // Trigger feed refresh
-  icalEvents = [];
-  refreshAllFeeds();
-}
-
-function deleteTeam(id) {
-  if(!confirm('Mannschaft wirklich löschen?')) return;
-  let teams = loadMannschaften().filter(t=>t.id!==id);
-  saveMannschaften(teams);
-  icalEvents = icalEvents.filter(e=>e.mannschaftId!==id);
-  renderMannschaftenList();
-  showToast('🗑 Mannschaft gelöscht','info');
-  renderKalender();
-}
-
-// ── Feed testen ──
-async function testFeed(inputId, statusId) {
-  const url = document.getElementById(inputId).value.trim();
-  const statusEl = document.getElementById(statusId);
-  if(!url){statusEl.innerHTML='<span class="feed-status err">⚠️ Kein Link eingegeben</span>';return;}
-  statusEl.innerHTML='<span class="feed-status loading">⏳ Verbinde…</span>';
-  try {
-    const events = await fetchICalFeed(url);
-    statusEl.innerHTML=`<span class="feed-status ok">✅ ${events.length} Termine gefunden</span>`;
-  } catch(e) {
-    statusEl.innerHTML=`<span class="feed-status err">❌ ${e.message||'Feed nicht erreichbar'}</span>`;
-  }
-}
-
-// ── iCal Fetch via eigene Supabase Edge Function ──
-// Kein Drittanbieter-Proxy – sicher, datenschutzkonform, zuverlässig.
-const ICAL_PROXY_URL = SUPA_URL + '/functions/v1/ical-proxy';
-
-async function fetchICalFeed(url) {
-  // Aktuelle Supabase-Session für Auth-Token holen
-  const { data: { session } } = await supa.auth.getSession();
-  if (!session?.access_token) throw new Error('Nicht eingeloggt');
-
-  const proxyUrl = ICAL_PROXY_URL + '?url=' + encodeURIComponent(url);
-  let res;
-  try {
-    res = await fetch(proxyUrl, {
-      headers: { 'Authorization': 'Bearer ' + session.access_token },
-      signal: AbortSignal.timeout(12000)
-    });
-  } catch(e) {
-    throw new Error('Verbindung zur Edge Function fehlgeschlagen: ' + e.message);
-  }
-
-  if (!res.ok) {
-    let msg = 'HTTP ' + res.status;
-    try { const j = await res.json(); msg = j.error || msg; } catch(_){}
-    throw new Error(msg);
-  }
-
-  const text = await res.text();
-  if (!text.includes('BEGIN:VCALENDAR')) throw new Error('Kein gültiger iCal-Feed');
-  dbg('Feed geladen: ' + url.slice(0,60) + '… (' + text.length + ' Bytes)', 'ok');
-  return parseICal(text);
-}
-
-// ── iCal Parser ──
-function parseICal(text) {
-  // Unfold lines (continuation lines start with space/tab)
-  const unfolded = text.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-  const events = [];
-  const blocks = unfolded.split('BEGIN:VEVENT');
-  for(let i=1;i<blocks.length;i++) {
-    const block = blocks[i].split('END:VEVENT')[0];
-    const ev = {};
-    block.split('\n').forEach(line => {
-      const sep = line.indexOf(':');
-      if(sep<0) return;
-      const key = line.slice(0,sep).split(';')[0].trim().toUpperCase();
-      const val = line.slice(sep+1).trim();
-      if(key==='SUMMARY')    ev.summary = val.replace(/\\n/g,' ').replace(/\\,/g,',');
-      if(key==='DTSTART')    ev.dtstart = parseICalDate(val);
-      if(key==='DTEND')      ev.dtend   = parseICalDate(val);
-      if(key==='DURATION' && ev.dtstart) ev.dtend = addICalDuration(ev.dtstart, val);
-      if(key==='UID')        ev.uid = val;
-      if(key==='LOCATION')   ev.location = val.replace(/\\n/g,', ');
-    });
-    if(ev.dtstart) events.push(ev);
-  }
-  return events;
-}
-
-function parseICalDate(s) {
-  // YYYYMMDDTHHMMSSZ or YYYYMMDD
-  s = s.replace('Z','');
-  if(s.includes('T')) {
-    const y=s.slice(0,4),mo=s.slice(4,6),d=s.slice(6,8);
-    const h=s.slice(9,11),mi=s.slice(11,13);
-    return new Date(`${y}-${mo}-${d}T${h}:${mi}:00`);
-  } else {
-    return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);
-  }
-}
-
-function addICalDuration(start, dur) {
-  // PT1H30M etc. — simple parser
-  const m = dur.match(/P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?/);
-  if(!m) return start;
-  const days = parseInt(m[1]||0), hours = parseInt(m[2]||0), mins = parseInt(m[3]||0);
-  return new Date(start.getTime() + (days*86400+hours*3600+mins*60)*1000);
-}
-
-// ── Fetch all team feeds ──
-async function refreshAllFeeds() {
-  const btn = document.getElementById('ical-sync-btn');
-  if(btn) btn.classList.add('spinning');
-  const teams = loadMannschaften();
-  const newEvents = [];
-  let ok=0, fail=0;
-  for(const t of teams) {
-    if(t.ical_training) {
-      try {
-        const evs = await fetchICalFeed(t.ical_training);
-        evs.forEach(e=>newEvents.push({...e, mannschaftId:t.id, mannschaftName:t.name, typ:'training', farbe_geplant:t.farbe_geplant, farbe_ungeplant:t.farbe_ungeplant}));
-        ok++;
-        dbg(`Feed Training ${t.name}: ${evs.length} Termine`,'ok');
-      } catch(e){fail++;dbg(`Feed Training ${t.name} Fehler: ${e.message}`,'err');}
-    }
-    if(t.ical_spiele) {
-      try {
-        const evs = await fetchICalFeed(t.ical_spiele);
-        evs.forEach(e=>newEvents.push({...e, mannschaftId:t.id, mannschaftName:t.name, typ:'spiel', farbe_geplant:t.farbe_geplant, farbe_ungeplant:t.farbe_ungeplant}));
-        ok++;
-        dbg(`Feed Spiele ${t.name}: ${evs.length} Termine`,'ok');
-      } catch(e){fail++;dbg(`Feed Spiele ${t.name} Fehler: ${e.message}`,'err');}
-    }
-  }
-  icalEvents = newEvents;
-  icalFetchTs = Date.now();
-  if(btn) btn.classList.remove('spinning');
-  const msg = fail>0 ? `⚠️ ${ok} Feeds geladen, ${fail} Fehler` : `✅ ${newEvents.length} Feed-Termine geladen`;
-  showToast(msg, fail>0?'info':'success');
-  renderKalender();
-}
-
-// ── Legende rendern ──
-function renderKalenderLegend(teams, hasPlanedEinheiten) {
-  const leg = document.getElementById('kal-legend');
-  const items = document.getElementById('kal-legend-items');
-  if(!teams.length && !hasPlanedEinheiten){leg.style.display='none';return;}
-  leg.style.display='flex';
-  const parts = [];
-  if(hasPlanedEinheiten) parts.push(`<div class="kal-legend-item"><div class="kal-legend-dot" style="background:var(--accent);"></div> Einheit (geplant)</div>`);
-  teams.forEach(t=>{
-    parts.push(`<div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_geplant};"></div> ${t.name} geplant</div>`);
-    parts.push(`<div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_ungeplant};opacity:.7;"></div> ${t.name} ungeplant</div>`);
-    parts.push(`<div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_geplant};border:1.5px solid rgba(0,0,0,.2);"></div> ${t.name} Spiel</div>`);
-  });
-  items.innerHTML=parts.join('');
-}
-
-// ── Hilfsfunktion: Datum → YYYY-MM-DD ──
-function toDateStr(d){ return d instanceof Date ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : '';}
-
-// ══════════════════════════════════════════
-// INIT iCal on app start
-// ══════════════════════════════════════════
-setTimeout(()=>{
-  if(loadMannschaften().length > 0) refreshAllFeeds();
-}, 2000);
-
-
 function isMobile(){return window.innerWidth<=640;}
 function setupMobile(){
   const fab=document.getElementById('fab-add');
@@ -3025,11 +2861,398 @@ function saveSessionEdit(){
   sessionMeta.ort   = document.getElementById('se-ort').value.trim();
   sessionMeta.focus = document.getElementById('se-focus').value.trim();
   sessionMeta.notes = document.getElementById('se-notes').value;
+  updateTopbar();
   closeSessionEdit();
   render();
   showToast('✅ Einheit aktualisiert', 'success');
 }
 
+
+
+// ══════════════════════════════════════════
+// EINHEIT LÖSCHEN
+// ══════════════════════════════════════════
+async function deleteEinheit(){
+  if(!currentEinheitId){ showToast('Keine gespeicherte Einheit zum Löschen','info'); return; }
+  if(!confirm('Diese Trainingseinheit wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
+  const {error} = await supa.from('einheiten').delete().eq('id', currentEinheitId);
+  if(error){ showToast('❌ Löschen fehlgeschlagen: '+error.message,'error'); return; }
+  currentEinheitId = null;
+  drills = [];
+  sessionMeta = {name:'Trainingseinheit',group:'',date:'',time:'',ort:'',focus:'',notes:''};
+  render();
+  updateTopbar();
+  showToast('🗑 Einheit gelöscht','info');
+  // Kalender aktualisieren falls offen
+  if(currentView==='kalender') renderKalender();
+}
+
+// ══════════════════════════════════════════
+// EINHEIT TEILEN
+// ══════════════════════════════════════════
+let currentShareMode = 'off';
+
+// ══════════════════════════════════════════
+// EINHEIT TEILEN – Nutzer-spezifische Freigaben
+// ══════════════════════════════════════════
+let shareAllUsers = [];       // alle Profile außer eigenem
+let shareFreigaben = {};      // { user_id: 'view'|'edit' } – aktuelle DB-Freigaben
+let sharePending = {};        // { user_id: 'view'|'edit'|null } – Änderungen im Modal
+
+async function shareEinheit(){
+  if(!currentEinheitId){
+    showToast('⏳ Einheit wird gespeichert…','info');
+    await saveAll();
+    if(!currentEinheitId){ showToast('❌ Speichern fehlgeschlagen','error'); return; }
+  }
+
+  document.getElementById('share-modal-name').textContent = sessionMeta.name || 'Trainingseinheit';
+  document.getElementById('share-modal').classList.add('open');
+  document.getElementById('share-search').value = '';
+  document.getElementById('share-user-list').innerHTML =
+    '<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">⏳ Lade Nutzer…</div>';
+
+  // Alle Nutzer außer sich selbst laden
+  const {data: profiles} = await supa.from('profiles')
+    .select('id,full_name,email,verein,mannschaft')
+    .neq('id', currentUser.id)
+    .order('full_name');
+  shareAllUsers = profiles || [];
+
+  // Bestehende Freigaben laden
+  const {data: freigaben} = await supa.from('einheit_freigaben')
+    .select('user_id,mode')
+    .eq('einheit_id', currentEinheitId);
+  shareFreigaben = {};
+  (freigaben||[]).forEach(f => shareFreigaben[f.user_id] = f.mode);
+
+  // Pending-State initialisieren (Kopie der aktuellen Freigaben)
+  sharePending = {...shareFreigaben};
+
+  renderShareUserList(shareAllUsers);
+  updateShareCount();
+}
+
+function filterShareUsers(){
+  const q = document.getElementById('share-search').value.toLowerCase();
+  const filtered = q
+    ? shareAllUsers.filter(u =>
+        (u.full_name||'').toLowerCase().includes(q) ||
+        (u.email||'').toLowerCase().includes(q) ||
+        (u.verein||'').toLowerCase().includes(q) ||
+        (u.mannschaft||'').toLowerCase().includes(q))
+    : shareAllUsers;
+  renderShareUserList(filtered);
+}
+
+function renderShareUserList(users){
+  const list = document.getElementById('share-user-list');
+  if(!users.length){
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Keine Nutzer gefunden</div>';
+    return;
+  }
+  list.innerHTML = users.map(u => {
+    const mode = sharePending[u.id] || null;
+    const isShared = !!mode;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border);transition:background .1s;" id="share-row-${u.id}">
+      <input type="checkbox" id="share-cb-${u.id}" ${isShared?'checked':''} onchange="toggleShareUser('${u.id}')"
+        style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13.5px;font-weight:500;">${u.full_name||u.email}</div>
+        <div style="font-size:11.5px;color:var(--xsoft);">${u.verein||''}${u.mannschaft?' · '+u.mannschaft:''}</div>
+      </div>
+      <select id="share-mode-${u.id}" onchange="changeShareMode('${u.id}',this.value)"
+        style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;background:white;${isShared?'':'opacity:.35;pointer-events:none;'}">
+        <option value="view" ${mode==='view'?'selected':''}>👁 Ansicht</option>
+        <option value="edit" ${mode==='edit'?'selected':''}>✏ Bearbeiten</option>
+      </select>
+    </div>`;
+  }).join('');
+}
+
+function toggleShareUser(userId){
+  const cb = document.getElementById('share-cb-'+userId);
+  const sel = document.getElementById('share-mode-'+userId);
+  if(cb.checked){
+    sharePending[userId] = sel.value || 'view';
+    sel.style.opacity = '1';
+    sel.style.pointerEvents = 'auto';
+  } else {
+    delete sharePending[userId];
+    sel.style.opacity = '.35';
+    sel.style.pointerEvents = 'none';
+  }
+  updateShareCount();
+}
+
+function changeShareMode(userId, mode){
+  if(sharePending[userId]) sharePending[userId] = mode;
+}
+
+function updateShareCount(){
+  const n = Object.keys(sharePending).length;
+  const el = document.getElementById('share-count');
+  if(el) el.textContent = n > 0 ? `Geteilt mit ${n} Nutzer${n!==1?'n':''}` : 'Nicht geteilt';
+  const btn = document.getElementById('share-btn');
+  if(btn) btn.style.color = n > 0 ? 'var(--accent)' : '';
+}
+
+function closeShareModal(){
+  document.getElementById('share-modal').classList.remove('open');
+}
+
+async function saveShareFreigaben(){
+  try {
+    // Entfernte Freigaben löschen
+    const zuLoeschen = Object.keys(shareFreigaben).filter(uid => !sharePending[uid]);
+    for(const uid of zuLoeschen){
+      await supa.from('einheit_freigaben').delete()
+        .eq('einheit_id', currentEinheitId).eq('user_id', uid);
+    }
+
+    // Neue oder geänderte Freigaben upserten (owner_id mitspeichern für RLS)
+    const zuUpserten = Object.entries(sharePending).map(([user_id, mode]) => ({
+      einheit_id: currentEinheitId, user_id, mode, owner_id: currentUser.id
+    }));
+    if(zuUpserten.length){
+      const {error} = await supa.from('einheit_freigaben')
+        .upsert(zuUpserten, {onConflict: 'einheit_id,user_id'});
+      if(error) throw error;
+    }
+
+    // State aktualisieren
+    shareFreigaben = {...sharePending};
+    updateShareCount();
+    closeShareModal();
+
+    const n = Object.keys(sharePending).length;
+    showToast(n > 0 ? `✅ Einheit mit ${n} Nutzer${n!==1?'n':''} geteilt` : '✅ Freigaben entfernt', 'success');
+  } catch(e){
+    showToast('❌ Fehler: '+e.message, 'error');
+  }
+}
+
+
+// ══════════════════════════════════════════
+// ÜBUNGS-SESSIONNOTIZEN
+// ══════════════════════════════════════════
+function saveDrillNote(idx, value){
+  if(drills[idx]) drills[idx].sessionNote = value;
+  // Autosave nach kurzer Pause
+  clearTimeout(saveDrillNote._t);
+  saveDrillNote._t = setTimeout(saveAll, 1500);
+}
+
+function focusDrillNote(container){
+  const ta = container.querySelector('textarea');
+  if(ta) ta.focus();
+}
+
+function autoResizeTA(ta){
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+}
+
+
+// ══════════════════════════════════════════
+// SPLIT / MERGE – Parallele Stränge
+// ══════════════════════════════════════════
+// Pending-Insert: wenn ein Drill in einen Split-Track oder nach einem Merge eingefügt werden soll
+let pendingInsert = null;
+// { type:'track', splitId, trackIdx } → Drill vor Merge-Marker einfügen
+// { type:'after', afterIdx }          → Drill nach bestimmtem Index einfügen
+
+// Datenstruktur:
+// Split-Marker:  { type:'split', id:'sp1', labels:['Gruppe A','Gruppe B'] }
+// Drill im Split: { ...normaleDrill, splitId:'sp1', track:0 }
+// Merge-Marker:  { type:'merge', splitId:'sp1' }
+
+function genSplitId(){
+  return 'sp_'+Math.random().toString(36).slice(2,7);
+}
+
+function addSplit(){
+  const id = genSplitId();
+  drills.push({type:'split', id, labels:['Gruppe A','Gruppe B']});
+  drills.push({type:'merge', splitId:id});
+  render(); saveAll();
+}
+
+function addTrack(splitId){
+  const marker = drills.find(d=>d.type==='split'&&d.id===splitId);
+  if(!marker) return;
+  marker.labels.push('Gruppe '+'ABCDEFGH'[marker.labels.length]);
+  render(); saveAll();
+}
+
+function removeTrack(splitId){
+  const marker = drills.find(d=>d.type==='split'&&d.id===splitId);
+  if(!marker||marker.labels.length<=2) return;
+  const lastTrack = marker.labels.length-1;
+  // Übungen des letzten Tracks vor Split verschieben
+  drills.filter(d=>d.splitId===splitId&&d.track===lastTrack)
+    .forEach(d=>{ delete d.splitId; delete d.track; });
+  marker.labels.pop();
+  render(); saveAll();
+}
+
+function renameSplitLabel(splitId, trackIdx, val){
+  const marker = drills.find(d=>d.type==='split'&&d.id===splitId);
+  if(marker) marker.labels[trackIdx] = val||('Gruppe '+'ABCDEFGH'[trackIdx]);
+  // kein re-render – user tippt gerade
+  clearTimeout(renameSplitLabel._t);
+  renameSplitLabel._t = setTimeout(saveAll, 1500);
+}
+
+function deleteSplit(splitId){
+  if(!confirm('Strang-Aufteilung entfernen? Übungen bleiben erhalten.')) return;
+  // Übungen aus Split herauslösen (Marker-Type entfernen)
+  drills.forEach(d=>{ if(d.splitId===splitId){ delete d.splitId; delete d.track; }});
+  // Split- und Merge-Marker entfernen
+  for(let i=drills.length-1;i>=0;i--){
+    if((drills[i].type==='split'||drills[i].type==='merge')&&
+       (drills[i].id===splitId||drills[i].splitId===splitId)){
+      drills.splice(i,1);
+    }
+  }
+  render(); saveAll();
+}
+
+function addDrillToTrack(splitId, trackIdx){
+  // Pending-State setzen, dann DB-Panel öffnen
+  pendingInsert = {type:'track', splitId, trackIdx};
+  // DB öffnen – bei Klick auf + wird pendingInsert ausgewertet
+  openDB();
+  showToast('📋 Übung aus DB wählen oder neue erstellen','info');
+}
+
+function addDrillAfterMerge(afterIdx){
+  pendingInsert = {type:'after', afterIdx};
+  openDB();
+  showToast('📋 Übung aus DB wählen oder neue erstellen','info');
+}
+
+function insertPendingDrill(drillObj){
+  if(!pendingInsert){ drills.push(drillObj); return; }
+  const p = pendingInsert;
+  pendingInsert = null;
+
+  if(p.type==='track'){
+    // Vor den Merge-Marker einfügen + Split-Metadaten setzen
+    drillObj.splitId = p.splitId;
+    drillObj.track = p.trackIdx;
+    const mergeIdx = drills.findIndex(d=>d.type==='merge'&&d.splitId===p.splitId);
+    if(mergeIdx>=0) drills.splice(mergeIdx, 0, drillObj);
+    else drills.push(drillObj);
+  } else if(p.type==='after'){
+    // Nach einem bestimmten Index einfügen
+    drills.splice(p.afterIdx+1, 0, drillObj);
+  } else {
+    drills.push(drillObj);
+  }
+}
+
+// ── render() Erweiterung: splitRenderSection ──
+function makeSplitRow(d, gi, tOffset){
+  const row = document.createElement('div');
+  row.className = 'split-row';
+  const cat = catMeta(d.phase, d.cat);
+  const tLabel = sessionMeta.time ? addMinutes(sessionMeta.time, tOffset) : '–:––';
+  const noteVal = d.sessionNote || '';
+  row.innerHTML = `
+    <div class="split-row-top">
+      <div class="split-row-meta">${tLabel}</div>
+      <div class="split-row-name" onclick="openDetail(${gi})">${d.name||'–'}</div>
+      <div class="split-row-dur">${d.duration||'–'}<span style="font-size:9px;font-weight:600;color:var(--xsoft);margin-left:2px;">MIN</span></div>
+      <div class="split-row-actions">
+        <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
+        <button class="action-btn del" onclick="deleteDrill(${gi})">🗑</button>
+      </div>
+    </div>
+    <div class="split-row-sub" style="color:${cat.color}">${cat.label}${d.augenmerk?' · '+d.augenmerk:''}</div>
+    <div class="split-row-note">
+      <textarea rows="1" placeholder="📝 Notiz…"
+        oninput="saveDrillNote(${gi},this.value);autoResizeTA(this)"
+        onfocus="autoResizeTA(this)">${noteVal}</textarea>
+    </div>`;
+  return row;
+}
+
+function renderSplitSection(card, splitMarker, offset){
+  const {id, labels} = splitMarker;
+  const trackDrills = labels.map((_,ti)=>
+    drills.map((d,gi)=>({d,gi})).filter(({d})=>d.splitId===id&&d.track===ti)
+  );
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.className='split-header';
+  hdr.innerHTML = labels.map((lbl,ti)=>`
+    <div class="split-track-header">
+      <input class="split-rename-input" value="${lbl}"
+        oninput="renameSplitLabel('${id}',${ti},this.value)"
+        title="Strang umbenennen">
+    </div>`).join('')+
+    `<div style="padding:6px 10px;display:flex;gap:4px;align-items:center;flex-shrink:0;">
+      <button title="Strang hinzufügen" onclick="addTrack('${id}')" style="font-size:14px;background:none;border:none;cursor:pointer;color:var(--accent);line-height:1;">＋</button>
+      <button title="Letzten Strang entfernen" onclick="removeTrack('${id}')" style="font-size:14px;background:none;border:none;cursor:pointer;color:var(--soft);line-height:1;">－</button>
+      <button title="Aufteilung entfernen" onclick="deleteSplit('${id}')" style="font-size:12px;background:none;border:none;cursor:pointer;color:#dc2626;line-height:1;padding:0 4px;">🗑</button>
+    </div>`;
+  card.appendChild(hdr);
+
+  // Body – Tracks nebeneinander
+  const body = document.createElement('div');
+  body.className='split-body';
+
+  let maxTrackDur = 0;
+  labels.forEach((lbl,ti)=>{
+    const col = document.createElement('div');
+    col.className='split-track';
+    let tOffset = offset;
+    trackDrills[ti].forEach(({d,gi})=>{
+      col.appendChild(makeSplitRow(d,gi,tOffset));
+      tOffset += parseInt(d.duration)||0;
+    });
+    maxTrackDur = Math.max(maxTrackDur, tOffset - offset);
+    const addBtn = document.createElement('button');
+    addBtn.className='split-add-btn';
+    addBtn.textContent='+ Übung zu '+lbl;
+    addBtn.onclick=()=>addDrillToTrack(id,ti);
+    col.appendChild(addBtn);
+    body.appendChild(col);
+  });
+  card.appendChild(body);
+
+  // Merge-Leiste
+  const mergeIdx = drills.findIndex(d=>d.type==='merge'&&d.splitId===id);
+  const mergeRow = document.createElement('div');
+  mergeRow.className='split-merge-row';
+  mergeRow.innerHTML=`
+    <span style="font-size:11px;color:var(--soft);">↕ Zusammenführen nach max. ${maxTrackDur} Min</span>
+    <button onclick="addDrillAfterMerge(${mergeIdx})" style="margin-left:auto;font-size:11.5px;padding:4px 10px;border-radius:7px;border:1px solid var(--accent);color:var(--accent);background:white;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">+ Übung nach Block</button>`;
+  card.appendChild(mergeRow);
+
+  return maxTrackDur;
+}
+// MEHR-MENU (Mobile)
+function toggleMehrMenu() {
+  const menu = document.getElementById('mehr-menu');
+  const overlay = document.getElementById('mehr-overlay');
+  const isOpen = menu.classList.contains('open');
+  if (isOpen) {
+    menu.classList.remove('open');
+    overlay.style.display = 'none';
+  } else {
+    menu.classList.add('open');
+    overlay.style.display = 'block';
+  }
+}
+function closeMehrMenu() {
+  const menu = document.getElementById('mehr-menu');
+  const overlay = document.getElementById('mehr-overlay');
+  if (menu) menu.classList.remove('open');
+  if (overlay) overlay.style.display = 'none';
+}
 
 // VIEW SWITCHER
 let currentView = 'planer';
@@ -3059,36 +3282,15 @@ async function renderKalender() {
   const startOffset=firstDay===0?6:firstDay-1;
   const daysInMonth=new Date(year,month+1,0).getDate();
   const today=new Date();
-  const teams = loadMannschaften();
 
-  // Load planned einheiten from Supabase
   let einheitenMap={};
   if(currentUser){
     const from=`${year}-${String(month+1).padStart(2,'0')}-01`;
     const to=`${year}-${String(month+1).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}`;
-    const {data}=await supa.from('einheiten').select('id,name,date,time,group_name,drills').eq('user_id',currentUser.id).gte('date',from).lte('date',to);
+    const {data}=await supa.from('einheiten').select('id,name,date,time,group_name').eq('user_id',currentUser.id).gte('date',from).lte('date',to);
     (data||[]).forEach(e=>{const d=e.date?.split('-')[2];if(d){if(!einheitenMap[parseInt(d)])einheitenMap[parseInt(d)]=[];einheitenMap[parseInt(d)].push(e);}});
   }
 
-  // Build iCal events map for this month
-  const icalMap={};
-  icalEvents.forEach(ev=>{
-    if(!ev.dtstart) return;
-    const evYear=ev.dtstart.getFullYear(), evMonth=ev.dtstart.getMonth();
-    if(evYear!==year||evMonth!==month) return;
-    const day=ev.dtstart.getDate();
-    if(!icalMap[day]) icalMap[day]=[];
-    icalMap[day].push(ev);
-  });
-
-  // Build set of dates that have a planned einheit (drills>0)
-  const plannedDates=new Set();
-  Object.values(einheitenMap).flat().forEach(e=>{
-    const drillsArr=Array.isArray(e.drills)?e.drills:(typeof e.drills==='string'?JSON.parse(e.drills||'[]'):[]);
-    if(drillsArr.length>0 && e.date) plannedDates.add(e.date);
-  });
-
-  // Render grid
   for(let i=0;i<startOffset;i++){
     const cell=document.createElement('div');
     cell.style.cssText='min-height:60px;background:#fafafa;border-right:1px solid var(--border);border-bottom:1px solid var(--border);';
@@ -3100,139 +3302,56 @@ async function renderKalender() {
     const isToday=today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===day;
     const dow=(startOffset+day-1)%7, isSun=dow===6;
     const einheiten=einheitenMap[day]||[];
-    const icalDay=icalMap[day]||[];
     cell.style.cssText=`min-height:60px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px;cursor:pointer;transition:background .1s;${isToday?'background:#eff6ff;':isSun?'background:#fff8f8;':''}`;
     cell.onclick=()=>newEinheitOnDate(year,month,day);
     const dayEl=document.createElement('div');
     dayEl.style.cssText=`font-size:12px;font-weight:${isToday?700:500};width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;${isToday?'background:var(--accent);color:white;':'color:'+(isSun?'#ef4444':'var(--text)')+';'}`;
     dayEl.textContent=day;
     cell.appendChild(dayEl);
-
-    // ── Supabase Einheiten (geplant/ungeplant je nach drills) ──
     einheiten.forEach(e=>{
-      const drillsArr=Array.isArray(e.drills)?e.drills:(typeof e.drills==='string'?JSON.parse(e.drills||'[]'):[]);
-      const isPlanned=drillsArr.length>0;
-      // Find matching team by group_name
-      const team=teams.find(t=>t.name===e.group_name);
-      const bg = isPlanned
-        ? (team?team.farbe_geplant:'var(--accent)')
-        : (team?team.farbe_ungeplant:'#94a3b8');
       const dot=document.createElement('div');
-      dot.style.cssText=`margin-top:2px;background:${bg};color:white;border-radius:3px;font-size:9px;padding:1px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+      dot.style.cssText='margin-top:2px;background:var(--accent);color:white;border-radius:3px;font-size:9px;padding:1px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
       dot.textContent=(e.time?e.time.slice(0,5)+' ':'')+( e.name||'Einheit');
-      dot.title=(isPlanned?'✅ Geplant':'⬜ Ungeplant')+': '+e.name;
-      dot.onclick=(ev)=>{ev.stopPropagation();loadEinheit(e.id);};
+      dot.title=e.name;
       cell.appendChild(dot);
     });
-
-    // ── iCal Events (Trainings + Spiele aus Feeds) ──
-    icalDay.forEach(ev=>{
-      // Check if there's a planned Supabase einheit on this day for same team
-      const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      const matchedEinheit=einheiten.find(e=>e.group_name===ev.mannschaftName);
-      // Don't double-show if already covered by Supabase einheit
-      if(matchedEinheit) return;
-
-      const isSpiel=ev.typ==='spiel';
-      const bg = isSpiel ? ev.farbe_geplant : ev.farbe_ungeplant;
-      const dot=document.createElement('div');
-      dot.className='kal-ical-event'+(isSpiel?' kal-spiel':'');
-      dot.style.cssText=`margin-top:2px;background:${bg};color:white;border-radius:3px;font-size:9px;padding:1px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:${isSpiel?1:.85};${isSpiel?'border-left:2px solid rgba(0,0,0,.2);':''}`;
-      const time=ev.dtstart?ev.dtstart.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
-      dot.textContent=(isSpiel?'🏆 ':'🏋 ')+(time?time+' ':'')+ev.summary;
-      dot.title=(isSpiel?'Spiel':'Training')+': '+ev.summary+(ev.location?' @ '+ev.location:'');
-      dot.onclick=(e)=>{
-        e.stopPropagation();
-        if(!isSpiel){
-          // Create a new Einheit on this date pre-filled with team info
-          const team=teams.find(t=>t.id===ev.mannschaftId);
-          sessionMeta.date=dateStr;
-          sessionMeta.group=ev.mannschaftName||'';
-          sessionMeta.time=time;
-          sessionMeta.name='Training '+ev.mannschaftName;
-          showView('planer'); render();
-          showToast('📋 Neue Einheit vorbereitet – jetzt Übungen hinzufügen','info');
-        }
-      };
-      cell.appendChild(dot);
-    });
-
     grid.appendChild(cell);
   }
 
-  // ── Liste ──
   const liste=document.getElementById('kal-einheiten');
   const allE=Object.values(einheitenMap).flat().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  if(!allE.length && !icalEvents.length){
-    liste.innerHTML='<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Keine Einheiten diesen Monat.<br><br><button class="btn btn-primary" style="font-size:12px;" onclick="showView(&quot;planer&quot;)">+ Neue Einheit</button></div>';
+  if(!allE.length){
+    liste.innerHTML='<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Keine Einheiten diesen Monat.<br><br><button class="btn btn-primary" style="font-size:12px;" onclick="newEinheit()">+ Neue Einheit</button></div>';
   } else {
-    const icalThisMonth = icalEvents.filter(ev=>{
-      if(!ev.dtstart) return false;
-      return ev.dtstart.getFullYear()===year && ev.dtstart.getMonth()===month;
-    }).sort((a,b)=>a.dtstart-b.dtstart);
-
-    // Merge and deduplicate (Supabase einheiten take priority over iCal)
-    const supaItems = allE.map(e=>{
-      const drillsArr=Array.isArray(e.drills)?e.drills:(typeof e.drills==='string'?JSON.parse(e.drills||'[]'):[]);
-      const isPlanned=drillsArr.length>0;
-      const team=teams.find(t=>t.name===e.group_name);
-      const bg=isPlanned?(team?team.farbe_geplant:'var(--accent)'):(team?team.farbe_ungeplant:'#94a3b8');
-      return {
-        sortKey:e.date+(e.time||''),
-        html:`<div onclick="loadEinheit('${e.id}')" style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer;">
-          <div style="width:36px;height:36px;background:${bg};opacity:.15;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:${bg};flex-shrink:0;position:relative;">
-            <span style="position:absolute;color:${bg};opacity:1;">${e.date?parseInt(e.date.split('-')[2]):'–'}</span>
-          </div>
-          <div style="width:4px;height:36px;background:${bg};border-radius:2px;flex-shrink:0;"></div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:13.5px;font-weight:500;">${e.name||'Einheit'}</div>
-            <div style="font-size:11.5px;color:var(--soft);">${e.time?e.time.slice(0,5)+' Uhr · ':''} ${e.group_name||''} ${isPlanned?'· <span style="color:#15803d;font-weight:600;">✅ geplant</span>':'· <span style="color:var(--xsoft);">⬜ ungeplant</span>'}</div>
-          </div>
-          <div style="color:var(--xsoft);">›</div>
-        </div>`
-      };
-    });
-
-    // iCal events not covered by supabase
-    const icalItems = icalThisMonth
-      .filter(ev=>!allE.find(e=>e.group_name===ev.mannschaftName && e.date===toDateStr(ev.dtstart)))
-      .map(ev=>{
-        const isSpiel=ev.typ==='spiel';
-        const bg=isSpiel?ev.farbe_geplant:ev.farbe_ungeplant;
-        const time=ev.dtstart?ev.dtstart.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
-        const dateStr=toDateStr(ev.dtstart);
-        return {
-          sortKey:dateStr+(time||''),
-          html:`<div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:${isSpiel?'default':'pointer'};" 
-            ${!isSpiel?`onclick="sessionMeta.date='${dateStr}';sessionMeta.group='${ev.mannschaftName||''}';sessionMeta.time='${time}';sessionMeta.name='Training ${ev.mannschaftName}';showView('planer');render();showToast('📋 Klicke + Übung hinzufügen','info');"`:''}>
-            <div style="width:4px;height:36px;background:${bg};border-radius:2px;flex-shrink:0;"></div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:13.5px;font-weight:500;">${isSpiel?'🏆 ':''} ${ev.summary}</div>
-              <div style="font-size:11.5px;color:var(--soft);">${time?time+' Uhr · ':''} ${ev.mannschaftName||''} · <span style="color:${isSpiel?'#d97706':'var(--xsoft)'};">${isSpiel?'Spiel':'⬜ noch nicht geplant'}</span></div>
-            </div>
-            ${!isSpiel?'<div style="color:var(--xsoft);">+</div>':''}
-          </div>`
-        };
-      });
-
-    const allItems=[...supaItems,...icalItems].sort((a,b)=>a.sortKey.localeCompare(b.sortKey));
-    liste.innerHTML=allItems.map(x=>x.html).join('');
+    liste.innerHTML=allE.map(e=>`
+      <div onclick="loadEinheit('${e.id}')" style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer;">
+        <div style="width:36px;height:36px;background:var(--accent-light);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--accent);flex-shrink:0;">${e.date?parseInt(e.date.split('-')[2]):'–'}</div>
+        <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:500;">${e.name||'Einheit'}</div><div style="font-size:11.5px;color:var(--soft);">${e.time?e.time.slice(0,5)+' Uhr · ':''} ${e.group_name||''}</div></div>
+        <div style="color:var(--xsoft);">›</div>
+      </div>`).join('');
   }
+}
 
-  // Legend
-  renderKalenderLegend(teams, Object.values(einheitenMap).flat().length>0);
+function newEinheit(datePrefill=''){
+  drills = [];
+  currentEinheitId = null;
+  sessionMeta = {name:'Trainingseinheit',group:'',date:datePrefill,time:'',ort:'',focus:'',notes:''};
+  document.getElementById('s-title').innerText = 'Trainingseinheit';
+  const btn = document.getElementById('share-btn');
+  if(btn) btn.style.color = '';
+  showView('planer');
+  render();
 }
 
 function newEinheitOnDate(year,month,day){
-  sessionMeta.date=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-  showView('planer'); render();
-  setTimeout(()=>openAddModal(-1),300);
+  const date=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  newEinheit(date);
 }
 
 async function loadMostRecentEinheit(){
   if(!currentUser) return;
   try {
-    dbg('Lade letzte Einheit…','info');
+    console.log('Lade letzte Einheit…');
     const {data,error}=await supa.from('einheiten')
       .select('*')
       .eq('user_id',currentUser.id)
@@ -3240,11 +3359,11 @@ async function loadMostRecentEinheit(){
       .limit(1)
       .maybeSingle();
     if(error){
-      dbg('Einheit laden Fehler: '+error.message+' ('+error.code+')','err');
+      console.log('Einheit laden Fehler: '+error.message+' ('+error.code+')','err');
       return;
     }
-    if(!data){dbg('Keine gespeicherte Einheit vorhanden','info');return;}
-    dbg('Einheit gefunden: '+data.name+' drills='+JSON.stringify(data.drills||[]).slice(0,80),'ok');
+    if(!data){console.log('Keine gespeicherte Einheit vorhanden');return;}
+    console.log('Einheit gefunden: '+data.name+' drills='+JSON.stringify(data.drills||[]).slice(0,80),'ok');
     currentEinheitId=data.id;
     sessionMeta={
       name:data.name||'Einheit',
@@ -3256,25 +3375,23 @@ async function loadMostRecentEinheit(){
       notes:data.notes||''
     };
     const rawDrills = data.drills;
-    if(Array.isArray(rawDrills)){
-      drills=rawDrills;
-    } else if(typeof rawDrills==='string'){
-      try { drills=JSON.parse(rawDrills); } catch(e){ drills=[]; }
-    } else {
-      drills=[];
-    }
-    dbg('Drills geladen: '+drills.length+' Stück','ok');
+    try {
+      drills = typeof rawDrills==='string' ? JSON.parse(rawDrills)
+             : Array.isArray(rawDrills)    ? rawDrills
+             : [];
+    } catch(e){ drills=[]; }
+    console.log('Drills geladen: '+drills.length+' Stück','ok');
     // Show first drill details for debugging
     if(drills.length>0){
       const d=drills[0];
-      dbg('Drill[0]: phase='+d.phase+' cat='+d.cat+' name='+d.name,'info');
+      console.log('Drill[0]: phase='+d.phase+' cat='+d.cat+' name='+d.name,'info');
     }
     document.getElementById('s-title').innerText=sessionMeta.name;
     setStatus('connected','✅ Letzte Einheit: '+sessionMeta.name+' ('+drills.length+' Übungen)');
     // Render immediately with loaded data
     render();
   } catch(e){
-    dbg('loadMostRecentEinheit Exception: '+e.message,'err');
+    console.log('loadMostRecentEinheit Exception: '+e.message,'err');
   }
 }
 
@@ -3293,11 +3410,18 @@ async function loadEinheit(id){
     notes:data.notes||''
   };
   // drills is stored as jsonb - parse if string
-  drills = Array.isArray(data.drills) ? data.drills : 
-           (typeof data.drills === 'string' ? JSON.parse(data.drills) : []);
-  console.log('Loaded einheit with', drills.length, 'drills');
+  try {
+    drills = typeof data.drills==='string' ? JSON.parse(data.drills)
+           : Array.isArray(data.drills)    ? data.drills
+           : [];
+  } catch(e){ drills=[]; }
   document.getElementById('s-title').innerText=sessionMeta.name;
   setStatus('connected','✅ Einheit geladen: '+drills.length+' Übungen');
+  // Share-Button aktualisieren
+  supa.from('einheit_freigaben').select('user_id').eq('einheit_id',data.id).then(({data:ef})=>{
+    const btn=document.getElementById('share-btn');
+    if(btn) btn.style.color=(ef&&ef.length>0)?'var(--accent)':'';
+  });
   showView('planer'); render();
 }
 
@@ -3315,51 +3439,6 @@ supa.auth.onAuthStateChange((event)=>{
 });
 </script>
 
-<!-- MANNSCHAFTEN MODAL -->
-<div class="modal-overlay" id="mannschaften-modal" onclick="if(event.target.id==='mannschaften-modal')closeMannschaftenModal()">
-  <div class="msc-modal">
-    <div class="msc-header">
-      <div>
-        <div class="msc-title">👥 Mannschaften & Feeds</div>
-        <div style="font-size:12px;color:var(--soft);margin-top:2px;">iCal-Feeds von Sportsmember & handball.net verknüpfen</div>
-      </div>
-      <button class="modal-close" onclick="closeMannschaftenModal()">✕</button>
-    </div>
-    <div class="msc-body">
-      <!-- Hinweis -->
-      <div class="info-banner blue" id="msc-hint" style="margin-bottom:16px;">
-        <div class="info-banner-icon">ℹ️</div>
-        <div class="info-banner-text">
-          <strong>Wie funktioniert das?</strong> Trage den iCal-Link aus Sportsmember (Trainings) und handball.net (Spiele) ein.
-          Die Termine erscheinen dann automatisch im Kalender – <em>ungeplante</em> Einheiten in deiner Wunschfarbe, <em>geplante</em> (mit Übungen) in einer anderen.
-          <br><span style="color:#1d4ed8;">🔒 Feeds werden sicher über deine eigene Supabase Edge Function abgerufen – kein Drittanbieter.</span>
-        </div>
-        <span class="info-banner-close" onclick="this.parentElement.remove()">✕</span>
-      </div>
-      <!-- Liste der Mannschaften -->
-      <div id="msc-list"></div>
-      <!-- Formular (neu / bearbeiten) -->
-      <div id="msc-form" style="display:none;"></div>
-      <!-- Neu-Button -->
-      <button class="btn btn-primary" id="msc-add-btn" onclick="showTeamForm(null)" style="margin-top:4px;">+ Mannschaft hinzufügen</button>
-    </div>
-    <div class="msc-footer">
-      <button class="btn btn-ghost" onclick="closeMannschaftenModal()">Schließen</button>
-    </div>
-  </div>
-</div>
 
-<!-- DEBUG PANEL -->
-<button id="debug-toggle" onclick="toggleDebug()" style="position:fixed;bottom:70px;right:0;z-index:9999;background:#222;color:#0f0;border:none;font-size:14px;padding:8px 10px;cursor:pointer;border-radius:8px 0 0 8px;display:none;">🐛</button>
-<div id="debug-panel">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;color:white;padding:0 4px;">
-    <strong>Debug Log</strong>
-    <div style="display:flex;gap:8px;">
-      <span onclick="document.getElementById('debug-log').innerHTML=''" style="cursor:pointer;font-size:11px;color:#ff0;">🗑 Clear</span>
-      <span onclick="toggleDebug()" style="cursor:pointer;font-size:11px;">✕</span>
-    </div>
-  </div>
-  <div id="debug-log"></div>
-</div>
 </body>
 </html>
