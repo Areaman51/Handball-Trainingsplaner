@@ -1,0 +1,3365 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Handball Trainingsplaner</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f2f4f8;--white:#fff;--sidebar:#141820;--sidebar-hover:#1e2535;
+  --accent:#0057ff;--accent-light:#e6eeff;
+  --text:#111827;--soft:#6b7280;--xsoft:#9ca3af;--border:#e5e7eb;
+  --shadow:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.14);--radius:12px;
+  --c-erwaermung:#f59e0b;--c-aufwaermspiel:#ef4444;--c-einpassen:#8b5cf6;--c-tw-warm:#0ea5e9;
+  --c-abwehr:#dc2626;--c-ueberbr:#f97316;--c-angriff:#0057ff;--c-ausklang:#10b981;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{overflow-x:hidden;max-width:100vw;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+
+/* ── MANNSCHAFTEN MODAL ── */
+.msc-modal{background:white;border-radius:16px;box-shadow:var(--shadow-lg);width:min(680px,95vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
+.msc-header{padding:22px 26px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.msc-title{font-size:17px;font-weight:700;letter-spacing:-.3px;}
+.msc-body{padding:20px 26px;overflow-y:auto;flex:1;}
+.msc-footer{padding:14px 26px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
+.team-card{border:1.5px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;gap:14px;transition:border-color .15s;}
+.team-card:hover{border-color:#c7d2fe;}
+.team-color-preview{width:40px;height:40px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;color:white;font-weight:700;}
+.team-card-info{flex:1;min-width:0;}
+.team-card-name{font-size:14px;font-weight:600;margin-bottom:2px;}
+.team-card-feeds{font-size:11.5px;color:var(--soft);display:flex;gap:6px;flex-wrap:wrap;margin-top:3px;}
+.feed-chip{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-size:10.5px;}
+.feed-chip.ok{background:#f0fdf4;border-color:#86efac;color:#15803d;}
+.feed-chip.err{background:#fef2f2;border-color:#fca5a5;color:#dc2626;}
+.team-card-actions{display:flex;gap:6px;flex-shrink:0;}
+.team-edit-btn{background:none;border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--soft);}
+.team-edit-btn:hover{background:var(--bg);color:var(--text);}
+.team-delete-btn{background:none;border:1px solid #fca5a5;border-radius:7px;padding:5px 8px;font-size:12px;cursor:pointer;color:#dc2626;}
+.team-delete-btn:hover{background:#fef2f2;}
+/* Team Edit Form */
+.team-form{border:2px solid var(--accent);border-radius:12px;padding:18px 20px;margin-bottom:12px;background:#f8faff;}
+.feed-row{display:flex;gap:8px;align-items:center;}
+.feed-row .form-input{flex:1;}
+.feed-status{font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap;}
+.feed-status.ok{background:#f0fdf4;color:#15803d;border:1px solid #86efac;}
+.feed-status.err{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;}
+.feed-status.loading{background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;}
+/* Color pickers row */
+.color-pair{display:flex;gap:12px;}
+.color-swatch-wrap{flex:1;display:flex;flex-direction:column;gap:5px;}
+.color-swatch-label{font-size:11.5px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:.05em;}
+.color-swatch{width:100%;height:36px;border-radius:8px;border:2px solid var(--border);cursor:pointer;padding:2px;}
+
+/* ── KALENDER iCal EVENTS ── */
+.kal-ical-event{margin-top:2px;border-radius:3px;font-size:9px;padding:1px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-left:2px solid rgba(0,0,0,.15);}
+.kal-spiel{font-weight:600;font-size:9px;}
+.kal-legend{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 18px;border-top:1px solid var(--border);background:#fafafa;}
+.kal-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--soft);}
+.kal-legend-dot{width:10px;height:10px;border-radius:2px;}
+/* Sync button */
+.ical-sync-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;font-size:11.5px;font-weight:500;background:var(--accent-light);color:var(--accent);border:none;cursor:pointer;transition:all .15s;}
+.ical-sync-btn:hover{background:#dce8ff;}
+.ical-sync-btn.spinning svg{animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── SIDEBAR ── */
+.sidebar{width:210px;min-height:100vh;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;}
+.sidebar-logo{padding:22px 18px 18px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;}
+.logo-icon{width:30px;height:30px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;}
+.logo-text{color:white;font-size:14px;font-weight:600;letter-spacing:-.3px;}
+.logo-sub{color:rgba(255,255,255,.35);font-size:10px;}
+.sidebar-section{padding:14px 10px 6px;}
+.sidebar-label{font-size:9.5px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.25);text-transform:uppercase;padding:0 8px;margin-bottom:4px;}
+.sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;transition:all .15s;}
+.sidebar-item:hover{background:var(--sidebar-hover);color:rgba(255,255,255,.8);}
+.sidebar-item.active{background:rgba(0,87,255,.18);color:white;font-weight:500;}
+
+/* ── MAIN ── */
+.main{margin-left:210px;flex:1;min-height:100vh;display:flex;flex-direction:column;min-width:0;overflow-x:hidden;}
+
+/* ── TOPBAR ── */
+.topbar{background:white;border-bottom:1px solid var(--border);padding:0 28px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:15;}
+.topbar-title{font-size:13.5px;font-weight:500;color:var(--soft);}
+.topbar-title span{color:var(--text);font-weight:600;}
+.topbar-actions{display:flex;gap:8px;align-items:center;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;}
+.btn-primary{background:var(--accent);color:white;}
+.btn-primary:hover{background:#0044cc;}
+.btn-ghost{background:transparent;color:var(--soft);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--bg);color:var(--text);}
+.btn-save{background:#15803d;color:white;}
+.btn-save:hover{background:#166534;}
+
+/* ── CONTENT ── */
+.content{padding:28px;flex:1;width:100%;min-width:0;}
+.content-inner{max-width:820px;width:100%;}
+
+/* ── INFO BANNER ── */
+.info-banner{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:10px;font-size:12.5px;margin-bottom:16px;border:1px solid;}
+.info-banner.green{background:#f0fdf4;color:#15803d;border-color:#86efac;}
+.info-banner.yellow{background:#fffbeb;color:#92400e;border-color:#fde68a;}
+.info-banner.blue{background:#eff6ff;color:#1d4ed8;border-color:#93c5fd;}
+.info-banner-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+.info-banner-text{flex:1;line-height:1.5;}
+.info-banner-text strong{font-weight:600;}
+.info-banner-close{cursor:pointer;color:inherit;opacity:.5;font-size:16px;padding:0 4px;flex-shrink:0;}
+.info-banner-close:hover{opacity:1;}
+
+/* ── SESSION HEADER ── */
+.session-header{background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);padding:22px 26px 0;margin-bottom:16px;width:100%;}
+.session-meta-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.team-badge{width:30px;height:30px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:white;font-weight:700;flex-shrink:0;}
+.session-datetime{font-size:12.5px;color:var(--soft);}
+.session-title{font-size:24px;font-weight:700;letter-spacing:-.5px;color:var(--text);outline:none;border-bottom:1.5px dashed transparent;transition:border-color .15s;padding-bottom:1px;}
+.session-title:hover,.session-title:focus{border-bottom-color:#d1d5db;}
+.session-group{font-size:13px;color:var(--soft);margin:3px 0 14px;}
+.session-info-row{display:flex;gap:18px;flex-wrap:wrap;align-items:center;}
+.session-info-item{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--soft);}
+.session-info-item strong{color:var(--text);font-weight:600;}
+.focus-tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600;background:var(--accent-light);color:var(--accent);}
+.tabs{display:flex;border-top:1px solid var(--border);margin-top:14px;}
+.tab{padding:11px 14px;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--xsoft);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* ── PLAN CARD ── */
+.plan-card{background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;width:100%;}
+.phase-separator{display:flex;align-items:center;gap:10px;padding:10px 22px;background:#f7f8fa;border-bottom:1px solid var(--border);}
+.phase-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.phase-name{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);}
+.phase-dur{margin-left:auto;font-family:'DM Mono',monospace;font-size:10.5px;color:var(--xsoft);}
+.cat-separator{display:flex;align-items:center;gap:10px;padding:7px 22px 7px 32px;background:#fafafa;border-bottom:1px solid var(--border);}
+.cat-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.cat-name{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;}
+.cat-dur{margin-left:auto;font-family:'DM Mono',monospace;font-size:10px;color:var(--xsoft);}
+
+/* ── DRILL ROW ── */
+.drill-row{display:flex;align-items:center;padding:14px 22px;border-bottom:1px solid var(--border);gap:14px;transition:background .1s;position:relative;}
+.drill-row:hover{background:#f8f9ff;}
+.drill-row.dragging{opacity:.4;}
+.drill-row.drag-over{border-top:2px solid var(--accent);}
+.drag-handle{color:var(--xsoft);font-size:13px;cursor:grab;opacity:0;transition:opacity .15s;flex-shrink:0;}
+.drill-row:hover .drag-handle{opacity:1;}
+.drill-time{font-family:'DM Mono',monospace;font-size:12px;color:var(--xsoft);width:40px;flex-shrink:0;}
+.drill-info{flex:1;min-width:0;cursor:pointer;}
+.drill-name{font-size:14px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.drill-sub{font-size:11.5px;color:var(--soft);margin-top:1px;}
+.drill-players{font-size:12px;color:var(--xsoft);flex-shrink:0;white-space:nowrap;}
+.drill-img-thumb{width:36px;height:36px;border-radius:6px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;}
+.drill-dur{text-align:right;flex-shrink:0;width:46px;}
+.dur-num{font-size:20px;font-weight:700;color:var(--text);line-height:1;font-family:'DM Mono',monospace;}
+.dur-lbl{font-size:9.5px;font-weight:700;letter-spacing:.05em;color:var(--xsoft);text-transform:uppercase;}
+.row-actions{display:flex;gap:4px;opacity:0;transition:opacity .15s;flex-shrink:0;}
+.drill-row:hover .row-actions{opacity:1;}
+.action-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--soft);transition:all .15s;}
+.action-btn.edit:hover{background:#e6eeff;border-color:var(--accent);color:var(--accent);}
+.action-btn.del:hover{background:#fee2e2;border-color:#fca5a5;color:#dc2626;}
+
+/* ── NOTES & TOTAL ── */
+.notes-area{padding:12px 22px;background:#fffbf0;border-top:1px solid #fde68a;}
+.notes-ta{width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;color:#92400e;resize:none;outline:none;min-height:34px;}
+.notes-ta::placeholder{color:#d97706;}
+.total-bar{display:flex;align-items:center;justify-content:space-between;padding:13px 22px;background:var(--sidebar);}
+.total-lbl{font-size:11px;font-weight:600;color:rgba(255,255,255,.4);letter-spacing:.06em;text-transform:uppercase;}
+.total-val{font-family:'DM Mono',monospace;font-size:19px;font-weight:500;color:white;}
+
+/* ── EMPTY ── */
+.empty-state{padding:48px 24px;text-align:center;color:var(--xsoft);}
+.empty-icon{font-size:36px;margin-bottom:10px;}
+.empty-text{font-size:14px;line-height:1.6;}
+
+/* ── MODALS ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(5px);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:white;border-radius:16px;box-shadow:var(--shadow-lg);width:100%;max-height:88vh;overflow-y:auto;transform:translateY(14px);transition:transform .2s;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-sm{max-width:580px;}
+.modal-lg{max-width:700px;}
+.modal-header{padding:22px 26px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;position:sticky;top:0;background:white;z-index:2;}
+.modal-title{font-size:18px;font-weight:700;letter-spacing:-.3px;}
+.modal-subtitle{font-size:12px;color:var(--soft);margin-top:2px;}
+.modal-close{width:30px;height:30px;border-radius:50%;background:var(--bg);border:none;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--soft);flex-shrink:0;transition:background .15s;}
+.modal-close:hover{background:var(--border);}
+.modal-body{padding:22px 26px;}
+.modal-footer{padding:14px 26px 20px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);}
+
+/* ── DETAIL ── */
+.detail-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+.meta-pill{display:flex;align-items:center;gap:5px;padding:5px 12px;background:var(--bg);border-radius:8px;font-size:12.5px;color:var(--soft);border:1px solid var(--border);}
+.section-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--xsoft);margin-bottom:7px;}
+.section-body{font-size:13.5px;color:var(--text);line-height:1.7;margin-bottom:20px;white-space:pre-wrap;}
+.tags-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;}
+.tag{padding:4px 11px;border-radius:20px;font-size:12px;font-weight:500;}
+.tag-accent{background:var(--accent-light);color:var(--accent);}
+
+/* ── BILDER ── */
+.img-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:10px;}
+.img-thumb{position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--bg);}
+.img-thumb img{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer;transition:opacity .15s;}
+.img-thumb img:hover{opacity:.85;}
+.img-thumb-del{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.55);border:none;color:white;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;}
+.img-thumb:hover .img-thumb-del{opacity:1;}
+.img-upload-zone{border:2px dashed var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;transition:all .15s;background:var(--bg);}
+.img-upload-zone:hover,.img-upload-zone.drag-active{border-color:var(--accent);background:var(--accent-light);}
+.img-upload-zone input[type=file]{display:none;}
+.img-upload-label{font-size:12.5px;color:var(--soft);cursor:pointer;}
+.img-upload-label span{color:var(--accent);font-weight:600;}
+
+/* ── YOUTUBE ── */
+.yt-wrap{border-radius:8px;overflow:hidden;border:1px solid var(--border);margin-bottom:12px;background:#000;}
+.yt-wrap iframe{width:100%;aspect-ratio:16/9;display:block;border:none;}
+
+/* ── LIGHTBOX ── */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:999;display:none;align-items:center;justify-content:center;padding:20px;}
+.lightbox.open{display:flex;}
+.lightbox img{max-width:90vw;max-height:88vh;border-radius:8px;object-fit:contain;}
+.lb-close{position:absolute;top:16px;right:20px;background:none;border:none;color:white;font-size:28px;cursor:pointer;opacity:.7;}
+.lb-close:hover{opacity:1;}
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.1);border:none;color:white;font-size:24px;cursor:pointer;padding:12px 16px;border-radius:8px;transition:background .15s;}
+.lb-nav:hover{background:rgba(255,255,255,.2);}
+.lb-prev{left:16px;}
+.lb-next{right:16px;}
+.lb-counter{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.6);font-size:13px;font-family:'DM Mono',monospace;}
+
+/* ── FORM ── */
+.form-group{margin-bottom:14px;}
+.form-label{font-size:11.5px;font-weight:600;color:var(--soft);margin-bottom:5px;display:block;letter-spacing:.02em;}
+.form-input,.form-select,.form-textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13.5px;font-family:'DM Sans',sans-serif;color:var(--text);background:white;outline:none;transition:border-color .15s,box-shadow .15s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,87,255,.08);}
+.form-textarea{resize:vertical;min-height:72px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-divider{border:none;border-top:1px solid var(--border);margin:8px 0 16px;}
+.form-error{border-color:#ef4444!important;}
+.form-hint{font-size:11px;color:var(--xsoft);margin-top:4px;}
+
+/* ── DB PANEL ── */
+.db-panel{position:fixed;top:0;right:-460px;width:440px;height:100vh;background:white;box-shadow:-4px 0 24px rgba(0,0,0,.1);z-index:50;transition:right .25s ease;display:flex;flex-direction:column;border-left:1px solid var(--border);}
+.db-panel.open{right:0;}
+.db-header{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.db-title{font-size:15px;font-weight:700;}
+.db-search{padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.db-search-input{width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;}
+.db-search-input:focus{border-color:var(--accent);}
+
+/* Filter bar */
+.db-filters{padding:8px 14px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;}
+.filter-chip{padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:500;cursor:pointer;border:1.5px solid var(--border);background:white;color:var(--soft);transition:all .15s;white-space:nowrap;}
+.filter-chip:hover{border-color:var(--accent);color:var(--accent);}
+.filter-chip.active{border-color:transparent;color:white;}
+
+/* DB Stats */
+.db-stats{padding:6px 14px;background:var(--bg);border-bottom:1px solid var(--border);font-size:11.5px;color:var(--xsoft);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;}
+
+.db-list{flex:1;overflow-y:auto;}
+.db-overlay{position:fixed;inset:0;z-index:49;display:none;}
+.db-overlay.open{display:block;}
+.db-phase-header{padding:9px 14px 4px;display:flex;align-items:center;gap:8px;background:var(--bg);border-bottom:1px solid var(--border);border-top:1px solid var(--border);}
+.db-phase-dot{width:8px;height:8px;border-radius:50%;}
+.db-phase-lbl{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;}
+.db-phase-count{margin-left:auto;font-size:10.5px;color:var(--xsoft);font-family:'DM Mono',monospace;}
+.db-cat-header{padding:6px 14px 5px 26px;background:#fafafa;border-bottom:1px solid var(--border);}
+.db-cat-lbl{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;}
+.db-item{padding:10px 14px 10px 26px;border-bottom:1px solid var(--border);transition:background .1s;display:flex;align-items:center;gap:10px;}
+.db-item:hover{background:#f8f9ff;}
+.db-item-body{flex:1;min-width:0;cursor:pointer;}
+.db-item-name{font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.db-item-meta{font-size:11px;color:var(--soft);}
+.db-item-thumb{width:34px;height:34px;border-radius:6px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;}
+.db-item-actions{display:flex;gap:3px;flex-shrink:0;opacity:0;transition:opacity .15s;}
+.db-item:hover .db-item-actions{opacity:1;}
+.db-action-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--soft);transition:all .15s;}
+.db-action-btn.add:hover{background:var(--accent);border-color:var(--accent);color:white;}
+.db-action-btn.edit:hover{background:#e6eeff;border-color:var(--accent);color:var(--accent);}
+.db-action-btn.del:hover{background:#fee2e2;border-color:#fca5a5;color:#dc2626;}
+.db-empty{padding:32px 16px;text-align:center;color:var(--xsoft);font-size:13px;line-height:1.6;}
+
+/* PDF Import */
+.pdf-import-zone{margin:10px 14px;border:2px dashed var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;transition:all .15s;background:var(--bg);}
+.pdf-import-zone:hover{border-color:#dc2626;background:#fff5f5;}
+.pdf-import-zone.drag-active{border-color:#dc2626;background:#fff5f5;}
+.pdf-import-label{font-size:12.5px;color:var(--soft);}
+.pdf-import-label span{color:#dc2626;font-weight:600;}
+
+/* PDF Progress */
+.pdf-progress{margin:0 14px 10px;padding:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12.5px;color:#92400e;display:none;}
+.pdf-progress.show{display:block;}
+.progress-bar-wrap{height:6px;background:#fde68a;border-radius:3px;margin-top:8px;overflow:hidden;}
+.progress-bar{height:100%;background:#f59e0b;border-radius:3px;transition:width .3s;}
+
+/* ── ADMIN PANEL ── */
+.admin-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:flex-start;justify-content:flex-end;}
+.admin-panel{background:white;width:100%;max-width:780px;height:100vh;overflow-y:auto;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;}
+.admin-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:2;}
+.admin-title{font-size:18px;font-weight:700;}
+.admin-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--bg);padding:0 24px;}
+.admin-tab{padding:12px 18px;font-size:12.5px;font-weight:600;color:var(--xsoft);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.admin-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:white;}
+.admin-body{padding:24px;flex:1;}
+
+/* User table */
+.user-table{width:100%;border-collapse:collapse;}
+.user-table th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--xsoft);padding:8px 12px;border-bottom:2px solid var(--border);}
+.user-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+.user-table tr:hover td{background:#f8f9ff;}
+.role-badge{display:inline-flex;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.role-admin{background:#fef3c7;color:#d97706;}
+.role-manager{background:#dbeafe;color:#1d4ed8;}
+.role-trainer{background:#f0fdf4;color:#15803d;}
+.aktiv-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.aktiv-ja{background:#dcfce7;color:#15803d;}
+.aktiv-nein{background:#fee2e2;color:#dc2626;}
+
+/* Freigabe items */
+.freigabe-item{background:white;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px;}
+.freigabe-item.vorgeschlagen{border-left:4px solid #f59e0b;}
+.freigabe-item.freigegeben{border-left:4px solid #10b981;}
+.freigabe-item.abgelehnt{border-left:4px solid #ef4444;opacity:.7;}
+.freigabe-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.freigabe-name{font-size:15px;font-weight:600;flex:1;}
+.freigabe-meta{font-size:12px;color:var(--soft);margin-bottom:10px;}
+.freigabe-actions{display:flex;gap:6px;}
+.btn-approve{background:#dcfce7;color:#15803d;border:none;padding:6px 14px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.btn-approve:hover{background:#bbf7d0;}
+.btn-reject{background:#fee2e2;color:#dc2626;border:none;padding:6px 14px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.btn-reject:hover{background:#fecaca;}
+
+/* Kategorie-Verwaltung */
+.kat-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
+.kat-color{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.kat-label{flex:1;font-size:13.5px;font-weight:500;}
+.kat-phase{font-size:11px;color:var(--xsoft);font-family:'DM Mono',monospace;}
+
+/* Geteilte DB Tab im DB Panel */
+.db-tab-row{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+.db-tab{flex:1;padding:9px;text-align:center;font-size:12px;font-weight:600;color:var(--xsoft);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.db-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.vorgeschlagen-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:#fef3c7;color:#d97706;}
+
+/* Pending indicator */
+.pending-dot{width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;margin-left:4px;animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ── UTILITIES ── */
+.hide-mobile { display: inline-flex; }
+.show-mobile { display: none; }
+
+/* ── DEBUG PANEL ── */
+#debug-panel{position:fixed;bottom:70px;left:0;right:0;z-index:999;background:rgba(0,0,0,0.92);color:#0f0;font-family:monospace;font-size:11px;max-height:40vh;overflow-y:auto;padding:8px;display:none;border-top:2px solid #0f0;}
+#debug-panel.open{display:block;}
+.debug-line{padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.1);word-break:break-all;}
+.debug-line.err{color:#f55;}
+.debug-line.ok{color:#0f0;}
+.debug-line.info{color:#ff0;}
+#debug-toggle{position:fixed;bottom:70px;right:0;z-index:1000;background:#333;color:#0f0;border:none;font-size:10px;padding:4px 6px;cursor:pointer;font-family:monospace;border-radius:4px 0 0 4px;}
+
+/* ── SAVE TOAST ── */
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);z-index:200;display:flex;align-items:center;gap:8px;transform:translateY(80px);opacity:0;transition:all .3s ease;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{background:#15803d;color:white;}
+.toast.info{background:var(--sidebar);color:white;}
+
+/* ── AUTH SCREEN ── */
+.auth-screen{position:fixed;inset:0;background:var(--sidebar);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;}
+.auth-card{background:white;border-radius:20px;padding:40px;max-width:400px;width:100%;box-shadow:var(--shadow-lg);}
+.auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
+.auth-logo-icon{width:44px;height:44px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:white;}
+.auth-title{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+.auth-sub{font-size:13px;color:var(--soft);margin-top:2px;}
+.auth-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;color:var(--xsoft);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.auth-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.auth-error{padding:10px 14px;background:#fee2e2;border-radius:8px;font-size:13px;color:#dc2626;margin-bottom:14px;display:none;}
+.auth-error.show{display:block;}
+
+/* ── STATUS BAR ── */
+.status-bar{display:flex;align-items:center;gap:10px;padding:7px 14px;border-radius:9px;font-size:12.5px;margin-bottom:14px;border:1px solid;background:#f0fdf4;color:#15803d;border-color:#86efac;}
+.status-bar.saving{background:#eff6ff;color:#1d4ed8;border-color:#93c5fd;}
+.status-bar.error{background:#fee2e2;color:#dc2626;border-color:#fca5a5;}
+.status-dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0;}
+
+/* ══════════════════════════════════════
+   RESPONSIVE – viewport-adaptive
+══════════════════════════════════════ */
+
+/* TABLET (≤ 860px) */
+@media (max-width: 860px) {
+  .sidebar { width: 170px; }
+  .main { margin-left: 170px; }
+  .topbar { padding: 0 16px; }
+  .content { padding: 18px; }
+  .form-row { grid-template-columns: 1fr; }
+  .modal-sm,.modal-lg { max-width: 96vw; }
+  .db-panel { width: 340px; }
+  .session-title { font-size: 21px; }
+}
+
+/* MOBILE (≤ 600px) */
+@media (max-width: 600px) {
+
+  /* Bottom Navigation */
+  .sidebar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0; top: auto;
+    width: 100%; min-height: 58px; height: auto;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 0 0 env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    z-index: 100;
+    overflow: hidden;
+  }
+  .sidebar-logo { display: none !important; }
+  .sidebar > div:last-child { display: none !important; }
+  .sidebar-section { display: contents; }
+  .sidebar-label { display: none !important; }
+  .sidebar-item {
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 7px 3px 9px;
+    border-radius: 0;
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+    text-align: center;
+    min-width: 0;
+    transition: all .15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+  }
+  .sidebar-item span:first-child { font-size: 19px; line-height: 1.2; }
+  .sidebar-item.active {
+    color: white;
+    background: rgba(0,87,255,0.25);
+    border-top: 2px solid #0057ff;
+  }
+  /* Mobile: only show 4 nav items + Mehr */
+  #nav-geteilt,#nav-taktik,#nav-board { display: none !important; }
+  #admin-nav { display: none !important; }
+
+  /* Mehr-Menü */
+  #nav-mehr { display: flex !important; }
+  #mehr-menu.open { display: block; }
+
+  /* Main */
+  .main {
+    margin-left: 0;
+    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Topbar */
+  .topbar { padding: 0 12px; height: 50px; gap: 4px; }
+  .topbar-title { font-size: 12.5px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar-actions { gap: 4px; }
+  .topbar-actions .btn { padding: 6px 9px; font-size: 11px; }
+  .topbar-actions .btn-ghost:not(#admin-btn) { display: none; }
+  #topbar-user { display: none; }
+  #admin-btn { display: flex !important; font-size: 11px; padding: 5px 8px; }
+
+  /* Content */
+  .content { padding: 10px; }
+  .content-inner { max-width: 100%; }
+
+  /* Status bar */
+  .status-bar { font-size: 11px; padding: 6px 10px; margin-bottom: 8px; border-radius: 8px; }
+
+  /* Session header */
+  .session-header { padding: 14px 14px 0; border-radius: 10px; margin-bottom: 10px; }
+  .team-badge { width: 26px; height: 26px; font-size: 10px; }
+  .session-datetime { font-size: 11px; }
+  .session-title { font-size: clamp(17px, 5.5vw, 22px); letter-spacing: -.3px; }
+  .session-group { font-size: 12px; margin-bottom: 8px; }
+  .session-info-row { gap: 10px; }
+  .session-info-item { font-size: 11.5px; }
+  .tab { padding: 9px 11px; font-size: 10.5px; letter-spacing: 0; }
+  .session-edit-btn { top: 12px; right: 12px; width: 27px; height: 27px; font-size: 12px; }
+
+  /* Plan */
+  .plan-card { border-radius: 10px; }
+  .phase-separator { padding: 8px 12px; }
+  .phase-name { font-size: 10px; }
+  .phase-dur { font-size: 10px; }
+  .cat-separator { padding: 5px 12px 5px 20px; }
+  .cat-name,.cat-dur { font-size: 9.5px; }
+
+  /* Drill rows */
+  .drill-row { padding: 11px 12px; gap: 8px; }
+  .drag-handle,.drill-time,.drill-players { display: none; }
+  .drill-name { font-size: 13px; }
+  .drill-sub { font-size: 10.5px; }
+  .drill-img-thumb { width: 28px; height: 28px; }
+  .dur-num { font-size: 16px; }
+  .dur-lbl { font-size: 8px; }
+  .row-actions { opacity: 1; gap: 3px; }
+  .action-btn { width: 27px; height: 27px; font-size: 12px; }
+
+  /* Notes */
+  .notes-area { padding: 10px 12px; }
+  .total-bar { padding: 11px 12px; }
+  .total-val { font-size: 16px; }
+  .total-lbl { font-size: 10px; }
+
+  /* FAB */
+  #fab-add {
+    display: flex !important;
+    width: 50px; height: 50px; font-size: 22px;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    right: 14px;
+  }
+
+  /* Modals as bottom sheet */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal { border-radius: 20px 20px 0 0; max-height: 90vh; width: 100%; }
+  .modal-sm,.modal-lg { max-width: 100%; }
+  .modal-header { padding: 16px 16px 12px; }
+  .modal-title { font-size: 15px; }
+  .modal-body { padding: 12px 16px; }
+  .modal-footer { padding: 10px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .form-row { grid-template-columns: 1fr; gap: 0; }
+  .form-group { margin-bottom: 10px; }
+  .form-label { font-size: 11px; margin-bottom: 4px; }
+  .form-input,.form-select,.form-textarea { font-size: 13px; padding: 8px 10px; }
+
+  /* Session fields hidden by default on mobile */
+  #session-fields > .form-row,
+  #session-fields > hr.form-divider { display: none; }
+
+  /* DB Panel fullscreen */
+  .db-panel { width: 100%; right: -100%; border-radius: 0; }
+  .db-panel.open { right: 0; }
+  .db-header { padding: 12px 14px; }
+  .db-title { font-size: 13.5px; }
+  .db-tab { font-size: 11.5px; padding: 9px 12px; }
+  .db-search { padding: 8px 12px; }
+  .db-filters { padding: 6px 12px; gap: 4px; }
+  .filter-chip { font-size: 10.5px; padding: 3px 8px; }
+  .db-stats { padding: 5px 12px; font-size: 11px; }
+  .db-item { padding: 9px 12px 9px 22px; }
+  .db-item-name { font-size: 12.5px; }
+  .db-item-meta { font-size: 10.5px; }
+
+  /* Admin panel as bottom sheet */
+  .admin-overlay { align-items: flex-end; }
+  .admin-panel { max-width: 100%; height: 90vh; border-radius: 20px 20px 0 0; }
+  .admin-header { padding: 14px 16px; }
+  .admin-title { font-size: 15px; }
+  .admin-tabs { padding: 0 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0; }
+  .admin-tab { font-size: 11px; padding: 9px 10px; white-space: nowrap; }
+  .admin-body { padding: 12px; }
+  .user-table th { font-size: 9px; padding: 5px 6px; }
+  .user-table td { padding: 7px 6px; font-size: 11px; }
+  .freigabe-item { padding: 12px; margin-bottom: 8px; }
+  .freigabe-name { font-size: 13px; }
+  .freigabe-meta { font-size: 11px; }
+  .freigabe-actions { flex-wrap: wrap; gap: 5px; }
+  .btn-approve,.btn-reject { font-size: 12px; padding: 6px 12px; }
+
+  /* Auth as bottom sheet */
+  .auth-screen { padding: 0; align-items: flex-end; background: rgba(14,20,32,0.9); }
+  .auth-card {
+    border-radius: 20px 20px 0 0;
+    padding: 22px 18px calc(24px + env(safe-area-inset-bottom, 0px));
+    max-width: 100%; width: 100%;
+    max-height: 92vh; overflow-y: auto;
+  }
+  .auth-logo { margin-bottom: 16px; }
+  .auth-logo-icon { width: 36px; height: 36px; font-size: 16px; }
+  .auth-title { font-size: 18px; }
+  .auth-sub { font-size: 11.5px; }
+  .auth-tabs { margin-bottom: 14px; }
+  .auth-tab { font-size: 12.5px; padding: 9px; }
+
+  .empty-icon { font-size: 28px; margin-bottom: 6px; }
+  .empty-text { font-size: 12.5px; }
+}
+
+
+/* ── PRINT ── */
+@media print{
+  .sidebar,.topbar,.topbar-actions,.row-actions,.drag-handle,
+  .db-panel,.db-overlay,.modal-overlay,.btn,.info-banner{display:none!important;}
+  .main{margin-left:0;}
+  body{background:white;}
+  .content{padding:0;}
+  .session-header,.plan-card{box-shadow:none;border:1px solid #ddd;border-radius:4px;}
+  .drill-row{break-inside:avoid;}
+  .total-bar{background:#141820!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+/* Mehr-Menü Popup */
+@media (max-width: 600px) {
+  #mehr-menu {
+    position: fixed;
+    bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+    right: 10px;
+    background: var(--sidebar);
+    border-radius: 14px;
+    box-shadow: 0 -4px 30px rgba(0,0,0,0.5);
+    z-index: 102;
+    min-width: 210px;
+    overflow: hidden;
+    display: none;
+  }
+  #mehr-menu.open { display: block; }
+  .mehr-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    color: rgba(255,255,255,0.8);
+    font-size: 14px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .mehr-item:hover { background: var(--sidebar-hover); }
+  .mehr-item:last-child { border-bottom: none; }
+  .mehr-item span { font-size: 17px; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">HB</div>
+      <div>
+        <div class="auth-title">Handball Trainer</div>
+        <div class="auth-sub">Trainingsmanager</div>
+      </div>
+    </div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login" onclick="switchAuthTab('login');document.getElementById('auth-extra-fields').style.display='none'">Anmelden</div>
+      <div class="auth-tab" id="tab-register" onclick="switchAuthTab('register');document.getElementById('auth-extra-fields').style.display=''">Registrieren</div>
+    </div>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="form-group">
+      <label class="form-label">E-Mail</label>
+      <input class="form-input" id="auth-email" type="email" placeholder="trainer@beispiel.de" onkeydown="if(event.key==='Enter')authSubmit()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Passwort</label>
+      <input class="form-input" id="auth-password" type="password" placeholder="Mindestens 6 Zeichen" onkeydown="if(event.key==='Enter')authSubmit()">
+    </div>
+    <!-- Nur bei Registrierung -->
+    <div id="auth-extra-fields" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input class="form-input" id="auth-name" placeholder="Vor- und Nachname">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Verein *</label>
+        <input class="form-input" id="auth-verein" placeholder="z.B. HT Norderstedt">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mannschaft *</label>
+        <input class="form-input" id="auth-mannschaft" placeholder="z.B. 1. Damen">
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:14px;margin-top:6px;" id="auth-btn" onclick="authSubmit()">
+      Anmelden
+    </button>
+    <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--xsoft);">
+      Deine Daten sind privat und nur für dich sichtbar.
+    </div>
+    <div id="auth-debug" style="display:none;margin-top:12px;padding:10px;background:#f0f2f5;border-radius:8px;font-size:11px;font-family:monospace;color:#374151;line-height:1.6;max-height:120px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">HB</div>
+    <div><div class="logo-text">Handball</div><div class="logo-sub">Trainingsmanager</div></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Arbeitsbereich</div>
+    <div class="sidebar-item" id="nav-kalender" onclick="showView('kalender')"><span>📅</span> Kalender</div>
+    <div class="sidebar-item active" id="nav-planer" onclick="showView('planer')"><span>📋</span> Trainingsplaner</div>
+    <div class="sidebar-item" id="nav-mannschaften" onclick="openMannschaftenModal()"><span>👥</span> Mannschaften</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Library</div>
+    <div class="sidebar-item" id="nav-uebungen" onclick="openDB()"><span>🗂</span> Übungsdatenbank</div>
+    <div class="sidebar-item" id="nav-geteilt" onclick="openDB('geteilt')"><span>🌐</span> Geteilte DB</div>
+    <div class="sidebar-item" id="nav-taktik"><span>♟</span> Taktikdatenbank</div>
+    <div class="sidebar-item" id="nav-board"><span>🖊</span> Taktikboard</div>
+  </div>
+  <div class="sidebar-section" id="admin-nav" style="display:none">
+    <div class="sidebar-label">Administration</div>
+    <div class="sidebar-item" onclick="openAdmin('nutzer')"><span>👥</span> Nutzerverwaltung</div>
+    <div class="sidebar-item" onclick="openAdmin('freigabe')"><span>✅</span> Freigaben <span id="pending-count"></span></div>
+    <div class="sidebar-item" onclick="openAdmin('kategorien')"><span>🏷</span> Kategorien</div>
+  </div>
+  <!-- Mobile: Mehr Button -->
+  <div id="nav-mehr" style="display:none;" onclick="toggleMehrMenu()">
+    <span>☰</span>
+    <span>Mehr</span>
+  </div>
+  <div style="margin-top:auto;padding:16px 10px;border-top:1px solid rgba(255,255,255,.06);">
+    <div style="font-size:10px;color:rgba(255,255,255,.25);padding:0 8px;margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Ordner</div>
+    <div style="font-size:11px;color:rgba(255,255,255,.35);padding:6px 10px;line-height:1.6;">
+      📁 Handball Trainer/<br>
+      &nbsp;&nbsp;📄 uebungsdatenbank.json<br>
+      &nbsp;&nbsp;📁 Bilder/
+    </div>
+  </div>
+</nav>
+
+<!-- Mehr-Menü (mobile only) -->
+<div id="mehr-menu" onclick="event.stopPropagation()">
+  <div class="mehr-item" onclick="closeMehrMenu();openDB('geteilt')"><span>🌐</span> Geteilte DB</div>
+  <div class="mehr-item" id="mehr-admin" style="display:none" onclick="closeMehrMenu();openAdmin('nutzer')"><span>⚙️</span> Admin-Panel</div>
+  <div class="mehr-item" onclick="closeMehrMenu();window.print()"><span>🖨</span> Drucken</div>
+  <div class="mehr-item" onclick="closeMehrMenu();resetSession()"><span>↺</span> Zurücksetzen</div>
+  <div class="mehr-item" onclick="closeMehrMenu();signOut()" style="border-top:1px solid rgba(255,255,255,0.1);color:rgba(255,100,100,0.8)"><span>⏻</span> Abmelden</div>
+</div>
+<div id="mehr-overlay" onclick="closeMehrMenu()" style="position:fixed;inset:0;z-index:100;display:none;background:rgba(0,0,0,0.3);"></div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">Trainingsplaner / <span id="topbar-name">Neue Einheit</span></div>
+    <div class="topbar-actions">
+      <span id="topbar-user" style="font-size:12px;color:var(--xsoft);"></span>
+      <button class="btn btn-ghost hide-mobile" onclick="openDB()">🗂 Übungen</button>
+      <button class="btn btn-ghost hide-mobile" onclick="window.print()">🖨 Drucken</button>
+      <button class="btn btn-ghost hide-mobile" onclick="resetSession()">↺ Zurücksetzen</button>
+      <button class="btn btn-ghost hide-mobile" id="admin-btn" onclick="openAdmin('nutzer')" style="display:none;">⚙️ Admin</button>
+      <button class="btn btn-primary hide-mobile" onclick="openAddModal(-1)">+ Übung hinzufügen</button>
+      <button class="btn btn-save" id="save-btn" onclick="saveAll()">💾</button>
+      <button class="btn btn-ghost" id="admin-btn-mobile" onclick="openAdmin('nutzer')" style="display:none;" title="Admin">⚙️</button>
+      <button class="btn btn-ghost" id="logout-btn" onclick="signOut()" title="Abmelden" style="display:flex!important;">⏻</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="content-inner">
+
+      <!-- Status Bar -->
+      <div class="status-bar" id="status-bar">
+        <div class="status-dot"></div>
+        <span id="status-text">Verbunden mit Supabase</span>
+      </div>
+
+
+
+      <!-- Session Header -->
+      <div class="session-header" onclick="openSessionEdit()" style="cursor:pointer;position:relative;" title="Einheit bearbeiten">
+        <button class="session-edit-btn" onclick="event.stopPropagation();openSessionEdit()" title="Einheit bearbeiten">✏</button>
+        <div class="session-meta-top">
+          <div class="team-badge" id="team-badge">M</div>
+          <div class="session-datetime" id="s-datetime" style="font-size:12px;color:var(--soft);">Datum & Uhrzeit einstellen →</div>
+        </div>
+        <div class="session-title" id="s-title">Trainingseinheit</div>
+        <div class="session-group" id="s-group">Gruppe: –</div>
+        <div class="session-info-row">
+          <div class="session-info-item">📍 <span id="s-ort">–</span></div>
+          <div class="session-info-item">⏱ <strong id="s-total">0 Min</strong></div>
+          <div class="session-info-item"><span class="focus-tag" id="s-focus" style="display:none"></span></div>
+        </div>
+        <div class="tabs" onclick="event.stopPropagation()">
+          <div class="tab active">Planung</div>
+          <div class="tab">Anwesenheit</div>
+        </div>
+      </div>
+
+      <!-- Kalender View -->
+      <div id="kalender-view" style="display:none;">
+        <div style="background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;">
+          <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:18px;font-weight:700;letter-spacing:-.3px;" id="kal-monat">April 2026</div>
+              <div style="font-size:12px;color:var(--soft);margin-top:2px;" id="kal-subtitle">Trainingseinheiten</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button class="ical-sync-btn" id="ical-sync-btn" onclick="refreshAllFeeds()" title="Feeds aktualisieren">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10"/><path d="M20.49 15a9 9 0 01-14.85 3.36L1 14"/></svg>
+                Feeds sync
+              </button>
+              <button class="btn btn-ghost" style="padding:6px 10px;" onclick="kalNav(-1)">‹</button>
+              <button class="btn btn-ghost" style="padding:6px 10px;" onclick="kalNav(1)">›</button>
+              <button class="btn btn-primary" style="font-size:12px;" onclick="showView('planer')">+ Neue Einheit</button>
+            </div>
+          </div>
+          <!-- Wochentage -->
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);background:var(--bg);border-bottom:1px solid var(--border);">
+            <div style="padding:8px 4px;text-align:center;font-size:10.5px;font-weight:700;color:var(--xsoft);">Mo</div>
+            <div style="padding:8px 4px;text-align:center;font-size:10.5px;font-weight:700;color:var(--xsoft);">Di</div>
+            <div style="padding:8px 4px;text-align:center;font-size:10.5px;font-weight:700;color:var(--xsoft);">Mi</div>
+            <div style="padding:8px 4px;text-align:center;font-size:10.5px;font-weight:700;color:var(--xsoft);">Do</div>
+            <div style="padding:8px 4px;text-align:center;font-size:10.5px;font-weight:700;color:var(--xsoft);">Fr</div>
+            <div style="padding:8px 4px;text-align:center;font-size:10.5px;font-weight:700;color:var(--xsoft);">Sa</div>
+            <div style="padding:8px 4px;text-align:center;font-size:10.5px;font-weight:700;color:#ef4444;">So</div>
+          </div>
+          <!-- Kalender Grid -->
+          <div id="kal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);"></div>
+          <!-- Legende -->
+          <div class="kal-legend" id="kal-legend" style="display:none;">
+            <span style="font-size:10.5px;font-weight:700;color:var(--xsoft);text-transform:uppercase;letter-spacing:.06em;margin-right:4px;">Legende:</span>
+            <div id="kal-legend-items" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
+          </div>
+        </div>
+        <!-- Einheiten dieser Woche/Monat -->
+        <div style="margin-top:14px;background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;">📋 Einheiten dieses Monats</div>
+          <div id="kal-einheiten" style="padding:8px 0;">
+            <div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Noch keine Einheiten geplant.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Plan Card -->
+      <div class="plan-card" id="plan-card">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">📋</div>
+          <div class="empty-text">Noch keine Übungen geplant.<br>Klicke auf <strong>+ Übung hinzufügen</strong> oder öffne die <strong>Übungsdatenbank</strong>.</div>
+        </div>
+      </div>
+
+      <!-- Mobile FAB -->
+      <button onclick="openAddModal(-1)" style="
+        display:none;
+        position:fixed;bottom:72px;right:16px;
+        width:52px;height:52px;border-radius:50%;
+        background:var(--accent);color:white;border:none;
+        font-size:24px;cursor:pointer;
+        box-shadow:0 4px 16px rgba(0,87,255,.4);
+        z-index:25;align-items:center;justify-content:center;
+      " id="fab-add">+</button>
+
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox">
+  <button class="lb-close" onclick="closeLightbox()">✕</button>
+  <button class="lb-nav lb-prev" onclick="lbNav(-1)">‹</button>
+  <img id="lb-img" src="" alt="">
+  <button class="lb-nav lb-next" onclick="lbNav(1)">›</button>
+  <div class="lb-counter" id="lb-counter"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SESSION EDIT MODAL -->
+<div class="modal-overlay" id="session-edit-modal" onclick="if(event.target.id==='session-edit-modal')closeSessionEdit()">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">📋 Einheit bearbeiten</div>
+        <div class="modal-subtitle">Allgemeine Informationen zur Trainingseinheit</div>
+      </div>
+      <button class="modal-close" onclick="closeSessionEdit()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Einheitsname</label>
+        <input class="form-input" id="se-name" placeholder="z.B. Norderstedt Training">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Datum</label>
+          <input class="form-input" id="se-date" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Startzeit</label>
+          <input class="form-input" id="se-time" type="time">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Gruppe / Mannschaft</label>
+          <input class="form-input" id="se-group" placeholder="z.B. 1. Damen">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ort</label>
+          <input class="form-input" id="se-ort" placeholder="z.B. Schulzentrum Süd">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Schwerpunkt der Einheit</label>
+        <input class="form-input" id="se-focus" placeholder="z.B. 6:0 Abwehrpressing">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Trainer-Notizen</label>
+        <textarea class="form-textarea" id="se-notes" placeholder="Interne Notizen zur Einheit…" style="min-height:60px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeSessionEdit()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveSessionEdit()">✅ Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- DB OVERLAY -->
+<div class="db-overlay" id="db-overlay" onclick="closeDB()"></div>
+
+<!-- DB PANEL -->
+<div class="db-panel" id="db-panel">
+  <div class="db-header">
+    <div class="db-title" id="db-panel-title">🗂 Übungsdatenbank</div>
+    <div style="display:flex;gap:5px;align-items:center;">
+      <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;" onclick="openDBAdd()">+ Neue Übung</button>
+      <button class="modal-close" onclick="closeDB()">✕</button>
+    </div>
+  </div>
+  <!-- Dual Tab: Meine / Geteilt -->
+  <div class="db-tab-row">
+    <div class="db-tab active" id="dbtab-meine" onclick="switchDBTab('meine')">📋 Meine Übungen</div>
+    <div class="db-tab" id="dbtab-geteilt" onclick="switchDBTab('geteilt')">🌐 Geteilte DB</div>
+  </div>
+  <div class="db-search">
+    <input class="db-search-input" id="db-search-input" placeholder="Name, Schwerpunkt, Kategorie…" oninput="applyFilters()">
+  </div>
+  <div class="db-filters" id="db-filters">
+    <span style="font-size:10.5px;font-weight:600;color:var(--xsoft);align-self:center;text-transform:uppercase;letter-spacing:.06em;">Filter:</span>
+    <div class="filter-chip active" id="fc-all" style="background:var(--sidebar);border-color:var(--sidebar);" onclick="setPhaseFilter('all')">Alle</div>
+    <div class="filter-chip" id="fc-aufwaermen" onclick="setPhaseFilter('aufwaermen')">Aufwärmen</div>
+    <div class="filter-chip" id="fc-hauptteil" onclick="setPhaseFilter('hauptteil')">Hauptteil</div>
+    <div class="filter-chip" id="fc-ausklang" onclick="setPhaseFilter('ausklang')">Ausklang</div>
+  </div>
+  <div class="db-stats">
+    <span id="db-stats-text">0 Übungen</span>
+    <div style="display:flex;gap:4px;">
+      <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;" onclick="importPDF(event)">📄 PDF → Claude</button>
+      <label class="btn btn-ghost" style="font-size:11px;padding:3px 8px;cursor:pointer;">
+        ⬆ JSON importieren
+        <input type="file" accept=".json" style="display:none" onchange="importClaudeJSON(event)">
+      </label>
+    </div>
+  </div>
+  <div class="db-list" id="db-list"></div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detail-modal" onclick="if(event.target.id==='detail-modal')closeDetail()">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="dm-name">–</div>
+        <div class="modal-subtitle" id="dm-cat">–</div>
+      </div>
+      <button class="modal-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-meta">
+        <div class="meta-pill">👥 <span id="dm-players">–</span></div>
+        <div class="meta-pill">⏱ <span id="dm-dur">–</span> Min</div>
+        <div class="meta-pill">🕐 <span id="dm-time">–</span> Uhr</div>
+      </div>
+
+      <!-- Bilder Galerie -->
+      <div id="dm-imgs-wrap" style="display:none;margin-bottom:20px;">
+        <div class="section-lbl">🖼 Bilder</div>
+        <div class="img-gallery" id="dm-img-gallery"></div>
+      </div>
+
+      <!-- YouTube -->
+      <div id="dm-yt-wrap" style="display:none;margin-bottom:20px;">
+        <div class="section-lbl">▶ YouTube</div>
+        <div class="yt-wrap" id="dm-yt-frame"></div>
+      </div>
+
+      <div class="section-lbl">🏗 Organisation / Aufbau</div>
+      <div class="section-body" id="dm-aufbau">–</div>
+      <div class="section-lbl">▶ Ablauf</div>
+      <div class="section-body" id="dm-ablauf">–</div>
+      <div class="section-lbl">🔀 Variationen</div>
+      <div class="section-body" id="dm-var">–</div>
+      <div class="section-lbl">🎯 Hauptaugenmerk</div>
+      <div class="tags-wrap" id="dm-aug"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeDetail()">Schließen</button>
+      <button class="btn btn-ghost" onclick="editFromDetail()">✏ Bearbeiten</button>
+      <button class="btn btn-primary">Taktikboard →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="add-modal" onclick="if(event.target.id==='add-modal')closeAdd()">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="add-modal-title">Übung hinzufügen</div>
+        <div class="modal-subtitle">Einheitsdaten werden beim ersten Speichern gesetzt</div>
+      </div>
+      <button class="modal-close" onclick="closeAdd()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Session Meta -->
+      <div style="padding:10px 0 14px;border-bottom:1px solid var(--border);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:12.5px;color:var(--soft);">
+          <strong id="modal-session-name" style="color:var(--text);">Trainingseinheit</strong><br>
+          <span id="modal-session-info" style="font-size:11.5px;"></span>
+        </div>
+        <button class="btn btn-ghost" style="font-size:11.5px;padding:5px 10px;white-space:nowrap;" onclick="closeAdd();openSessionEdit()">✏ Einheit bearbeiten</button>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Trainingsphase</label>
+          <select class="form-select" id="f-phase" onchange="updateCatOptions()">
+            <option value="aufwaermen">Aufwärmen</option>
+            <option value="hauptteil" selected>Hauptteil</option>
+            <option value="ausklang">Ausklang</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kategorie</label>
+          <select class="form-select" id="f-cat"></select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Übungsname *</label>
+        <input class="form-input" id="f-name" placeholder="z.B. Passkontinuum Pendelbewegung">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Dauer (Min) *</label>
+          <input class="form-input" id="f-dur" type="number" min="1" max="90" placeholder="10">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Spieler (min – max)</label>
+          <input class="form-input" id="f-players" placeholder="z.B. 8 – 16">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Organisation / Aufbau</label>
+        <textarea class="form-textarea" id="f-aufbau" placeholder="Feldeinteilung, Material, Aufstellung…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ablauf</label>
+        <textarea class="form-textarea" id="f-ablauf" placeholder="Ablauf der Übung…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Variationen</label>
+        <textarea class="form-textarea" id="f-var" placeholder="Mögliche Variationen…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hauptaugenmerk (kommagetrennt)</label>
+        <input class="form-input" id="f-aug" placeholder="z.B. Passspiel, Timing, Kreisläufer einsetzen">
+      </div>
+
+      <hr class="form-divider">
+
+      <div class="form-group">
+        <label class="form-label">▶ YouTube-Link</label>
+        <input class="form-input" id="f-yt" placeholder="https://www.youtube.com/watch?v=…" oninput="previewYT('f-yt','f-yt-preview')">
+        <div id="f-yt-preview" style="margin-top:8px;display:none;"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">🖼 Bilder</label>
+        <div class="img-gallery" id="f-img-gallery"></div>
+        <div class="img-upload-zone" id="f-upload-zone"
+             onclick="document.getElementById('f-img-input').click()"
+             ondragover="event.preventDefault();this.classList.add('drag-active')"
+             ondragleave="this.classList.remove('drag-active')"
+             ondrop="handleImgDrop(event,'f')">
+          <input type="file" id="f-img-input" accept="image/*" multiple onchange="handleImgUpload(event,'f')">
+          <div class="img-upload-label">📎 Bilder ablegen oder <span>Dateien auswählen</span></div>
+          <div style="font-size:11px;color:var(--xsoft);margin-top:3px;">Bilder werden sofort als Datei in <strong>Bilder/</strong> gespeichert</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--soft);">
+          <input type="checkbox" id="f-save-db" style="width:15px;height:15px;accent-color:var(--accent);">
+          Übung auch in der Datenbank speichern
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAdd()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveDrill()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- DB ADD MODAL -->
+<div class="modal-overlay" id="db-add-modal" onclick="if(event.target.id==='db-add-modal')closeDBAdd()">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="db-add-title">Neue Übung in Datenbank</div>
+        <div class="modal-subtitle">Wird dauerhaft in der Übungsdatenbank gespeichert</div>
+      </div>
+      <button class="modal-close" onclick="closeDBAdd()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Trainingsphase</label>
+          <select class="form-select" id="db-f-phase" onchange="updateDBCatOptions()">
+            <option value="aufwaermen">Aufwärmen</option>
+            <option value="hauptteil" selected>Hauptteil</option>
+            <option value="ausklang">Ausklang</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kategorie</label>
+          <select class="form-select" id="db-f-cat"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Übungsname *</label>
+        <input class="form-input" id="db-f-name" placeholder="z.B. 4-2 Abwehrverschieben">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Dauer (Min)</label>
+          <input class="form-input" id="db-f-dur" type="number" min="1" max="90" placeholder="15">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Spieler (min – max)</label>
+          <input class="form-input" id="db-f-players" placeholder="z.B. 10 – 16">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Organisation / Aufbau</label>
+        <textarea class="form-textarea" id="db-f-aufbau" placeholder="Feldeinteilung, Material…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ablauf</label>
+        <textarea class="form-textarea" id="db-f-ablauf" placeholder="Ablauf…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Variationen</label>
+        <textarea class="form-textarea" id="db-f-var" placeholder="Variationen…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hauptaugenmerk (kommagetrennt)</label>
+        <input class="form-input" id="db-f-aug" placeholder="z.B. 6:0 Grundprinzipien, Verschieben">
+      </div>
+      <hr class="form-divider">
+      <div class="form-group">
+        <label class="form-label">▶ YouTube-Link</label>
+        <input class="form-input" id="db-f-yt" placeholder="https://www.youtube.com/watch?v=…" oninput="previewYT('db-f-yt','db-f-yt-preview')">
+        <div id="db-f-yt-preview" style="margin-top:8px;display:none;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🖼 Bilder</label>
+        <div class="img-gallery" id="db-f-img-gallery"></div>
+        <div class="img-upload-zone"
+             onclick="document.getElementById('db-f-img-input').click()"
+             ondragover="event.preventDefault();this.classList.add('drag-active')"
+             ondragleave="this.classList.remove('drag-active')"
+             ondrop="handleImgDrop(event,'db-f')">
+          <input type="file" id="db-f-img-input" accept="image/*" multiple onchange="handleImgUpload(event,'db-f')">
+          <div class="img-upload-label">📎 Bilder ablegen oder <span>Dateien auswählen</span></div>
+          <div style="font-size:11px;color:var(--xsoft);margin-top:3px;">Bilder werden sofort als Datei in <strong>Bilder/</strong> gespeichert</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeDBAdd()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveDBExercise()">In Datenbank speichern</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ADMIN PANEL -->
+<div class="admin-overlay" id="admin-overlay" style="display:none" onclick="if(event.target===this)closeAdmin()">
+  <div class="admin-panel">
+    <div class="admin-header">
+      <div class="admin-title">⚙️ Administration</div>
+      <button class="modal-close" onclick="closeAdmin()">✕</button>
+    </div>
+    <div class="admin-tabs">
+      <div class="admin-tab active" id="atab-nutzer" onclick="switchAdminTab('nutzer')">👥 Nutzer</div>
+      <div class="admin-tab" id="atab-freigabe" onclick="switchAdminTab('freigabe')">✅ Freigaben <span id="admin-pending-badge"></span></div>
+      <div class="admin-tab" id="atab-kategorien" onclick="switchAdminTab('kategorien')">🏷 Kategorien</div>
+      <div class="admin-tab" id="atab-einladung" onclick="switchAdminTab('einladung')">✉️ Einladen</div>
+    </div>
+    <div class="admin-body" id="admin-body"></div>
+  </div>
+</div>
+
+<!-- PROPOSE MODAL (Übung für geteilte DB vorschlagen) -->
+<div class="modal-overlay" id="propose-modal" onclick="if(event.target.id==='propose-modal')closeProposeModal()">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">🌐 Für geteilte Datenbank vorschlagen</div>
+        <div class="modal-subtitle" id="propose-uebung-name">–</div>
+      </div>
+      <button class="modal-close" onclick="closeProposeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Hinweis an Manager (optional)</label>
+        <textarea class="form-textarea" id="propose-hinweis" placeholder="z.B. Bewährt in der U19, eignet sich gut für Aufwärmen…"></textarea>
+      </div>
+      <div style="padding:12px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;font-size:12.5px;color:#92400e;">
+        ⚠️ Die Übung wird einem Manager zur Freigabe vorgeschlagen und erst nach Freischaltung für alle sichtbar.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeProposeModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="submitProposal()">📤 Vorschlagen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ABLEHNEN MODAL -->
+<div class="modal-overlay" id="reject-modal" onclick="if(event.target.id==='reject-modal')closeRejectModal()">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">❌ Übung ablehnen</div>
+        <div class="modal-subtitle" id="reject-uebung-name">–</div>
+      </div>
+      <button class="modal-close" onclick="closeRejectModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Ablehnungsgrund *</label>
+        <textarea class="form-textarea" id="reject-grund" placeholder="Bitte gib einen kurzen Grund an…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeRejectModal()">Abbrechen</button>
+      <button class="btn btn-reject" onclick="submitRejection()">❌ Ablehnen</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEUE KATEGORIE MODAL -->
+<div class="modal-overlay" id="kat-modal" onclick="if(event.target.id==='kat-modal')closeKatModal()">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div><div class="modal-title">🏷 Neue Unterkategorie</div></div>
+      <button class="modal-close" onclick="closeKatModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Phase</label>
+          <select class="form-select" id="kat-phase">
+            <option value="aufwaermen">Aufwärmen</option>
+            <option value="hauptteil">Hauptteil</option>
+            <option value="ausklang">Ausklang</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Farbe</label>
+          <input class="form-input" id="kat-color" type="color" value="#6b7280">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bezeichnung *</label>
+        <input class="form-input" id="kat-label" placeholder="z.B. 6:0 Systeme">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Schlüssel (automatisch)</label>
+        <input class="form-input" id="kat-key" placeholder="wird automatisch generiert" readonly style="background:var(--bg);">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeKatModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveKategorie()">Speichern</button>
+    </div>
+  </div>
+</div>
+<script>
+const SUPA_URL = 'https://dlofjsmnkwltuutpxoer.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ══════════════════════════════════════════
+// KATEGORIEN (dynamisch aus DB geladen)
+// ══════════════════════════════════════════
+const PHASES = ['aufwaermen','hauptteil','ausklang'];
+const PHASE_META = {
+  aufwaermen:{label:'Aufwärmen',color:'#f59e0b'},
+  hauptteil: {label:'Hauptteil', color:'#0057ff'},
+  ausklang:  {label:'Ausklang',  color:'#10b981'},
+};
+let CATS = {
+  aufwaermen:[
+    {key:'erwaermung',label:'Erwärmung',color:'#f59e0b'},
+    {key:'aufwaermspiel',label:'Aufwärmspiel',color:'#ef4444'},
+    {key:'einpassen',label:'Einpassen',color:'#8b5cf6'},
+    {key:'tw_warm',label:'Torwartwärmung',color:'#0ea5e9'},
+  ],
+  hauptteil:[
+    {key:'abwehr',label:'Abwehr',color:'#dc2626'},
+    {key:'ueberbr',label:'Spielfeldüberbrückung',color:'#f97316'},
+    {key:'angriff',label:'Angriff',color:'#0057ff'},
+  ],
+  ausklang:[{key:'ausklang_allg',label:'Ausklang',color:'#10b981'}],
+};
+function catMeta(phase,key){
+  return CATS[phase]?.find(c=>c.key===key)||{label:key||'–',color:'#9ca3af'};
+}
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let drills=[], sessionMeta={name:'Trainingseinheit',group:'',date:'',time:'',ort:'',focus:'',notes:''};
+let customDB=[], geteilteDB=[], allUsers=[];
+let currentUser=null, currentProfile=null, currentEinheitId=null;
+let editIdx=-1, detailIdx=-1, dbPhaseFilter='all', dbActiveTab='meine';
+let fImages=[], dbfImages=[], lbSrcs=[], lbIdx=0;
+let proposeUebungId=null, rejectUebungId=null;
+
+// ══════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════
+let authMode='login';
+function switchAuthTab(m){
+  authMode=m;
+  document.getElementById('tab-login').classList.toggle('active',m==='login');
+  document.getElementById('tab-register').classList.toggle('active',m==='register');
+  document.getElementById('auth-btn').textContent=m==='login'?'Anmelden':'Registrieren';
+  document.getElementById('auth-error').classList.remove('show');
+}
+
+async function authSubmit(){
+  const email=document.getElementById('auth-email').value.trim();
+  const pw=document.getElementById('auth-password').value;
+  const btn=document.getElementById('auth-btn');
+  const dbg=document.getElementById('auth-debug');
+  function log(msg){console.log(msg);if(dbg){dbg.style.display='';dbg.innerHTML+='<div>'+msg+'</div>';}}
+  if(!email||!pw){showAuthError('Bitte E-Mail und Passwort eingeben.');return;}
+  btn.textContent='⏳…'; btn.disabled=true;
+  log('1. Starte Login…');
+
+  if(authMode==='register'){
+    const verein=document.getElementById('auth-verein')?.value.trim()||'';
+    const mannschaft=document.getElementById('auth-mannschaft')?.value.trim()||'';
+    const name=document.getElementById('auth-name')?.value.trim()||'';
+    if(!verein||!mannschaft){showAuthError('Verein und Mannschaft sind Pflichtfelder.');btn.disabled=false;btn.textContent='Registrieren';return;}
+    const {data,error}=await supa.auth.signUp({
+      email,password:pw,
+      options:{data:{full_name:name,verein,mannschaft}}
+    });
+    btn.disabled=false; btn.textContent='Registrieren';
+    if(error){showAuthError(error.message);return;}
+    if(!data.session){
+      showAuthError('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen und dann anmelden.',false);
+      return;
+    }
+    await onAuthSuccess(data.session.user);
+  } else {
+    log('1b. Sende Login-Anfrage an Supabase…');
+    const {data,error}=await supa.auth.signInWithPassword({email,password:pw});
+    btn.disabled=false; btn.textContent='Anmelden';
+    if(error){log('❌ Login-Fehler: '+error.message);showAuthError(error.message);return;}
+    log('✅ Supabase Auth OK');
+    await onAuthSuccess(data.user);
+  }
+}
+
+function showAuthError(msg,isError=true){
+  const el=document.getElementById('auth-error');
+  el.textContent=msg;
+  el.style.background=isError?'#fee2e2':'#dcfce7';
+  el.style.color=isError?'#dc2626':'#15803d';
+  el.classList.add('show');
+}
+
+// Registrierungsfelder anpassen
+function switchAuthTabExtended(m){
+  switchAuthTab(m);
+  const extra=document.getElementById('auth-extra-fields');
+  if(extra) extra.style.display=m==='register'?'':'none';
+}
+
+async function onAuthSuccess(user){
+  dbg('Auth OK: '+user.email,'ok');
+  currentUser=user;
+
+  // Profil laden mit Timeout-Schutz
+  dbg('Lade Profil…','info');
+  let profile=null;
+  try {
+    const result=await Promise.race([
+      supa.from('profiles').select('*').eq('id',user.id).maybeSingle(),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('Profil-Timeout nach 8s')),8000))
+    ]);
+    if(result.error) dbg('Profil Fehler: '+result.error.message,'err');
+    else { profile=result.data; dbg('Profil: '+(profile?'aktiv='+profile.aktiv+' role='+profile.role:'nicht vorhanden'),'ok'); }
+  } catch(e){ dbg('Profil Exception: '+e.message,'err'); }
+
+  // Kein Profil → anlegen
+  if(!profile){
+    dbg('Lege Profil an…','info');
+    try {
+      const {data:np,error:ie}=await supa.from('profiles').insert({
+        id:user.id,email:user.email,
+        full_name:user.user_metadata?.full_name||'',
+        verein:user.user_metadata?.verein||'',
+        mannschaft:user.user_metadata?.mannschaft||'',
+        role:'trainer',aktiv:false
+      }).select().maybeSingle();
+      if(ie) dbg('Profil anlegen Fehler: '+ie.message,'err');
+      else { profile=np; dbg('Profil angelegt','ok'); }
+    } catch(e){ dbg('Profil anlegen Exception: '+e.message,'err'); }
+  }
+
+  currentProfile=profile;
+
+  // Aktivierungs-Check
+  if(profile && !profile.aktiv){
+    dbg('Konto NICHT aktiviert – Abbruch','err');
+    showAuthError('Dein Konto ist noch nicht aktiviert. Bitte wende dich an den Administrator.',true);
+    await supa.auth.signOut();
+    currentUser=null;
+    document.getElementById('auth-btn').disabled=false;
+    document.getElementById('auth-btn').textContent='Anmelden';
+    return;
+  }
+
+  // App starten
+  dbg('Auth-Screen ausblenden…','info');
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('topbar-user').textContent=(profile?.full_name||profile?.email||user.email);
+
+  const roleLabel={'admin':'👑 Admin','manager':'🔧 Manager','trainer':'🏋 Trainer'};
+  if(profile?.role==='admin'||profile?.role==='manager'){
+    const nav=document.getElementById('admin-nav');
+    if(nav) nav.style.display='';
+    const btn=document.getElementById('admin-btn');
+    if(btn) btn.style.display='';
+    // Show admin in mehr-menu
+    const ma=document.getElementById('mehr-admin');
+    if(ma) ma.style.display='';
+    const mb=document.getElementById('admin-btn-mobile');
+    if(mb) mb.style.display='';
+  }
+
+  dbg('Lade Kategorien…','info');
+  await loadKategorien();
+  dbg('Lade Übungsdatenbank…','info');
+  await loadDBFromSupabase();
+  dbg('Lade geteilte DB…','info');
+  await loadGeteilteDB();
+  if(profile?.role==='admin'||profile?.role==='manager') checkPending();
+  dbg('Lade letzte Einheit…','info');
+  await loadMostRecentEinheit();
+  render();
+  dbg('App bereit ✅','ok');
+}
+async function signOut(){
+  if(!confirm('Abmelden?')) return;
+  await supa.auth.signOut();
+  currentUser=null; currentProfile=null;
+  drills=[]; customDB=[]; geteilteDB=[];
+  sessionMeta={name:'Trainingseinheit',group:'',date:'',time:'',ort:'',focus:'',notes:''};
+  document.getElementById('s-title').innerText='Trainingseinheit';
+  document.getElementById('auth-screen').style.display='';
+  document.getElementById('admin-nav').style.display='none';
+  document.getElementById('topbar-user').textContent='';
+  render();
+}
+
+// ══════════════════════════════════════════
+// KATEGORIEN laden
+// ══════════════════════════════════════════
+async function loadKategorien(){
+  const {data}=await supa.from('kategorien').select('*').order('phase').order('sort_order');
+  if(!data||!data.length) return;
+  CATS={aufwaermen:[],hauptteil:[],ausklang:[]};
+  data.forEach(k=>{
+    if(CATS[k.phase]) CATS[k.phase].push({key:k.cat_key,label:k.label,color:k.color,id:k.id});
+  });
+  updateCatOptions(); updateDBCatOptions();
+}
+
+// ══════════════════════════════════════════
+// STATUS BAR
+// ══════════════════════════════════════════
+function setStatus(type,msg){
+  const bar=document.getElementById('status-bar');
+  bar.className='status-bar'+(type!=='connected'?' '+type:'');
+  document.getElementById('status-text').textContent=msg;
+}
+
+// ══════════════════════════════════════════
+// PRIVATE ÜBUNGSDATENBANK
+// ══════════════════════════════════════════
+async function loadDBFromSupabase(){
+  try {
+    dbg('Lade Übungsdatenbank…','info');
+    const {data,error}=await supa.from('uebungen')
+      .select('*')
+      .eq('user_id',currentUser.id)
+      .order('created_at',{ascending:true});
+    if(error){
+      dbg('DB Fehler: '+error.message+' code:'+error.code,'err');
+      setStatus('error','❌ DB: '+error.message);
+      return;
+    }
+    customDB=data||[];
+    dbg('DB geladen: '+customDB.length+' Übungen','ok');
+    if(dbActiveTab==='meine') applyFilters();
+  } catch(e){
+    dbg('loadDB Exception: '+e.message,'err');
+  }
+}
+
+async function saveUebungToSupabase(u){
+  // Ensure bilder is always a clean string array (URLs only)
+  const bilderClean = (u.bilder||[]).map(b => typeof b === 'string' ? b : (b.objectUrl||b.filename||'')).filter(Boolean);
+  const payload={
+    user_id:currentUser.id,
+    phase:u.phase, cat:u.cat, name:u.name,
+    duration:u.duration||'0', players:u.players||'',
+    aufbau:u.aufbau||'', ablauf:u.ablauf||'',
+    variationen:u.variationen||'', augenmerk:u.augenmerk||'',
+    youtube:u.youtube||'', bilder:bilderClean,
+    updated_at:new Date().toISOString()
+  };
+  if(u.id){
+    const {error}=await supa.from('uebungen').update(payload).eq('id',u.id);
+    if(error){console.error('Update error:',error);dbg('Update Fehler: '+error.message+' hint:'+error.hint,'err');setStatus('error','❌ '+error.message);return null;}
+    return u.id;
+  } else {
+    const {data,error}=await supa.from('uebungen').insert(payload).select().single();
+    if(error){console.error('Insert error:',error);dbg('Insert Fehler: '+error.message+' hint:'+error.hint,'err');setStatus('error','❌ '+error.message);return null;}
+    return data?.id||null;
+  }
+}
+
+async function deleteUebungFromSupabase(id){
+  await supa.from('uebungen').delete().eq('id',id);
+}
+
+// ══════════════════════════════════════════
+// GETEILTE ÜBUNGSDATENBANK
+// ══════════════════════════════════════════
+async function loadGeteilteDB(){
+  const {data,error}=await supa.from('geteilte_uebungen').select('*,profiles!vorgeschlagen_von(full_name,email)').order('created_at');
+  if(error) return;
+  geteilteDB=data||[];
+  if(dbActiveTab==='geteilt') applyFilters();
+}
+
+async function checkPending(){
+  const {count}=await supa.from('geteilte_uebungen').select('*',{count:'exact',head:true}).eq('status','vorgeschlagen');
+  const n=count||0;
+  document.getElementById('pending-count').innerHTML=n>0?`<span class="pending-dot"></span>`:'';
+  document.getElementById('admin-pending-badge').innerHTML=n>0?`<span style="background:#f59e0b;color:white;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;">${n}</span>`:'';
+}
+
+// Übung vorschlagen
+function openProposeModal(uebungId){
+  proposeUebungId=uebungId;
+  const u=customDB.find(x=>x.id===uebungId);
+  document.getElementById('propose-uebung-name').textContent=u?u.name:'–';
+  document.getElementById('propose-hinweis').value='';
+  document.getElementById('propose-modal').classList.add('open');
+}
+function closeProposeModal(){document.getElementById('propose-modal').classList.remove('open');}
+
+async function submitProposal(){
+  const u=customDB.find(x=>x.id===proposeUebungId);
+  if(!u) return;
+  const hinweis=document.getElementById('propose-hinweis').value.trim();
+  const {error}=await supa.from('geteilte_uebungen').insert({
+    original_id:u.id,
+    vorgeschlagen_von:currentUser.id,
+    phase:u.phase,cat:u.cat,name:u.name,
+    duration:u.duration,players:u.players,
+    aufbau:u.aufbau,ablauf:u.ablauf,
+    variationen:u.variationen,augenmerk:u.augenmerk,
+    youtube:u.youtube||'',bilder:u.bilder||[],
+    status:'vorgeschlagen',
+  });
+  if(!error){
+    await supa.from('freigabe_log').insert({
+      aktion:'vorgeschlagen',von_user:currentUser.id,grund:hinweis||null
+    });
+  }
+  closeProposeModal();
+  showToast(error?'❌ Fehler beim Vorschlagen':'✅ Übung vorgeschlagen – wartet auf Freigabe',error?'info':'success');
+}
+
+// Freigeben / Ablehnen (Manager/Admin)
+async function approveUebung(id){
+  await supa.from('geteilte_uebungen').update({
+    status:'freigegeben',
+    freigegeben_von:currentUser.id,
+    updated_at:new Date().toISOString()
+  }).eq('id',id);
+  await supa.from('freigabe_log').insert({uebung_id:id,aktion:'freigegeben',von_user:currentUser.id});
+  showToast('✅ Übung freigegeben','success');
+  await loadGeteilteDB();
+  checkPending();
+  renderAdminFreigabe();
+}
+
+let rejectCurrentId=null;
+function openRejectModal(id){
+  rejectCurrentId=id;
+  const u=geteilteDB.find(x=>x.id===id);
+  document.getElementById('reject-uebung-name').textContent=u?u.name:'–';
+  document.getElementById('reject-grund').value='';
+  document.getElementById('reject-modal').classList.add('open');
+}
+function closeRejectModal(){document.getElementById('reject-modal').classList.remove('open');}
+
+async function submitRejection(){
+  const grund=document.getElementById('reject-grund').value.trim();
+  if(!grund){document.getElementById('reject-grund').classList.add('form-error');return;}
+  await supa.from('geteilte_uebungen').update({
+    status:'abgelehnt',ablehnungsgrund:grund,updated_at:new Date().toISOString()
+  }).eq('id',rejectCurrentId);
+  await supa.from('freigabe_log').insert({uebung_id:rejectCurrentId,aktion:'abgelehnt',von_user:currentUser.id,grund});
+  closeRejectModal();
+  showToast('❌ Übung abgelehnt','info');
+  await loadGeteilteDB();
+  checkPending();
+  renderAdminFreigabe();
+}
+
+async function deleteGeteilteUebung(id){
+  if(!confirm('Übung aus der geteilten Datenbank löschen?')) return;
+  await supa.from('geteilte_uebungen').delete().eq('id',id);
+  await supa.from('freigabe_log').insert({uebung_id:id,aktion:'geloescht',von_user:currentUser.id});
+  showToast('🗑 Übung gelöscht','info');
+  await loadGeteilteDB();
+  applyFilters();
+}
+
+// ══════════════════════════════════════════
+// TRAININGSEINHEIT SPEICHERN
+// ══════════════════════════════════════════
+async function saveAll(){
+  if(!currentUser){showToast('Bitte anmelden','info');return;}
+  const btn=document.getElementById('save-btn');
+  btn.textContent='⏳…'; btn.disabled=true;
+  setStatus('saving','⏳ Speichere…');
+  
+  // Clean drills - remove any non-serializable data
+  const drillsClean = drills.map(d => ({
+    phase: d.phase||'',
+    cat: d.cat||'',
+    name: d.name||'',
+    duration: d.duration||'0',
+    players: d.players||'',
+    aufbau: d.aufbau||'',
+    ablauf: d.ablauf||'',
+    variationen: d.variationen||'',
+    augenmerk: d.augenmerk||'',
+    youtube: d.youtube||'',
+    bilder: (d.bilder||[]).map(b => typeof b==='string' ? b : (b.objectUrl||b.filename||'')).filter(Boolean),
+    id: d.id||undefined,
+  }));
+  
+  dbg('Speichere: '+drillsClean.length+' Übungen, name='+sessionMeta.name,'info');
+  
+  const payload={
+    user_id:currentUser.id,
+    name:sessionMeta.name||'Trainingseinheit',
+    group_name:sessionMeta.group||'',
+    date:sessionMeta.date||null,
+    time:sessionMeta.time||null,
+    ort:sessionMeta.ort||'',
+    focus:sessionMeta.focus||'',
+    notes:sessionMeta.notes||'',
+    drills:drillsClean,
+    updated_at:new Date().toISOString()
+  };
+  dbg('Payload drills count: '+drillsClean.length,'info');
+  let error;
+  if(currentEinheitId){
+    ({error}=await supa.from('einheiten').update(payload).eq('id',currentEinheitId));
+  } else {
+    const {data,error:e}=await supa.from('einheiten').insert(payload).select().single();
+    error=e; if(data) currentEinheitId=data.id;
+  }
+  btn.textContent='💾 Speichern'; btn.disabled=false;
+  if(error){setStatus('error','❌ '+error.message);dbg('Einheit Speichern Fehler: '+error.message+' code:'+error.code,'err');}
+  else{setStatus('connected','✅ Gespeichert '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr');dbg('Einheit gespeichert ✅ id:'+currentEinheitId,'ok');showToast('✅ Gespeichert','success');}
+}
+
+// ══════════════════════════════════════════
+// BILD UPLOAD
+// ══════════════════════════════════════════
+async function uploadImageToSupabase(file,drillName){
+  const ext=file.name.split('.').pop().toLowerCase()||'jpg';
+  const path=`${currentUser.id}/${slugify(drillName)}-${Date.now()}.${ext}`;
+  const {error}=await supa.storage.from('bilder').upload(path,file,{upsert:true});
+  if(error){showToast('❌ Bild-Fehler: '+error.message,'info');return null;}
+  const {data}=supa.storage.from('bilder').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// ══════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════
+function totalMin(){return drills.reduce((s,d)=>s+(parseInt(d.duration)||0),0);}
+function addMinutes(base,offset){
+  if(!base) return '–:––';
+  const [h,m]=base.split(':').map(Number);
+  const t=h*60+m+offset;
+  return String(Math.floor(t/60)%24).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
+}
+function updateTopbar(){document.getElementById('topbar-name').textContent=sessionMeta.name||'Neue Einheit';}
+function slugify(n){
+  return (n||'uebung').trim()
+    .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
+    .replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+// ── DEBUG ──
+function toggleDebug(){
+  const p=document.getElementById('debug-panel');
+  p.classList.toggle('open');
+}
+function dbg(msg,type='info'){
+  console.log(msg);
+  const log=document.getElementById('debug-log');
+  if(!log) return;
+  const d=document.createElement('div');
+  d.className='debug-line '+type;
+  d.textContent=new Date().toLocaleTimeString('de-DE')+' '+msg;
+  log.appendChild(d);
+  log.scrollTop=log.scrollHeight;
+  // Show panel automatically on error
+  if(type==='err') document.getElementById('debug-panel').classList.add('open');
+}
+// Override console.error to show in debug panel
+const _origError=console.error;
+console.error=function(...args){_origError(...args);dbg('ERROR: '+args.join(' '),'err');};
+const _origWarn=console.warn;
+console.warn=function(...args){_origWarn(...args);dbg('WARN: '+args.join(' '),'info');};
+
+function showToast(msg,type='info'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+type+' show';
+  clearTimeout(t._timer); t._timer=setTimeout(()=>{t.className='toast '+type;},3500);
+}
+
+// ══════════════════════════════════════════
+// RENDER PLAN
+// ══════════════════════════════════════════
+function render(){
+  updateTopbar();
+  const dateStr=sessionMeta.date?new Date(sessionMeta.date+'T12:00').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';
+  const t=sessionMeta.time||'', end=t?addMinutes(t,totalMin()):'';
+  document.getElementById('s-datetime').textContent=dateStr?`${dateStr}${t?' · '+t+(end?' – '+end+' Uhr':''):''}` :'–';
+  document.getElementById('s-group').textContent=sessionMeta.group?'Gruppe: '+sessionMeta.group:'Gruppe: –';
+  document.getElementById('s-ort').textContent=sessionMeta.ort||'–';
+  document.getElementById('s-total').textContent=totalMin()+' Min';
+  document.getElementById('team-badge').textContent=(sessionMeta.group||'M')[0].toUpperCase();
+  const ft=document.getElementById('s-focus');
+  if(sessionMeta.focus){ft.style.display='';ft.textContent=sessionMeta.focus;}else ft.style.display='none';
+
+  const card=document.getElementById('plan-card');
+  card.querySelectorAll('.phase-separator,.cat-separator,.drill-row,.notes-area,.total-bar').forEach(e=>e.remove());
+  dbg('render() drills.length='+drills.length,'info');
+  document.getElementById('empty-state').style.display=drills.length?'none':'';
+  if(!drills.length) return;
+
+  let offset=0;
+  // Track which drills have been rendered
+  const rendered = new Set();
+  
+  PHASES.forEach(phase=>{
+    const pd=drills.filter(d=>d.phase===phase);
+    if(!pd.length) return;
+    const pm=PHASE_META[phase];
+    const sep=document.createElement('div');sep.className='phase-separator';
+    sep.innerHTML=`<div class="phase-dot" style="background:${pm.color}"></div><span class="phase-name">${pm.label}</span><span class="phase-dur">${pd.reduce((s,d)=>s+(parseInt(d.duration)||0),0)} Min</span>`;
+    card.appendChild(sep);
+    CATS[phase]?.forEach(cat=>{
+      const cd=pd.filter(d=>d.cat===cat.key);
+      if(!cd.length) return;
+      const cs=document.createElement('div');cs.className='cat-separator';
+      cs.innerHTML=`<div class="cat-dot" style="background:${cat.color}"></div><span class="cat-name" style="color:${cat.color}">${cat.label}</span><span class="cat-dur">${cd.reduce((s,d)=>s+(parseInt(d.duration)||0),0)} Min</span>`;
+      card.appendChild(cs);
+      cd.forEach(drill=>{
+        const gi=drills.indexOf(drill);
+        rendered.add(gi);
+        card.appendChild(makeRow(drill,gi,offset));
+        offset+=parseInt(drill.duration)||0;
+      });
+    });
+    // Render drills with unknown category within this phase
+    pd.filter(d=>!(CATS[phase]||[]).find(cat=>cat.key===d.cat)).forEach(drill=>{
+      const gi=drills.indexOf(drill);
+      if(rendered.has(gi)) return;
+      rendered.add(gi);
+      dbg('Unknown cat render: "'+drill.name+'" cat='+drill.cat,'info');
+      card.appendChild(makeRow(drill,gi,offset));
+      offset+=parseInt(drill.duration)||0;
+    });
+  });
+  // Render any remaining drills with unknown phase/cat
+  drills.forEach((drill,gi)=>{
+    if(rendered.has(gi)) return;
+    dbg('Fallback render: "'+drill.name+'" phase='+drill.phase+' cat='+drill.cat,'info');
+    card.appendChild(makeRow(drill,gi,offset));
+    offset+=parseInt(drill.duration)||0;
+  });
+  const na=document.createElement('div');na.className='notes-area';
+  na.innerHTML=`<textarea class="notes-ta" placeholder="📝 Trainer-Notizen…" oninput="sessionMeta.notes=this.value">${sessionMeta.notes||''}</textarea>`;
+  card.appendChild(na);
+  const tb=document.createElement('div');tb.className='total-bar';
+  tb.innerHTML=`<div class="total-lbl">Gesamtdauer</div><div class="total-val">${totalMin()} Min</div>`;
+  card.appendChild(tb);
+  initDragDrop();
+}
+
+function makeRow(drill,gi,offset){
+  const row=document.createElement('div');row.className='drill-row';row.dataset.idx=gi;row.draggable=true;
+  const tLabel=sessionMeta.time?addMinutes(sessionMeta.time,offset):'–:––';
+  const cat=catMeta(drill.phase,drill.cat);
+  const firstImg=drill.bilder&&drill.bilder.length?`<img class="drill-img-thumb" src="${drill.bilder[0]}" onerror="this.style.display='none'" alt="">`:'';
+  row.innerHTML=`
+    <div class="drag-handle">⠿</div>
+    <div class="drill-time">${tLabel}</div>
+    <div class="drill-info" onclick="openDetail(${gi})">
+      <div class="drill-name">${drill.name||'–'}</div>
+      <div class="drill-sub" style="color:${cat.color}">${cat.label}${drill.augenmerk?' · '+drill.augenmerk:''}</div>
+    </div>${firstImg}
+    <div class="drill-players">👥 ${drill.players||'–'}</div>
+    <div class="drill-dur"><div class="dur-num">${drill.duration||'–'}</div><div class="dur-lbl">MIN</div></div>
+    <div class="row-actions">
+      <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
+      <button class="action-btn del" onclick="deleteDrill(${gi})">🗑</button>
+    </div>`;
+  return row;
+}
+
+let dragSrc=null;
+function initDragDrop(){
+  document.querySelectorAll('.drill-row').forEach(row=>{
+    row.addEventListener('dragstart',e=>{dragSrc=parseInt(row.dataset.idx);row.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    row.addEventListener('dragend',()=>{row.classList.remove('dragging');document.querySelectorAll('.drill-row').forEach(r=>r.classList.remove('drag-over'));});
+    row.addEventListener('dragover',e=>{e.preventDefault();document.querySelectorAll('.drill-row').forEach(r=>r.classList.remove('drag-over'));row.classList.add('drag-over');});
+    row.addEventListener('drop',e=>{
+      e.preventDefault();const ti=parseInt(row.dataset.idx);
+      if(dragSrc===null||dragSrc===ti) return;
+      const moved=drills.splice(dragSrc,1)[0];
+      drills.splice(dragSrc<ti?ti-1:ti,0,moved);
+      dragSrc=null;render();
+    });
+  });
+}
+
+// ══════════════════════════════════════════
+// DETAIL MODAL
+// ══════════════════════════════════════════
+function openDetail(idx){
+  detailIdx=idx;const d=drills[idx];
+  let off=0;for(let i=0;i<idx;i++) off+=parseInt(drills[i].duration)||0;
+  const cat=catMeta(d.phase,d.cat);
+  document.getElementById('dm-name').textContent=d.name||'–';
+  document.getElementById('dm-cat').textContent=PHASE_META[d.phase]?.label+' · '+cat.label;
+  document.getElementById('dm-players').textContent=d.players||'–';
+  document.getElementById('dm-dur').textContent=d.duration||'–';
+  document.getElementById('dm-time').textContent=sessionMeta.time?addMinutes(sessionMeta.time,off):'–';
+  document.getElementById('dm-aufbau').textContent=d.aufbau||'–';
+  document.getElementById('dm-ablauf').textContent=d.ablauf||'–';
+  document.getElementById('dm-var').textContent=d.variationen||'–';
+  const aug=document.getElementById('dm-aug');aug.innerHTML='';
+  (d.augenmerk||'').split(',').filter(Boolean).forEach(t=>{const sp=document.createElement('span');sp.className='tag tag-accent';sp.textContent=t.trim();aug.appendChild(sp);});
+  const imgsWrap=document.getElementById('dm-imgs-wrap');
+  const bilder=d.bilder||[];
+  if(bilder.length){
+    imgsWrap.style.display='';lbSrcs=bilder;
+    const gallery=document.getElementById('dm-img-gallery');gallery.innerHTML='';
+    bilder.forEach((src,i)=>{const th=document.createElement('div');th.className='img-thumb';th.innerHTML=`<img src="${src}" onclick="openLightbox(${i})" onerror="this.parentElement.style.display='none'">`;gallery.appendChild(th);});
+  } else {imgsWrap.style.display='none';}
+  const ytWrap=document.getElementById('dm-yt-wrap');
+  if(d.youtube){const vid=ytVideoId(d.youtube);ytWrap.style.display='';
+    document.getElementById('dm-yt-frame').innerHTML=vid?`<iframe src="https://www.youtube.com/embed/${vid}" allowfullscreen></iframe>`:`<div style="padding:16px;color:var(--soft);">▶ ${d.youtube}</div>`;
+  } else ytWrap.style.display='none';
+  document.getElementById('detail-modal').classList.add('open');
+}
+function closeDetail(){document.getElementById('detail-modal').classList.remove('open');}
+function editFromDetail(){closeDetail();openAddModal(detailIdx);}
+
+// ══════════════════════════════════════════
+// ADD / EDIT MODAL
+// ══════════════════════════════════════════
+function updateCatOptions(){
+  const phase=document.getElementById('f-phase').value;
+  document.getElementById('f-cat').innerHTML=CATS[phase].map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
+}
+function updateDBCatOptions(){
+  const phase=document.getElementById('db-f-phase').value;
+  document.getElementById('db-f-cat').innerHTML=CATS[phase].map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
+}
+
+function openAddModal(idx){
+  editIdx=idx;const isEdit=idx>=0;
+  document.getElementById('add-modal-title').textContent=isEdit?'Übung bearbeiten':'Übung hinzufügen';
+  document.getElementById('f-save-db').checked=false;
+  document.getElementById('f-sname').value=sessionMeta.name!=='Trainingseinheit'?sessionMeta.name:'';
+  document.getElementById('f-sgroup').value=sessionMeta.group;
+  document.getElementById('f-date').value=sessionMeta.date;
+  document.getElementById('f-time').value=sessionMeta.time;
+  document.getElementById('f-ort').value=sessionMeta.ort;
+  document.getElementById('f-sfocus').value=sessionMeta.focus;
+  updateCatOptions();
+  if(isEdit){
+    const d=drills[idx];
+    document.getElementById('f-phase').value=d.phase;updateCatOptions();
+    document.getElementById('f-cat').value=d.cat||CATS[d.phase][0].key;
+    document.getElementById('f-name').value=d.name;
+    document.getElementById('f-dur').value=d.duration;
+    document.getElementById('f-players').value=d.players;
+    document.getElementById('f-aufbau').value=d.aufbau||'';
+    document.getElementById('f-ablauf').value=d.ablauf||'';
+    document.getElementById('f-var').value=d.variationen||'';
+    document.getElementById('f-aug').value=d.augenmerk||'';
+    document.getElementById('f-yt').value=d.youtube||'';
+    fImages=d.bilder?d.bilder.map(b=>({filename:b,objectUrl:b})):[];
+    previewYT('f-yt','f-yt-preview');
+  } else {
+    ['f-name','f-dur','f-players','f-aufbau','f-ablauf','f-var','f-aug','f-yt'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-phase').value='hauptteil';
+    document.getElementById('f-yt-preview').style.display='none';
+    fImages=[];updateCatOptions();
+  }
+  renderFormGallery('f-img-gallery',fImages,'f');
+  // Update session summary in modal header
+  const msn = document.getElementById('modal-session-name');
+  const msi = document.getElementById('modal-session-info');
+  if(msn) msn.textContent = sessionMeta.name||'Trainingseinheit';
+  if(msi) {
+    const parts = [];
+    if(sessionMeta.date) parts.push(new Date(sessionMeta.date+'T12:00').toLocaleDateString('de-DE',{day:'numeric',month:'short'}));
+    if(sessionMeta.time) parts.push(sessionMeta.time+' Uhr');
+    if(sessionMeta.group) parts.push(sessionMeta.group);
+    msi.textContent = parts.join(' · ');
+  }
+  document.getElementById('add-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('f-name').focus(),150);
+}
+function closeAdd(){document.getElementById('add-modal').classList.remove('open');}
+
+async function saveDrill(){
+  const nameEl=document.getElementById('f-name');
+  if(!nameEl.value.trim()){nameEl.classList.add('form-error');nameEl.focus();return;}
+  nameEl.classList.remove('form-error');
+  const sn=document.getElementById('f-sname').value.trim();
+  if(sn){sessionMeta.name=sn;document.getElementById('s-title').innerText=sn;}
+  sessionMeta.group=document.getElementById('f-sgroup').value.trim()||sessionMeta.group;
+  sessionMeta.date=document.getElementById('f-date').value||sessionMeta.date;
+  sessionMeta.time=document.getElementById('f-time').value||sessionMeta.time;
+  sessionMeta.ort=document.getElementById('f-ort').value.trim()||sessionMeta.ort;
+  sessionMeta.focus=document.getElementById('f-sfocus').value.trim()||sessionMeta.focus;
+
+  const drillName=nameEl.value.trim();
+  const resolvedImages=[];
+  for(const img of fImages){
+    if(img._file){const url=await uploadImageToSupabase(img._file,drillName);if(url)resolvedImages.push(url);}
+    else resolvedImages.push(img.objectUrl||img.filename||img);
+  }
+
+  const drill={
+    phase:document.getElementById('f-phase').value,
+    cat:document.getElementById('f-cat').value,
+    name:drillName,
+    duration:document.getElementById('f-dur').value||'0',
+    players:document.getElementById('f-players').value.trim(),
+    aufbau:document.getElementById('f-aufbau').value.trim(),
+    ablauf:document.getElementById('f-ablauf').value.trim(),
+    variationen:document.getElementById('f-var').value.trim(),
+    augenmerk:document.getElementById('f-aug').value.trim(),
+    youtube:document.getElementById('f-yt').value.trim(),
+    bilder:resolvedImages,
+  };
+  if(editIdx>=0) drills[editIdx]=drill;
+  else drills.push(drill);
+  if(document.getElementById('f-save-db').checked){
+    const id=await saveUebungToSupabase(drill);
+    if(id){drill.id=id;customDB.push({...drill});}
+    applyFilters();
+  }
+  closeAdd();render();
+  // Auto-save nach kurzer Pause damit render() fertig ist
+  setTimeout(()=>{ if(currentEinheitId) saveAll(); }, 200);
+}
+
+function deleteDrill(idx){
+  if(!confirm(`"${drills[idx].name}" löschen?`)) return;
+  drills.splice(idx,1);render();
+}
+function resetSession(){
+  if(!confirm('Aktuelle Einheit zurücksetzen?')) return;
+  drills=[];currentEinheitId=null;
+  sessionMeta={name:'Trainingseinheit',group:'',date:'',time:'',ort:'',focus:'',notes:''};
+  document.getElementById('s-title').innerText='Trainingseinheit';
+  render();
+}
+
+// ══════════════════════════════════════════
+// DB PANEL – Dual Tab
+// ══════════════════════════════════════════
+function openDB(tab='meine'){
+  switchDBTab(tab);
+  document.getElementById('db-search-input').value='';
+  document.getElementById('db-panel').classList.add('open');
+  document.getElementById('db-overlay').classList.add('open');
+}
+function closeDB(){
+  document.getElementById('db-panel').classList.remove('open');
+  document.getElementById('db-overlay').classList.remove('open');
+}
+
+function switchDBTab(tab){
+  dbActiveTab=tab;
+  document.getElementById('dbtab-meine').classList.toggle('active',tab==='meine');
+  document.getElementById('dbtab-geteilt').classList.toggle('active',tab==='geteilt');
+  document.getElementById('db-panel-title').textContent=tab==='meine'?'🗂 Meine Übungen':'🌐 Geteilte Datenbank';
+  dbPhaseFilter='all';
+  document.getElementById('db-search-input').value='';
+  updateFilterChips();
+  applyFilters();
+}
+
+function setPhaseFilter(phase){dbPhaseFilter=phase;updateFilterChips();applyFilters();}
+function updateFilterChips(){
+  const colors={all:'var(--sidebar)',aufwaermen:'#f59e0b',hauptteil:'#0057ff',ausklang:'#10b981'};
+  ['all','aufwaermen','hauptteil','ausklang'].forEach(p=>{
+    const el=document.getElementById('fc-'+p);if(!el)return;
+    if(p===dbPhaseFilter){el.classList.add('active');el.style.background=colors[p];el.style.borderColor=colors[p];el.style.color='white';}
+    else{el.classList.remove('active');el.style.background='white';el.style.borderColor='var(--border)';el.style.color='var(--soft)';}
+  });
+}
+function applyFilters(){
+  const q=(document.getElementById('db-search-input').value||'').toLowerCase();
+  renderDB(q,dbPhaseFilter);
+}
+
+function renderDB(q='',phaseFilter='all'){
+  const list=document.getElementById('db-list');list.innerHTML='';
+  const source=dbActiveTab==='meine'?customDB:geteilteDB.filter(u=>u.status==='freigegeben'||(u.status==='vorgeschlagen'&&u.vorgeschlagen_von===currentUser?.id)||['admin','manager'].includes(currentProfile?.role));
+  const all=source.filter(d=>{
+    const mQ=!q||d.name.toLowerCase().includes(q)||(d.augenmerk||'').toLowerCase().includes(q);
+    const mP=phaseFilter==='all'||d.phase===phaseFilter;
+    return mQ&&mP;
+  });
+  document.getElementById('db-stats-text').textContent=all.length+' von '+source.length+' Übung'+(source.length!==1?'en':'');
+  if(!all.length){
+    list.innerHTML='<div class="db-empty">Keine Übungen gefunden.'+(dbActiveTab==='meine'?'<br><br><button class="btn btn-ghost" style="font-size:12px;" onclick="loadDHBStandard()">📚 DHB-Standardübungen laden</button>':'')+'</div>';
+    return;
+  }
+  PHASES.forEach(phase=>{
+    if(phaseFilter!=='all'&&phase!==phaseFilter) return;
+    const pm=PHASE_META[phase];
+    const pItems=all.filter(d=>d.phase===phase);
+    if(!pItems.length) return;
+    const ph=document.createElement('div');ph.className='db-phase-header';
+    ph.innerHTML=`<div class="db-phase-dot" style="background:${pm.color}"></div><span class="db-phase-lbl" style="color:${pm.color}">${pm.label}</span><span class="db-phase-count">${pItems.length}</span>`;
+    list.appendChild(ph);
+    CATS[phase].forEach(cat=>{
+      const cItems=pItems.filter(d=>d.cat===cat.key);
+      if(!cItems.length) return;
+      const ch=document.createElement('div');ch.className='db-cat-header';
+      ch.innerHTML=`<span class="db-cat-lbl" style="color:${cat.color}">${cat.label} (${cItems.length})</span>`;
+      list.appendChild(ch);
+      cItems.forEach(item=>{
+        const realIdx=source.indexOf(item);
+        const el=document.createElement('div');el.className='db-item';
+        const thumb=item.bilder&&item.bilder.length?`<img class="db-item-thumb" src="${item.bilder[0]}" onerror="this.style.display='none'" alt="">`:'';
+        const statusBadge=dbActiveTab==='geteilt'&&item.status==='vorgeschlagen'?`<span class="vorgeschlagen-badge">⏳ Wartet</span>`:'';
+        const canDelete=dbActiveTab==='geteilt'?['admin','manager'].includes(currentProfile?.role):true;
+        const canPropose=dbActiveTab==='meine'&&item.id;
+        el.innerHTML=thumb+
+          `<div class="db-item-body" onclick="${dbActiveTab==='meine'?`addFromDB(${realIdx})`:''}">
+            <div class="db-item-name">${item.name} ${statusBadge}</div>
+            <div class="db-item-meta">⏱ ${item.duration} Min · 👥 ${item.players||'–'} · 🎯 ${item.augenmerk||'–'}</div>
+          </div>
+          <div class="db-item-actions">
+            ${dbActiveTab==='meine'?`<button class="db-action-btn add" title="Zum Plan" onclick="addFromDB(${realIdx})">+</button>`:''}
+            ${canPropose?`<button class="db-action-btn" title="Für geteilte DB vorschlagen" onclick="openProposeModal('${item.id}')" style="font-size:11px;">📤</button>`:''}
+            ${dbActiveTab==='meine'?`<button class="db-action-btn edit" title="Bearbeiten" onclick="editDBItem(${realIdx})">✏</button>`:''}
+            ${canDelete?`<button class="db-action-btn del" title="Löschen" onclick="${dbActiveTab==='meine'?`deleteDBItem(${realIdx})`:`deleteGeteilteUebung('${item.id}')`}">🗑</button>`:''}
+          </div>`;
+        list.appendChild(el);
+      });
+    });
+  });
+}
+
+function addFromDB(idx){
+  const source=dbActiveTab==='meine'?customDB:geteilteDB.filter(u=>u.status==='freigegeben');
+  const item=source[idx];
+  drills.push({...item,bilder:item.bilder?[...item.bilder]:[]});
+  closeDB();render();
+  showToast(`✅ "${item.name}" zum Plan hinzugefügt`,'success');
+}
+
+async function deleteDBItem(idx){
+  if(!confirm(`"${customDB[idx].name}" löschen?`)) return;
+  const item=customDB[idx];
+  if(item.id) await deleteUebungFromSupabase(item.id);
+  customDB.splice(idx,1);applyFilters();
+  showToast('🗑 Übung gelöscht','info');
+}
+
+let editDBIdx=-1;
+function editDBItem(idx){
+  editDBIdx=idx;const d=customDB[idx];
+  document.getElementById('db-add-title').textContent='Übung bearbeiten';
+  updateDBCatOptions();
+  document.getElementById('db-f-phase').value=d.phase;updateDBCatOptions();
+  document.getElementById('db-f-cat').value=d.cat||CATS[d.phase][0].key;
+  document.getElementById('db-f-name').value=d.name;
+  document.getElementById('db-f-dur').value=d.duration;
+  document.getElementById('db-f-players').value=d.players||'';
+  document.getElementById('db-f-aufbau').value=d.aufbau||'';
+  document.getElementById('db-f-ablauf').value=d.ablauf||'';
+  document.getElementById('db-f-var').value=d.variationen||'';
+  document.getElementById('db-f-aug').value=d.augenmerk||'';
+  document.getElementById('db-f-yt').value=d.youtube||'';
+  dbfImages=d.bilder?d.bilder.map(b=>({filename:b,objectUrl:b})):[];
+  renderFormGallery('db-f-img-gallery',dbfImages,'db-f');
+  previewYT('db-f-yt','db-f-yt-preview');
+  document.getElementById('db-add-modal').classList.add('open');
+}
+
+function openDBAdd(){
+  editDBIdx=-1;
+  document.getElementById('db-add-title').textContent='Neue Übung in Datenbank';
+  updateDBCatOptions();
+  ['db-f-name','db-f-dur','db-f-players','db-f-aufbau','db-f-ablauf','db-f-var','db-f-aug','db-f-yt'].forEach(id=>document.getElementById(id).value='');
+  dbfImages=[];document.getElementById('db-f-yt-preview').style.display='none';
+  renderFormGallery('db-f-img-gallery',dbfImages,'db-f');
+  document.getElementById('db-add-modal').classList.add('open');
+}
+function closeDBAdd(){document.getElementById('db-add-modal').classList.remove('open');editDBIdx=-1;}
+
+async function saveDBExercise(){
+  const nameEl=document.getElementById('db-f-name');
+  if(!nameEl.value.trim()){nameEl.classList.add('form-error');nameEl.focus();return;}
+  nameEl.classList.remove('form-error');
+  setStatus('saving','⏳ Speichere…');
+  const drillName=nameEl.value.trim();
+  const resolvedImages=[];
+  for(const img of dbfImages){
+    if(img._file){const url=await uploadImageToSupabase(img._file,drillName);if(url)resolvedImages.push(url);}
+    else resolvedImages.push(img.objectUrl||img.filename||img);
+  }
+  const entry={
+    phase:document.getElementById('db-f-phase').value,
+    cat:document.getElementById('db-f-cat').value,
+    name:drillName,duration:document.getElementById('db-f-dur').value||'0',
+    players:document.getElementById('db-f-players').value.trim(),
+    aufbau:document.getElementById('db-f-aufbau').value.trim(),
+    ablauf:document.getElementById('db-f-ablauf').value.trim(),
+    variationen:document.getElementById('db-f-var').value.trim(),
+    augenmerk:document.getElementById('db-f-aug').value.trim(),
+    youtube:document.getElementById('db-f-yt').value.trim(),
+    bilder:resolvedImages,
+  };
+  if(editDBIdx>=0) entry.id=customDB[editDBIdx].id;
+  const id=await saveUebungToSupabase(entry);
+  if(id){entry.id=id;if(editDBIdx>=0) customDB[editDBIdx]=entry;else customDB.push(entry);}
+  closeDBAdd();applyFilters();
+  setStatus('connected','✅ Übung gespeichert');
+  showToast(editDBIdx>=0?'✅ Aktualisiert':'✅ Gespeichert','success');
+}
+
+// DHB Standard
+const DHB_STANDARD=[
+  // AUFWÄRMEN – Erwärmung
+  {phase:'aufwaermen',cat:'erwaermung',name:'Eigenständiges Warm Up',duration:'5',players:'beliebig',
+   aufbau:'Freie Halle, alle Bälle verfügbar.',
+   ablauf:'Spieler wärmen sich individuell auf. Lockerungsübungen, Mobilisation der Gelenke, leichtes Laufen.',
+   variationen:'Mit Partner / Zwei Bälle gleichzeitig.',
+   augenmerk:'Aktivierung, Eigenverantwortung',youtube:'',bilder:[]},
+
+  {phase:'aufwaermen',cat:'erwaermung',name:'Koordinationsleiter',duration:'8',players:'6 – 20',
+   aufbau:'2–3 Koordinationsleitern längs der Halle, Hütchen als Wendepunkte.',
+   ablauf:'Verschiedene Laufformen: Doppelschritt, seitlich, einbeinig, Knieheben. Sprint zum Wendepunkt.',
+   variationen:'Ball in der Hand / rückwärts / Reaktion auf Pfiff.',
+   augenmerk:'Koordination, Fußarbeit, Schnelligkeit',youtube:'',bilder:[]},
+
+  {phase:'aufwaermen',cat:'erwaermung',name:'Laufschule mit Ball',duration:'10',players:'8 – 20',
+   aufbau:'Ganzes Feld, jeder Spieler mit Ball.',
+   ablauf:'Verschiedene Laufformen über das Spielfeld: seitlich, rückwärts, Überkreuz – immer mit Dribbling. Auf Pfiff Richtungswechsel.',
+   variationen:'Ohne Ball / mit Passspiel / mit Täuschung.',
+   augenmerk:'Ballgefühl in Bewegung, Koordination, Raumwahrnehmung',youtube:'',bilder:[]},
+
+  // AUFWÄRMEN – Aufwärmspiel
+  {phase:'aufwaermen',cat:'aufwaermspiel',name:'Reboundball 3 Teams',duration:'10',players:'9 – 18',
+   aufbau:'Normales Spielfeld, 3 Gruppen à 3–6 Spieler, 2 Tore.',
+   ablauf:'3 Teams spielen gegeneinander. Angreifer erzielen Tor. Verteidiger holt Abpraller und greift an. 3. Team wartet.',
+   variationen:'Nur Aufsetzer / ohne TW / mit Zeitlimit.',
+   augenmerk:'Reaktionsschnelligkeit, Umschaltspiel, Torabschluss',youtube:'',bilder:[]},
+
+  {phase:'aufwaermen',cat:'aufwaermspiel',name:'König des Kreises',duration:'8',players:'8 – 16',
+   aufbau:'Torraum als Spielfeld, alle Spieler mit Ball.',
+   ablauf:'Jeder dribbelt seinen Ball und versucht andere Bälle aus dem Feld zu schlagen, ohne seinen eigenen Ball zu verlieren.',
+   variationen:'Nur schwache Hand / Partnerteams / Flächenverkleinerung.',
+   augenmerk:'Ballkontrolle, Reaktion, Raumwahrnehmung',youtube:'',bilder:[]},
+
+  {phase:'aufwaermen',cat:'aufwaermspiel',name:'Handball-Basketball',duration:'10',players:'10 – 16',
+   aufbau:'Halbes Spielfeld, Körbe oder Tore als Ziel.',
+   ablauf:'Gespielt wie Basketball – nur Pässe, kein Dribbling. Wer fängt hat 3 Sekunden zum Passen.',
+   variationen:'Mit Dribbling / ohne Bodenkontakt / Zeitlimit.',
+   augenmerk:'Passspiel, Raumnutzung, Teamwork',youtube:'',bilder:[]},
+
+  // AUFWÄRMEN – Einpassen
+  {phase:'aufwaermen',cat:'einpassen',name:'Klassisches Einwerfen',duration:'5',players:'4 – 16',
+   aufbau:'Paare verteilt in der Halle, je 1 Ball pro Paar.',
+   ablauf:'Werfen sich den Ball zu, steigern Tempo und Distanz. Abschluss: Torwürfe von verschiedenen Positionen.',
+   variationen:'Nur Sprungwürfe / Hüftdrehung betonen / mit Täuschung.',
+   augenmerk:'Ballgefühl, Wurfvorbereitung, Schultererwärmung',youtube:'',bilder:[]},
+
+  {phase:'aufwaermen',cat:'einpassen',name:'Passkontinuum Pendelbewegung',duration:'10',players:'6 – 16',
+   aufbau:'2 Gruppen gegenüber, Abstand 6–8 m, 1 Ball pro Gruppe.',
+   ablauf:'▲ wirft zu ▲ gegenüber und läuft hinter dem Ball her. Gleichzeitiger Wechsel. Steigerung: 2 Bälle.',
+   variationen:'Sprungpass / Bodenpass / mit Seitschritt / Handwechsel.',
+   augenmerk:'Passsicherheit, Laufweg nach Pass, Timing',youtube:'',bilder:[]},
+
+  {phase:'aufwaermen',cat:'einpassen',name:'Dreieck-Passspiel',duration:'8',players:'9 – 18',
+   aufbau:'Gruppen à 3 in Dreieckformation, je 1 Ball.',
+   ablauf:'Ball kreist im Dreieck, Spieler folgt dem Pass. Steigerung: Gegenlaufrichtung, 2 Bälle.',
+   variationen:'Mit Sprungpass / Seitschritt vor Pass / 4er-Gruppe.',
+   augenmerk:'Passsicherheit, Lauftiming, Kommunikation',youtube:'',bilder:[]},
+
+  {phase:'aufwaermen',cat:'einpassen',name:'Kreuzpass mit Gegenlauf',duration:'10',players:'8 – 16',
+   aufbau:'2 Gruppen an Außenpositionen gegenüber, je 1 Ball.',
+   ablauf:'A passt diagonal zu B und läuft hinter dem Pass her. B startet Gegenlauf, erhält Ball und passt weiter.',
+   variationen:'Mit Tempowurf am Ende / mit KM / mit Haken.',
+   augenmerk:'Kreuzungsbewegung, Timing, Passspiel in Bewegung',youtube:'',bilder:[]},
+
+  // AUFWÄRMEN – Torwartwärmung
+  {phase:'aufwaermen',cat:'tw_warm',name:'TW Reaktionsübung',duration:'8',players:'2 – 4',
+   aufbau:'TW im Tor, Trainer mit mehreren Bällen in 9m-Nähe.',
+   ablauf:'Schnelle Würfe aus kurzer Distanz ohne Ankündigung. Intervalle: 5 Würfe – kurze Pause.',
+   variationen:'Nur Fußabwehr / nur eine Seite / mit Ablenkungsreiz.',
+   augenmerk:'TW-Reflexe, Stellungsspiel, Grundstellung',youtube:'',bilder:[]},
+
+  {phase:'aufwaermen',cat:'tw_warm',name:'TW Einwerfen strukturiert',duration:'10',players:'3 – 6',
+   aufbau:'TW im Tor, 2–4 Feldspieler auf Außen und Rückraum.',
+   ablauf:'Außen passt auf Rückraum, der schießt. Dann Auftaktpass → Außenschuss. Wechsel nach 5 Schüssen.',
+   variationen:'Gegenspieler passiv / mit Zeitdruck / TW-Anweisung vorgeben.',
+   augenmerk:'TW-Reaktion, Wurfwinkel, Auftaktpass',youtube:'',bilder:[]},
+
+  // HAUPTTEIL – Abwehr
+  {phase:'hauptteil',cat:'abwehr',name:'6:0 Abwehr Grundformation',duration:'20',players:'12 – 16',
+   aufbau:'Ganzes Spielfeld, 6 ● in 6:0-Formation.',
+   ablauf:'Angriff spielt strukturiert gegen 6:0. Fokus auf Abwehrkommunikation und Verschieben.',
+   variationen:'Ohne TW / Pressing ab Mittellinie.',
+   augenmerk:'6:0 Grundprinzipien, Kommunikation, Verschieben, Blocken',youtube:'',bilder:[]},
+
+  {phase:'hauptteil',cat:'abwehr',name:'5:1 Deckungsarbeit',duration:'20',players:'12 – 16',
+   aufbau:'Ganzes Spielfeld, ● in 5:1-Formation.',
+   ablauf:'Vordermann stört Rückraum-Mitte. Hintere Fünf sichern und verschieben.',
+   variationen:'Unterschiedlicher Pressing-Radius / 3:2:1-Variante.',
+   augenmerk:'5:1 Laufwege, Kommunikation, Absicherung',youtube:'',bilder:[]},
+
+  {phase:'hauptteil',cat:'abwehr',name:'1 gegen 1 Abwehr',duration:'15',players:'6 – 16',
+   aufbau:'Halbfeld, Paare: 1 ▲ gegen 1 ●, TW im Tor.',
+   ablauf:'Angreifer startet von 9m, Verteidiger leitet aktiv ab. Ziel: Schuss verhindern.',
+   variationen:'Mit Ball / ohne Ball / 2 gegen 1.',
+   augenmerk:'Abwehr 1-gegen-1, Körperposition, Arm-Block',youtube:'',bilder:[]},
+
+  {phase:'hauptteil',cat:'abwehr',name:'Abwehrschieben & Blocken',duration:'15',players:'8 – 14',
+   aufbau:'Halbfeld, 3–4 ● in einer Linie, 3–4 ▲ vor ihnen.',
+   ablauf:'▲ spielen Ball schnell hin und her. ● verschieben synchron und bauen Blockarm auf.',
+   variationen:'Mit echtem Abschluss / mit KM als Störer / mit Zeitdruck.',
+   augenmerk:'Blocktechnik, synchrones Verschieben, Blockarm',youtube:'',bilder:[]},
+
+  // HAUPTTEIL – Spielfeldüberbrückung
+  {phase:'hauptteil',cat:'ueberbr',name:'Schnellangriff 1. Welle',duration:'15',players:'8 – 16',
+   aufbau:'Ganzes Feld, TW auf jeder Seite.',
+   ablauf:'TW wirft ab, 2–3 ▲ starten Konter. Direkter Abschluss ohne Aufbau.',
+   variationen:'Nur mit einem Außen / Zeitlimit 5 Sek.',
+   augenmerk:'Tempogegenstoß, 1. Welle, Laufwege, TW-Abwurf',youtube:'',bilder:[]},
+
+  {phase:'hauptteil',cat:'ueberbr',name:'3 gegen 2 Überzahl',duration:'15',players:'10 – 16',
+   aufbau:'Halbfeld, 3 ▲ gegen 2 ●, TW im Tor.',
+   ablauf:'Angreifer starten aus Mittellinie, Verteidiger aus Torraum. 3 gegen 2 bis Abschluss oder Ballgewinn.',
+   variationen:'4 gegen 3 / Zeitlimit / Konter bei Ballgewinn.',
+   augenmerk:'Überzahl nutzen, Entscheidungsfindung, 2. Welle',youtube:'',bilder:[]},
+
+  {phase:'hauptteil',cat:'ueberbr',name:'Geordneter Schnellangriff 2. Welle',duration:'15',players:'10 – 16',
+   aufbau:'Ganzes Feld, TW wirft ab.',
+   ablauf:'TW wirft auf Außen. Außen passt auf nachrückenden RL/RR. Dieser sucht KM oder schließt ab.',
+   variationen:'Mit passivem Gegner / mit aktivem Gegner / Zeitdruck.',
+   augenmerk:'2. Welle, Laufwege, Staffelung, Entscheidung',youtube:'',bilder:[]},
+
+  {phase:'hauptteil',cat:'ueberbr',name:'Umschaltspiel Abwehr-Angriff',duration:'20',players:'12 – 18',
+   aufbau:'Ganzes Spielfeld, 2 Teams.',
+   ablauf:'Bei Ballgewinn sofortiger Umschalter. Angriffsteam muss sofort zurück in die Abwehr.',
+   variationen:'Mit Zeitlimit / mit Zählpunkten für schnellen Umschalter.',
+   augenmerk:'Schnelles Umschalten, Transition, Kondition',youtube:'',bilder:[]},
+
+  // HAUPTTEIL – Angriff
+  {phase:'hauptteil',cat:'angriff',name:'Kreisläufer Einbinden',duration:'15',players:'8 – 14',
+   aufbau:'Halbfeld, ▲ KM, RL/RR, AuL/AuR.',
+   ablauf:'Rückraum spielt den Ball. KM löst sich durch Schirmblock. Anspiel auf KM, Drehwurf oder Ablage.',
+   variationen:'Mit aktivem ● auf KM / 1-gegen-1 für KM / mit Positionswechsel.',
+   augenmerk:'KM freilaufen, Timing, Drehwurf, Schirmblock',youtube:'',bilder:[]},
+
+  {phase:'hauptteil',cat:'angriff',name:'Positionsangriff 7 gegen 6',duration:'25',players:'14 – 16',
+   aufbau:'Ganzes Spielfeld, 7 ▲ gegen 6 ● + TW.',
+   ablauf:'Angriff spielt mit TW als 7. Feldspieler. Verschiedene Angriffssysteme (3-2-1, 2-4 etc.).',
+   variationen:'Ohne KM / Zeitlimit 30 Sek. / Konter bei Ballgewinn.',
+   augenmerk:'Positionsangriff, TW als Feldspieler, Raumnutzung',youtube:'',bilder:[]},
+
+  {phase:'hauptteil',cat:'angriff',name:'Außenspieler Einbinden',duration:'15',players:'8 – 14',
+   aufbau:'Halbfeld, AuL/AuR mit Zuspiel vom RL/RR.',
+   ablauf:'RL/RR passt auf Außen. Außen entscheidet: Direktwurf, Rückpass auf KM oder Weiterpassen.',
+   variationen:'Mit passivem ● / Doppelpass / ohne KM.',
+   augenmerk:'Außenspieler im Abschluss, Entscheidungsfindung',youtube:'',bilder:[]},
+
+  {phase:'hauptteil',cat:'angriff',name:'Rückraum-Kombinationen',duration:'20',players:'6 – 12',
+   aufbau:'Halbfeld, RL, RM, RR im Rückraum, TW im Tor.',
+   ablauf:'Kombinationsspiele im Rückraum: Kreuzen RL/RM, Rückpass-Spielzug, Schirmblock RM für RL.',
+   variationen:'Mit passiver Abwehr / mit aktivem Vordermann / mit KM als Ablage.',
+   augenmerk:'Rückraumkombinationen, Kreuzungen, Timing, Abschluss',youtube:'',bilder:[]},
+
+  {phase:'hauptteil',cat:'angriff',name:'Freiwurf-Situationen',duration:'15',players:'8 – 14',
+   aufbau:'Halbfeld, Freiwurfsituationen aus verschiedenen Positionen.',
+   ablauf:'Trainer gibt Freiwurfsituation vor. Angriff setzt einstudierte Variante um.',
+   variationen:'Gegen aktive Abwehr / mit Zeitdruck.',
+   augenmerk:'Freiwurfvarianten, Schnelligkeit, Übersicht',youtube:'',bilder:[]},
+
+  // AUSKLANG
+  {phase:'ausklang',cat:'ausklang_allg',name:'Freies Torschusstraining',duration:'10',players:'4 – 16',
+   aufbau:'Tore aufgebaut, Spieler frei verteilt.',
+   ablauf:'Spieler schießen frei auf Tor. Jeder wählt selbst Position und Wurfart.',
+   variationen:'Nur Sprungwürfe / schwache Hand / aus Bewegung.',
+   augenmerk:'Motivation, Abschluss, Selbstvertrauen',youtube:'',bilder:[]},
+
+  {phase:'ausklang',cat:'ausklang_allg',name:'Abkühlübungen & Stretching',duration:'10',players:'beliebig',
+   aufbau:'Freie Fläche, keine Bälle.',
+   ablauf:'Ausschütteln, ruhiges Gehen. Statisches Dehnen: Oberschenkel, Wade, Hüftbeuger, Schulter, Rücken.',
+   variationen:'Mit Partner / mit Foam Roller.',
+   augenmerk:'Regeneration, Verletzungsprävention',youtube:'',bilder:[]},
+
+  {phase:'ausklang',cat:'ausklang_allg',name:'Spielerbesprechung & Feedback',duration:'5',players:'beliebig',
+   aufbau:'Kreis in der Mitte der Halle.',
+   ablauf:'Trainer gibt Feedback. Spieler können Anmerkungen machen. Fokus nächste Einheit kommuniziert.',
+   variationen:'Spieler geben gegenseitig Feedback / schriftliches Formular.',
+   augenmerk:'Reflexion, Kommunikation, Teambinding',youtube:'',bilder:[]},
+];
+async function loadDHBStandard(){
+  if(!confirm(DHB_STANDARD.length+' DHB-Standardübungen laden?')) return;
+  setStatus('saving','⏳ Lade DHB-Übungen…');
+  for(const u of DHB_STANDARD){const id=await saveUebungToSupabase(u);if(id) customDB.push({...u,id});}
+  applyFilters();setStatus('connected','✅ DHB-Übungen geladen');
+  showToast('✅ DHB-Standardübungen geladen','success');
+}
+
+// PDF Import
+function importPDF(event){
+  event.target.value='';
+  const prompt=`Analysiere die PDF und extrahiere alle Handball-Übungen. Gib für jede Übung JSON zurück mit: phase("aufwaermen"|"hauptteil"|"ausklang"), cat(aufwaermen→"erwaermung"|"aufwaermspiel"|"einpassen"|"tw_warm", hauptteil→"abwehr"|"ueberbr"|"angriff", ausklang→"ausklang_allg"), name, duration(String), players, aufbau, ablauf(▲=Angriff ●=Abwehr), variationen, augenmerk(kommagetrennt), youtube:"", bilder:[]. Nur JSON-Array, kein Text.`;
+  window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
+  showToast('Claude.ai geöffnet – PDF hochladen, JSON importieren','info');
+}
+
+function importClaudeJSON(event){
+  const file=event.target.files[0];if(!file) return;event.target.value='';
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      let raw=e.target.result.trim().replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/,'');
+      const parsed=JSON.parse(raw);
+      const exercises=Array.isArray(parsed)?parsed:(parsed.uebungen||[]);
+      const valid=exercises.filter(ex=>ex.name&&ex.phase&&ex.cat);
+      if(!valid.length) throw new Error('Keine gültigen Übungen gefunden.');
+      setStatus('saving','⏳ Importiere…');
+      for(const u of valid){const id=await saveUebungToSupabase(u);if(id) customDB.push({...u,id});}
+      applyFilters();setStatus('connected','✅ Importiert');
+      showToast('✅ '+valid.length+' Übungen importiert','success');
+    }catch(err){showToast('❌ '+err.message,'info');}
+  };
+  reader.readAsText(file);
+}
+
+// ══════════════════════════════════════════
+// ADMIN PANEL
+// ══════════════════════════════════════════
+let adminActiveTab='nutzer';
+function openAdmin(tab='nutzer'){
+  document.getElementById('admin-overlay').style.display='flex';
+  switchAdminTab(tab);
+}
+function closeAdmin(){document.getElementById('admin-overlay').style.display='none';}
+function switchAdminTab(tab){
+  adminActiveTab=tab;
+  ['nutzer','freigabe','kategorien','einladung'].forEach(t=>{
+    document.getElementById('atab-'+t)?.classList.toggle('active',t===tab);
+  });
+  if(tab==='nutzer') renderAdminNutzer();
+  else if(tab==='freigabe') renderAdminFreigabe();
+  else if(tab==='kategorien') renderAdminKategorien();
+  else if(tab==='einladung') renderAdminEinladung();
+}
+
+async function renderAdminNutzer(){
+  const body=document.getElementById('admin-body');
+  body.innerHTML='<div style="color:var(--xsoft);padding:20px;">⏳ Lade Nutzer…</div>';
+  const {data}=await supa.from('profiles').select('*').order('created_at');
+  allUsers=data||[];
+  body.innerHTML=`
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">👥 Alle Nutzer (${allUsers.length})</h3>
+    <table class="user-table">
+      <thead><tr>
+        <th>Name / E-Mail</th><th>Verein</th><th>Mannschaft</th><th>Rolle</th><th>Status</th><th>Aktionen</th>
+      </tr></thead>
+      <tbody id="user-tbody"></tbody>
+    </table>`;
+  const tbody=document.getElementById('user-tbody');
+  allUsers.forEach(u=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><div style="font-weight:500;">${u.full_name||'–'}</div><div style="font-size:11px;color:var(--xsoft);">${u.email}</div></td>
+      <td>${u.verein||'–'}</td>
+      <td>${u.mannschaft||'–'}</td>
+      <td>
+        <select onchange="updateUserRole('${u.id}',this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;">
+          <option value="trainer" ${u.role==='trainer'?'selected':''}>Trainer</option>
+          <option value="manager" ${u.role==='manager'?'selected':''}>Manager</option>
+          <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+        </select>
+      </td>
+      <td><span class="aktiv-badge ${u.aktiv?'aktiv-ja':'aktiv-nein'}">${u.aktiv?'✅ Aktiv':'❌ Inaktiv'}</span></td>
+      <td style="display:flex;gap:4px;">
+        ${!u.aktiv?`<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:#15803d;" onclick="toggleAktiv('${u.id}',true)">✅ Aktivieren</button>`:''}
+        ${u.aktiv&&u.id!==currentUser?.id?`<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:#dc2626;" onclick="toggleAktiv('${u.id}',false)">❌ Deaktivieren</button>`:''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function updateUserRole(userId,role){
+  await supa.from('profiles').update({role}).eq('id',userId);
+  showToast('✅ Rolle aktualisiert','success');
+}
+
+async function toggleAktiv(userId,aktiv){
+  await supa.from('profiles').update({aktiv}).eq('id',userId);
+  showToast(aktiv?'✅ Nutzer aktiviert':'❌ Nutzer deaktiviert','success');
+  renderAdminNutzer();
+}
+
+async function renderAdminFreigabe(){
+  const body=document.getElementById('admin-body');
+  body.innerHTML='<div style="color:var(--xsoft);padding:20px;">⏳ Lade Vorschläge…</div>';
+  await loadGeteilteDB();
+  const vorgeschlagen=geteilteDB.filter(u=>u.status==='vorgeschlagen');
+  const freigegeben=geteilteDB.filter(u=>u.status==='freigegeben');
+  const abgelehnt=geteilteDB.filter(u=>u.status==='abgelehnt');
+  body.innerHTML=`
+    <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
+      <div style="background:#fef3c7;border-radius:10px;padding:14px 20px;text-align:center;flex:1;min-width:120px;">
+        <div style="font-size:24px;font-weight:700;color:#d97706;">${vorgeschlagen.length}</div>
+        <div style="font-size:12px;color:#92400e;">Warten auf Freigabe</div>
+      </div>
+      <div style="background:#dcfce7;border-radius:10px;padding:14px 20px;text-align:center;flex:1;min-width:120px;">
+        <div style="font-size:24px;font-weight:700;color:#15803d;">${freigegeben.length}</div>
+        <div style="font-size:12px;color:#166534;">Freigegeben</div>
+      </div>
+      <div style="background:#fee2e2;border-radius:10px;padding:14px 20px;text-align:center;flex:1;min-width:120px;">
+        <div style="font-size:24px;font-weight:700;color:#dc2626;">${abgelehnt.length}</div>
+        <div style="font-size:12px;color:#991b1b;">Abgelehnt</div>
+      </div>
+    </div>
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;color:#d97706;">⏳ Warten auf Freigabe</h3>
+    <div id="freigabe-list"></div>`;
+  const list=document.getElementById('freigabe-list');
+  if(!vorgeschlagen.length){
+    list.innerHTML='<div style="color:var(--xsoft);font-size:13px;padding:20px;text-align:center;">Keine Vorschläge ausstehend 🎉</div>';
+    return;
+  }
+  vorgeschlagen.forEach(u=>{
+    const div=document.createElement('div');div.className='freigabe-item vorgeschlagen';
+    div.innerHTML=`
+      <div class="freigabe-header">
+        <div>
+          <div class="freigabe-name">${u.name}</div>
+          <div class="freigabe-meta">
+            ${PHASE_META[u.phase]?.label} · ${catMeta(u.phase,u.cat).label} · ⏱ ${u.duration} Min · 👥 ${u.players||'–'}<br>
+            Von: ${u.profiles?.full_name||u.profiles?.email||'Unbekannt'}
+          </div>
+          ${u.aufbau?`<div style="font-size:12.5px;color:var(--soft);margin-top:4px;">${u.aufbau.substring(0,120)}${u.aufbau.length>120?'…':''}</div>`:''}
+        </div>
+      </div>
+      <div class="freigabe-actions">
+        <button class="btn-approve" onclick="approveUebung('${u.id}')">✅ Freigeben</button>
+        <button class="btn-reject" onclick="openRejectModal('${u.id}')">❌ Ablehnen</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="deleteGeteilteUebung('${u.id}')">🗑 Löschen</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+async function renderAdminKategorien(){
+  const body=document.getElementById('admin-body');
+  body.innerHTML='<div style="color:var(--xsoft);padding:20px;">⏳ Lade Kategorien…</div>';
+  const {data}=await supa.from('kategorien').select('*').order('phase').order('sort_order');
+  const isAdmin=currentProfile?.role==='admin';
+  body.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:15px;font-weight:700;">🏷 Kategorien (${data?.length||0})</h3>
+      ${currentProfile?.role!=='trainer'?`<button class="btn btn-primary" style="font-size:12px;" onclick="openKatModal()">+ Neue Kategorie</button>`:''}
+    </div>
+    <div class="plan-card">`;
+  PHASES.forEach(phase=>{
+    const pm=PHASE_META[phase];
+    const cats=(data||[]).filter(k=>k.phase===phase);
+    body.innerHTML+=`
+      <div class="phase-separator"><div class="phase-dot" style="background:${pm.color}"></div><span class="phase-name">${pm.label}</span></div>`;
+    cats.forEach(k=>{
+      body.innerHTML+=`
+        <div class="kat-item">
+          <div class="kat-color" style="background:${k.color}"></div>
+          <div class="kat-label">${k.label}</div>
+          <div class="kat-phase">${k.cat_key}</div>
+          ${isAdmin?`<button class="action-btn del" onclick="deleteKategorie('${k.id}','${k.label}')" style="opacity:1;">🗑</button>`:''}
+        </div>`;
+    });
+  });
+  body.innerHTML+='</div>';
+}
+
+async function deleteKategorie(id,label){
+  if(!confirm(`Kategorie "${label}" löschen? Alle Übungen in dieser Kategorie bleiben erhalten, verlieren aber die Kategorie.`)) return;
+  await supa.from('kategorien').delete().eq('id',id);
+  await loadKategorien();
+  renderAdminKategorien();
+  showToast('🗑 Kategorie gelöscht','info');
+}
+
+function openKatModal(){
+  document.getElementById('kat-label').value='';
+  document.getElementById('kat-key').value='';
+  document.getElementById('kat-modal').classList.add('open');
+  document.getElementById('kat-label').addEventListener('input',function(){
+    document.getElementById('kat-key').value=slugify(this.value);
+  });
+}
+function closeKatModal(){document.getElementById('kat-modal').classList.remove('open');}
+
+async function saveKategorie(){
+  const label=document.getElementById('kat-label').value.trim();
+  const phase=document.getElementById('kat-phase').value;
+  const color=document.getElementById('kat-color').value;
+  const cat_key=slugify(label);
+  if(!label){document.getElementById('kat-label').classList.add('form-error');return;}
+  const {error}=await supa.from('kategorien').insert({
+    phase,cat_key,label,color,erstellt_von:currentUser.id
+  });
+  if(error){showToast('❌ Fehler: '+error.message,'info');return;}
+  await loadKategorien();
+  closeKatModal();
+  renderAdminKategorien();
+  showToast('✅ Kategorie angelegt','success');
+}
+
+function renderAdminEinladung(){
+  const body=document.getElementById('admin-body');
+  body.innerHTML=`
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">✉️ Trainer einladen</h3>
+    <div style="background:var(--bg);border-radius:10px;padding:20px;border:1px solid var(--border);">
+      <div class="form-group">
+        <label class="form-label">E-Mail-Adresse</label>
+        <input class="form-input" id="invite-email" type="email" placeholder="trainer@beispiel.de">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rolle</label>
+        <select class="form-select" id="invite-role">
+          <option value="trainer">Trainer</option>
+          <option value="manager">Manager</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="sendInvite()">✉️ Einladung speichern</button>
+    </div>
+    <div style="margin-top:20px;padding:14px;background:#eff6ff;border-radius:10px;border:1px solid #93c5fd;font-size:13px;color:#1d4ed8;">
+      <strong>Hinweis:</strong> Neue Trainer können sich über die App registrieren. Du musst sie danach hier unter "Nutzer" aktivieren und die richtige Rolle vergeben.
+    </div>`;
+}
+
+async function sendInvite(){
+  const email=document.getElementById('invite-email').value.trim();
+  const role=document.getElementById('invite-role').value;
+  if(!email){showToast('Bitte E-Mail eingeben','info');return;}
+  const {error}=await supa.from('einladungen').insert({email,role,eingeladen_von:currentUser.id});
+  if(error){showToast('❌ Fehler: '+error.message,'info');return;}
+  showToast('✅ Einladung gespeichert – Trainer kann sich jetzt registrieren','success');
+  document.getElementById('invite-email').value='';
+}
+
+// ══════════════════════════════════════════
+// BILD-UPLOAD
+// ══════════════════════════════════════════
+function getImgArr(p){return p==='f'?fImages:dbfImages;}
+function setImgArr(p,a){if(p==='f') fImages=a; else dbfImages=a;}
+function handleImgUpload(event,prefix){
+  const arr=getImgArr(prefix);
+  Array.from(event.target.files).forEach(file=>{arr.push({filename:file.name,objectUrl:URL.createObjectURL(file),_file:file});});
+  setImgArr(prefix,arr);renderFormGallery(prefix+'-img-gallery',arr,prefix);
+  event.target.value='';
+  showToast('📎 Bild bereit – wird beim Speichern hochgeladen','info');
+}
+function handleImgDrop(event,prefix){
+  event.preventDefault();event.currentTarget.classList.remove('drag-active');
+  const arr=getImgArr(prefix);
+  Array.from(event.dataTransfer.files).filter(f=>f.type.startsWith('image/')).forEach(file=>{arr.push({filename:file.name,objectUrl:URL.createObjectURL(file),_file:file});});
+  setImgArr(prefix,arr);renderFormGallery(prefix+'-img-gallery',arr,prefix);
+}
+function renderFormGallery(galleryId,imgs,prefix){
+  const g=document.getElementById(galleryId);g.innerHTML='';
+  imgs.forEach((img,i)=>{
+    const src=img.objectUrl||img;
+    const th=document.createElement('div');th.className='img-thumb';
+    th.innerHTML=`<img src="${src}" alt="Bild ${i+1}"><button class="img-thumb-del" onclick="removeImg('${prefix}',${i})">✕</button>`;
+    g.appendChild(th);
+  });
+}
+function removeImg(prefix,idx){
+  const arr=getImgArr(prefix);arr.splice(idx,1);setImgArr(prefix,arr);
+  renderFormGallery(prefix+'-img-gallery',arr,prefix);
+}
+
+// ══════════════════════════════════════════
+// YOUTUBE
+// ══════════════════════════════════════════
+function ytVideoId(url){
+  if(!url) return null;
+  const m=url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m?m[1]:null;
+}
+function previewYT(inputId,previewId){
+  const url=document.getElementById(inputId).value.trim();
+  const wrap=document.getElementById(previewId);
+  const vid=ytVideoId(url);
+  if(vid){wrap.style.display='';wrap.innerHTML=`<div class="yt-wrap"><iframe src="https://www.youtube.com/embed/${vid}" allowfullscreen></iframe></div>`;}
+  else{wrap.style.display='none';wrap.innerHTML='';}
+}
+
+// ══════════════════════════════════════════
+// LIGHTBOX
+// ══════════════════════════════════════════
+function openLightbox(idx){
+  lbIdx=idx;document.getElementById('lb-img').src=lbSrcs[idx];
+  document.getElementById('lb-counter').textContent=`${idx+1} / ${lbSrcs.length}`;
+  document.getElementById('lightbox').classList.add('open');
+  document.querySelector('.lb-prev').style.display=lbSrcs.length>1?'':'none';
+  document.querySelector('.lb-next').style.display=lbSrcs.length>1?'':'none';
+}
+function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
+function lbNav(dir){
+  lbIdx=(lbIdx+dir+lbSrcs.length)%lbSrcs.length;
+  document.getElementById('lb-img').src=lbSrcs[lbIdx];
+  document.getElementById('lb-counter').textContent=`${lbIdx+1} / ${lbSrcs.length}`;
+}
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('lightbox').classList.contains('open'))return;
+  if(e.key==='Escape')closeLightbox();
+  if(e.key==='ArrowRight')lbNav(1);
+  if(e.key==='ArrowLeft')lbNav(-1);
+});
+
+
+// ══════════════════════════════════════════
+// MANNSCHAFTEN & iCAL FEEDS
+// ══════════════════════════════════════════
+
+// Storage key
+const MSC_KEY = 'handball_mannschaften';
+
+// In-memory cache of fetched iCal events
+// [{uid, summary, dtstart, dtend, typ:'training'|'spiel', mannschaftId, farbe, farbe_ungeplant}]
+let icalEvents = [];
+let icalFetchTs = 0; // last fetch timestamp
+
+function loadMannschaften() {
+  try { return JSON.parse(localStorage.getItem(MSC_KEY)||'[]'); } catch(e){ return []; }
+}
+function saveMannschaften(arr) {
+  localStorage.setItem(MSC_KEY, JSON.stringify(arr));
+}
+
+// ── Modal open/close ──
+function openMannschaftenModal() {
+  document.getElementById('mannschaften-modal').classList.add('open');
+  renderMannschaftenList();
+}
+function closeMannschaftenModal() {
+  document.getElementById('mannschaften-modal').classList.remove('open');
+  document.getElementById('msc-form').style.display='none';
+  document.getElementById('msc-add-btn').style.display='';
+}
+
+// ── Render list of existing teams ──
+function renderMannschaftenList() {
+  const teams = loadMannschaften();
+  const el = document.getElementById('msc-list');
+  if(!teams.length) {
+    el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--xsoft);font-size:13px;">Noch keine Mannschaft angelegt.</div>';
+    return;
+  }
+  el.innerHTML = teams.map(t => `
+    <div class="team-card">
+      <div class="team-color-preview" style="background:${t.farbe_geplant||'#0057ff'};">${(t.name||'M')[0].toUpperCase()}</div>
+      <div class="team-card-info">
+        <div class="team-card-name">${t.name}</div>
+        <div class="team-card-feeds">
+          ${t.ical_training ? `<span class="feed-chip ok">🏋 Training-Feed</span>` : '<span class="feed-chip">🏋 Kein Training-Feed</span>'}
+          ${t.ical_spiele ? `<span class="feed-chip ok">🏆 Spiel-Feed</span>` : '<span class="feed-chip">🏆 Kein Spiel-Feed</span>'}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:5px;">
+          <span title="Geplant" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--soft);">
+            <span style="width:12px;height:12px;border-radius:3px;background:${t.farbe_geplant||'#0057ff'};display:inline-block;"></span> Geplant
+          </span>
+          <span title="Ungeplant" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--soft);">
+            <span style="width:12px;height:12px;border-radius:3px;background:${t.farbe_ungeplant||'#94a3b8'};display:inline-block;"></span> Ungeplant
+          </span>
+        </div>
+      </div>
+      <div class="team-card-actions">
+        <button class="team-edit-btn" onclick="showTeamForm('${t.id}')">✏ Bearbeiten</button>
+        <button class="team-delete-btn" onclick="deleteTeam('${t.id}')">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Show add/edit form ──
+function showTeamForm(id) {
+  const teams = loadMannschaften();
+  const t = id ? teams.find(x=>x.id===id) : null;
+  document.getElementById('msc-add-btn').style.display='none';
+  const formEl = document.getElementById('msc-form');
+  formEl.style.display='';
+  formEl.innerHTML = `
+    <div class="team-form">
+      <input type="hidden" id="tf-id" value="${t?t.id:''}">
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label">Mannschaftsname *</label>
+        <input class="form-input" id="tf-name" placeholder="z.B. Herren 1" value="${t?t.name:''}">
+      </div>
+      <div class="color-pair" style="margin-bottom:12px;">
+        <div class="color-swatch-wrap">
+          <div class="color-swatch-label">🟢 Farbe geplante Einheit</div>
+          <input type="color" class="form-input" id="tf-farbe-geplant" value="${t?t.farbe_geplant:'#0057ff'}" style="height:40px;padding:3px 6px;cursor:pointer;">
+          <div style="font-size:10.5px;color:var(--xsoft);margin-top:3px;">Einheiten mit Übungen</div>
+        </div>
+        <div class="color-swatch-wrap">
+          <div class="color-swatch-label">⬜ Farbe ungeplante Einheit</div>
+          <input type="color" class="form-input" id="tf-farbe-ungeplant" value="${t?t.farbe_ungeplant:'#94a3b8'}" style="height:40px;padding:3px 6px;cursor:pointer;">
+          <div style="font-size:10.5px;color:var(--xsoft);margin-top:3px;">Slots ohne Inhalt (aus Feed)</div>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label">🏋 iCal-Feed Training (Sportsmember)</label>
+        <div class="feed-row">
+          <input class="form-input" id="tf-ical-training" placeholder="https://sportsmember.com/ical/…" value="${t?t.ical_training||'':''}">
+          <button class="btn btn-ghost" style="font-size:12px;white-space:nowrap;" onclick="testFeed('tf-ical-training','tf-training-status')">Testen</button>
+        </div>
+        <div id="tf-training-status" style="margin-top:5px;"></div>
+        <div style="font-size:11px;color:var(--xsoft);margin-top:4px;">
+          In Sportsmember: Kalender → Export → iCal-Link kopieren
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">🏆 iCal-Feed Spiele (handball.net)</label>
+        <div class="feed-row">
+          <input class="form-input" id="tf-ical-spiele" placeholder="https://handball.net/ical/…" value="${t?t.ical_spiele||'':''}">
+          <button class="btn btn-ghost" style="font-size:12px;white-space:nowrap;" onclick="testFeed('tf-ical-spiele','tf-spiele-status')">Testen</button>
+        </div>
+        <div id="tf-spiele-status" style="margin-top:5px;"></div>
+        <div style="font-size:11px;color:var(--xsoft);margin-top:4px;">
+          Auf handball.net: Team-Spielplan → Kalender-Icon → iCal-Link kopieren
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn btn-ghost" onclick="cancelTeamForm()">Abbrechen</button>
+        <button class="btn btn-primary" onclick="saveTeamForm()">✅ Speichern</button>
+      </div>
+    </div>
+  `;
+}
+
+function cancelTeamForm() {
+  document.getElementById('msc-form').style.display='none';
+  document.getElementById('msc-add-btn').style.display='';
+}
+
+function saveTeamForm() {
+  const id   = document.getElementById('tf-id').value;
+  const name = document.getElementById('tf-name').value.trim();
+  if(!name){showToast('⚠️ Bitte Mannschaftsname eingeben','info');return;}
+  const entry = {
+    id:   id || crypto.randomUUID(),
+    name,
+    farbe_geplant:   document.getElementById('tf-farbe-geplant').value,
+    farbe_ungeplant: document.getElementById('tf-farbe-ungeplant').value,
+    ical_training:   document.getElementById('tf-ical-training').value.trim(),
+    ical_spiele:     document.getElementById('tf-ical-spiele').value.trim(),
+  };
+  let teams = loadMannschaften();
+  if(id) { const idx=teams.findIndex(x=>x.id===id); if(idx>=0) teams[idx]=entry; else teams.push(entry); }
+  else teams.push(entry);
+  saveMannschaften(teams);
+  cancelTeamForm();
+  renderMannschaftenList();
+  showToast('✅ Mannschaft gespeichert','success');
+  // Trigger feed refresh
+  icalEvents = [];
+  refreshAllFeeds();
+}
+
+function deleteTeam(id) {
+  if(!confirm('Mannschaft wirklich löschen?')) return;
+  let teams = loadMannschaften().filter(t=>t.id!==id);
+  saveMannschaften(teams);
+  icalEvents = icalEvents.filter(e=>e.mannschaftId!==id);
+  renderMannschaftenList();
+  showToast('🗑 Mannschaft gelöscht','info');
+  renderKalender();
+}
+
+// ── Feed testen ──
+async function testFeed(inputId, statusId) {
+  const url = document.getElementById(inputId).value.trim();
+  const statusEl = document.getElementById(statusId);
+  if(!url){statusEl.innerHTML='<span class="feed-status err">⚠️ Kein Link eingegeben</span>';return;}
+  statusEl.innerHTML='<span class="feed-status loading">⏳ Verbinde…</span>';
+  try {
+    const events = await fetchICalFeed(url);
+    statusEl.innerHTML=`<span class="feed-status ok">✅ ${events.length} Termine gefunden</span>`;
+  } catch(e) {
+    statusEl.innerHTML=`<span class="feed-status err">❌ ${e.message||'Feed nicht erreichbar'}</span>`;
+  }
+}
+
+// ── iCal Fetch via eigene Supabase Edge Function ──
+// Kein Drittanbieter-Proxy – sicher, datenschutzkonform, zuverlässig.
+const ICAL_PROXY_URL = SUPA_URL + '/functions/v1/ical-proxy';
+
+async function fetchICalFeed(url) {
+  // Aktuelle Supabase-Session für Auth-Token holen
+  const { data: { session } } = await supa.auth.getSession();
+  if (!session?.access_token) throw new Error('Nicht eingeloggt');
+
+  const proxyUrl = ICAL_PROXY_URL + '?url=' + encodeURIComponent(url);
+  let res;
+  try {
+    res = await fetch(proxyUrl, {
+      headers: { 'Authorization': 'Bearer ' + session.access_token },
+      signal: AbortSignal.timeout(12000)
+    });
+  } catch(e) {
+    throw new Error('Verbindung zur Edge Function fehlgeschlagen: ' + e.message);
+  }
+
+  if (!res.ok) {
+    let msg = 'HTTP ' + res.status;
+    try { const j = await res.json(); msg = j.error || msg; } catch(_){}
+    throw new Error(msg);
+  }
+
+  const text = await res.text();
+  if (!text.includes('BEGIN:VCALENDAR')) throw new Error('Kein gültiger iCal-Feed');
+  dbg('Feed geladen: ' + url.slice(0,60) + '… (' + text.length + ' Bytes)', 'ok');
+  return parseICal(text);
+}
+
+// ── iCal Parser ──
+function parseICal(text) {
+  // Unfold lines (continuation lines start with space/tab)
+  const unfolded = text.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const events = [];
+  const blocks = unfolded.split('BEGIN:VEVENT');
+  for(let i=1;i<blocks.length;i++) {
+    const block = blocks[i].split('END:VEVENT')[0];
+    const ev = {};
+    block.split('\n').forEach(line => {
+      const sep = line.indexOf(':');
+      if(sep<0) return;
+      const key = line.slice(0,sep).split(';')[0].trim().toUpperCase();
+      const val = line.slice(sep+1).trim();
+      if(key==='SUMMARY')    ev.summary = val.replace(/\\n/g,' ').replace(/\\,/g,',');
+      if(key==='DTSTART')    ev.dtstart = parseICalDate(val);
+      if(key==='DTEND')      ev.dtend   = parseICalDate(val);
+      if(key==='DURATION' && ev.dtstart) ev.dtend = addICalDuration(ev.dtstart, val);
+      if(key==='UID')        ev.uid = val;
+      if(key==='LOCATION')   ev.location = val.replace(/\\n/g,', ');
+    });
+    if(ev.dtstart) events.push(ev);
+  }
+  return events;
+}
+
+function parseICalDate(s) {
+  // YYYYMMDDTHHMMSSZ or YYYYMMDD
+  s = s.replace('Z','');
+  if(s.includes('T')) {
+    const y=s.slice(0,4),mo=s.slice(4,6),d=s.slice(6,8);
+    const h=s.slice(9,11),mi=s.slice(11,13);
+    return new Date(`${y}-${mo}-${d}T${h}:${mi}:00`);
+  } else {
+    return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);
+  }
+}
+
+function addICalDuration(start, dur) {
+  // PT1H30M etc. — simple parser
+  const m = dur.match(/P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?/);
+  if(!m) return start;
+  const days = parseInt(m[1]||0), hours = parseInt(m[2]||0), mins = parseInt(m[3]||0);
+  return new Date(start.getTime() + (days*86400+hours*3600+mins*60)*1000);
+}
+
+// ── Fetch all team feeds ──
+async function refreshAllFeeds() {
+  const btn = document.getElementById('ical-sync-btn');
+  if(btn) btn.classList.add('spinning');
+  const teams = loadMannschaften();
+  const newEvents = [];
+  let ok=0, fail=0;
+  for(const t of teams) {
+    if(t.ical_training) {
+      try {
+        const evs = await fetchICalFeed(t.ical_training);
+        evs.forEach(e=>newEvents.push({...e, mannschaftId:t.id, mannschaftName:t.name, typ:'training', farbe_geplant:t.farbe_geplant, farbe_ungeplant:t.farbe_ungeplant}));
+        ok++;
+        dbg(`Feed Training ${t.name}: ${evs.length} Termine`,'ok');
+      } catch(e){fail++;dbg(`Feed Training ${t.name} Fehler: ${e.message}`,'err');}
+    }
+    if(t.ical_spiele) {
+      try {
+        const evs = await fetchICalFeed(t.ical_spiele);
+        evs.forEach(e=>newEvents.push({...e, mannschaftId:t.id, mannschaftName:t.name, typ:'spiel', farbe_geplant:t.farbe_geplant, farbe_ungeplant:t.farbe_ungeplant}));
+        ok++;
+        dbg(`Feed Spiele ${t.name}: ${evs.length} Termine`,'ok');
+      } catch(e){fail++;dbg(`Feed Spiele ${t.name} Fehler: ${e.message}`,'err');}
+    }
+  }
+  icalEvents = newEvents;
+  icalFetchTs = Date.now();
+  if(btn) btn.classList.remove('spinning');
+  const msg = fail>0 ? `⚠️ ${ok} Feeds geladen, ${fail} Fehler` : `✅ ${newEvents.length} Feed-Termine geladen`;
+  showToast(msg, fail>0?'info':'success');
+  renderKalender();
+}
+
+// ── Legende rendern ──
+function renderKalenderLegend(teams, hasPlanedEinheiten) {
+  const leg = document.getElementById('kal-legend');
+  const items = document.getElementById('kal-legend-items');
+  if(!teams.length && !hasPlanedEinheiten){leg.style.display='none';return;}
+  leg.style.display='flex';
+  const parts = [];
+  if(hasPlanedEinheiten) parts.push(`<div class="kal-legend-item"><div class="kal-legend-dot" style="background:var(--accent);"></div> Einheit (geplant)</div>`);
+  teams.forEach(t=>{
+    parts.push(`<div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_geplant};"></div> ${t.name} geplant</div>`);
+    parts.push(`<div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_ungeplant};opacity:.7;"></div> ${t.name} ungeplant</div>`);
+    parts.push(`<div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_geplant};border:1.5px solid rgba(0,0,0,.2);"></div> ${t.name} Spiel</div>`);
+  });
+  items.innerHTML=parts.join('');
+}
+
+// ── Hilfsfunktion: Datum → YYYY-MM-DD ──
+function toDateStr(d){ return d instanceof Date ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : '';}
+
+// ══════════════════════════════════════════
+// INIT iCal on app start
+// ══════════════════════════════════════════
+setTimeout(()=>{
+  if(loadMannschaften().length > 0) refreshAllFeeds();
+}, 2000);
+
+
+function isMobile(){return window.innerWidth<=640;}
+function setupMobile(){
+  const fab=document.getElementById('fab-add');
+  if(fab) fab.style.display=isMobile()?'flex':'none';
+}
+window.addEventListener('resize',setupMobile);
+
+// ══════════════════════════════════════════
+// INIT
+
+// SESSION EDIT MODAL
+function openSessionEdit(){
+  document.getElementById('se-name').value  = sessionMeta.name !== 'Trainingseinheit' ? sessionMeta.name : '';
+  document.getElementById('se-date').value  = sessionMeta.date  || '';
+  document.getElementById('se-time').value  = sessionMeta.time  || '';
+  document.getElementById('se-group').value = sessionMeta.group || '';
+  document.getElementById('se-ort').value   = sessionMeta.ort   || '';
+  document.getElementById('se-focus').value = sessionMeta.focus || '';
+  document.getElementById('se-notes').value = sessionMeta.notes || '';
+  document.getElementById('session-edit-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('se-name').focus(), 150);
+}
+
+function closeSessionEdit(){
+  document.getElementById('session-edit-modal').classList.remove('open');
+}
+
+function saveSessionEdit(){
+  const name = document.getElementById('se-name').value.trim();
+  if(name) {
+    sessionMeta.name = name;
+    document.getElementById('s-title').textContent = name;
+  }
+  sessionMeta.date  = document.getElementById('se-date').value;
+  sessionMeta.time  = document.getElementById('se-time').value;
+  sessionMeta.group = document.getElementById('se-group').value.trim();
+  sessionMeta.ort   = document.getElementById('se-ort').value.trim();
+  sessionMeta.focus = document.getElementById('se-focus').value.trim();
+  sessionMeta.notes = document.getElementById('se-notes').value;
+  closeSessionEdit();
+  render();
+  showToast('✅ Einheit aktualisiert', 'success');
+}
+
+
+// VIEW SWITCHER
+let currentView = 'planer';
+function showView(view) {
+  currentView = view;
+  document.getElementById('plan-card').style.display = view==='planer' ? '' : 'none';
+  document.getElementById('kalender-view').style.display = view==='kalender' ? '' : 'none';
+  const sh = document.querySelector('.session-header');
+  if(sh) sh.style.display = view==='planer' ? '' : 'none';
+  document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
+  if(view==='kalender' && document.getElementById('nav-kalender')) document.getElementById('nav-kalender').classList.add('active');
+  if(view==='planer' && document.getElementById('nav-planer')) document.getElementById('nav-planer').classList.add('active');
+  if(view==='kalender') renderKalender();
+  closeMehrMenu();
+}
+
+// KALENDER
+let kalDate = new Date();
+function kalNav(dir) { kalDate.setMonth(kalDate.getMonth()+dir); renderKalender(); }
+
+async function renderKalender() {
+  const year=kalDate.getFullYear(), month=kalDate.getMonth();
+  const monatNamen=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  document.getElementById('kal-monat').textContent = monatNamen[month]+' '+year;
+  const grid=document.getElementById('kal-grid'); grid.innerHTML='';
+  const firstDay=new Date(year,month,1).getDay();
+  const startOffset=firstDay===0?6:firstDay-1;
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const today=new Date();
+  const teams = loadMannschaften();
+
+  // Load planned einheiten from Supabase
+  let einheitenMap={};
+  if(currentUser){
+    const from=`${year}-${String(month+1).padStart(2,'0')}-01`;
+    const to=`${year}-${String(month+1).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}`;
+    const {data}=await supa.from('einheiten').select('id,name,date,time,group_name,drills').eq('user_id',currentUser.id).gte('date',from).lte('date',to);
+    (data||[]).forEach(e=>{const d=e.date?.split('-')[2];if(d){if(!einheitenMap[parseInt(d)])einheitenMap[parseInt(d)]=[];einheitenMap[parseInt(d)].push(e);}});
+  }
+
+  // Build iCal events map for this month
+  const icalMap={};
+  icalEvents.forEach(ev=>{
+    if(!ev.dtstart) return;
+    const evYear=ev.dtstart.getFullYear(), evMonth=ev.dtstart.getMonth();
+    if(evYear!==year||evMonth!==month) return;
+    const day=ev.dtstart.getDate();
+    if(!icalMap[day]) icalMap[day]=[];
+    icalMap[day].push(ev);
+  });
+
+  // Build set of dates that have a planned einheit (drills>0)
+  const plannedDates=new Set();
+  Object.values(einheitenMap).flat().forEach(e=>{
+    const drillsArr=Array.isArray(e.drills)?e.drills:(typeof e.drills==='string'?JSON.parse(e.drills||'[]'):[]);
+    if(drillsArr.length>0 && e.date) plannedDates.add(e.date);
+  });
+
+  // Render grid
+  for(let i=0;i<startOffset;i++){
+    const cell=document.createElement('div');
+    cell.style.cssText='min-height:60px;background:#fafafa;border-right:1px solid var(--border);border-bottom:1px solid var(--border);';
+    grid.appendChild(cell);
+  }
+
+  for(let day=1;day<=daysInMonth;day++){
+    const cell=document.createElement('div');
+    const isToday=today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===day;
+    const dow=(startOffset+day-1)%7, isSun=dow===6;
+    const einheiten=einheitenMap[day]||[];
+    const icalDay=icalMap[day]||[];
+    cell.style.cssText=`min-height:60px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px;cursor:pointer;transition:background .1s;${isToday?'background:#eff6ff;':isSun?'background:#fff8f8;':''}`;
+    cell.onclick=()=>newEinheitOnDate(year,month,day);
+    const dayEl=document.createElement('div');
+    dayEl.style.cssText=`font-size:12px;font-weight:${isToday?700:500};width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;${isToday?'background:var(--accent);color:white;':'color:'+(isSun?'#ef4444':'var(--text)')+';'}`;
+    dayEl.textContent=day;
+    cell.appendChild(dayEl);
+
+    // ── Supabase Einheiten (geplant/ungeplant je nach drills) ──
+    einheiten.forEach(e=>{
+      const drillsArr=Array.isArray(e.drills)?e.drills:(typeof e.drills==='string'?JSON.parse(e.drills||'[]'):[]);
+      const isPlanned=drillsArr.length>0;
+      // Find matching team by group_name
+      const team=teams.find(t=>t.name===e.group_name);
+      const bg = isPlanned
+        ? (team?team.farbe_geplant:'var(--accent)')
+        : (team?team.farbe_ungeplant:'#94a3b8');
+      const dot=document.createElement('div');
+      dot.style.cssText=`margin-top:2px;background:${bg};color:white;border-radius:3px;font-size:9px;padding:1px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+      dot.textContent=(e.time?e.time.slice(0,5)+' ':'')+( e.name||'Einheit');
+      dot.title=(isPlanned?'✅ Geplant':'⬜ Ungeplant')+': '+e.name;
+      dot.onclick=(ev)=>{ev.stopPropagation();loadEinheit(e.id);};
+      cell.appendChild(dot);
+    });
+
+    // ── iCal Events (Trainings + Spiele aus Feeds) ──
+    icalDay.forEach(ev=>{
+      // Check if there's a planned Supabase einheit on this day for same team
+      const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const matchedEinheit=einheiten.find(e=>e.group_name===ev.mannschaftName);
+      // Don't double-show if already covered by Supabase einheit
+      if(matchedEinheit) return;
+
+      const isSpiel=ev.typ==='spiel';
+      const bg = isSpiel ? ev.farbe_geplant : ev.farbe_ungeplant;
+      const dot=document.createElement('div');
+      dot.className='kal-ical-event'+(isSpiel?' kal-spiel':'');
+      dot.style.cssText=`margin-top:2px;background:${bg};color:white;border-radius:3px;font-size:9px;padding:1px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:${isSpiel?1:.85};${isSpiel?'border-left:2px solid rgba(0,0,0,.2);':''}`;
+      const time=ev.dtstart?ev.dtstart.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
+      dot.textContent=(isSpiel?'🏆 ':'🏋 ')+(time?time+' ':'')+ev.summary;
+      dot.title=(isSpiel?'Spiel':'Training')+': '+ev.summary+(ev.location?' @ '+ev.location:'');
+      dot.onclick=(e)=>{
+        e.stopPropagation();
+        if(!isSpiel){
+          // Create a new Einheit on this date pre-filled with team info
+          const team=teams.find(t=>t.id===ev.mannschaftId);
+          sessionMeta.date=dateStr;
+          sessionMeta.group=ev.mannschaftName||'';
+          sessionMeta.time=time;
+          sessionMeta.name='Training '+ev.mannschaftName;
+          showView('planer'); render();
+          showToast('📋 Neue Einheit vorbereitet – jetzt Übungen hinzufügen','info');
+        }
+      };
+      cell.appendChild(dot);
+    });
+
+    grid.appendChild(cell);
+  }
+
+  // ── Liste ──
+  const liste=document.getElementById('kal-einheiten');
+  const allE=Object.values(einheitenMap).flat().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  if(!allE.length && !icalEvents.length){
+    liste.innerHTML='<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Keine Einheiten diesen Monat.<br><br><button class="btn btn-primary" style="font-size:12px;" onclick="showView(&quot;planer&quot;)">+ Neue Einheit</button></div>';
+  } else {
+    const icalThisMonth = icalEvents.filter(ev=>{
+      if(!ev.dtstart) return false;
+      return ev.dtstart.getFullYear()===year && ev.dtstart.getMonth()===month;
+    }).sort((a,b)=>a.dtstart-b.dtstart);
+
+    // Merge and deduplicate (Supabase einheiten take priority over iCal)
+    const supaItems = allE.map(e=>{
+      const drillsArr=Array.isArray(e.drills)?e.drills:(typeof e.drills==='string'?JSON.parse(e.drills||'[]'):[]);
+      const isPlanned=drillsArr.length>0;
+      const team=teams.find(t=>t.name===e.group_name);
+      const bg=isPlanned?(team?team.farbe_geplant:'var(--accent)'):(team?team.farbe_ungeplant:'#94a3b8');
+      return {
+        sortKey:e.date+(e.time||''),
+        html:`<div onclick="loadEinheit('${e.id}')" style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer;">
+          <div style="width:36px;height:36px;background:${bg};opacity:.15;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:${bg};flex-shrink:0;position:relative;">
+            <span style="position:absolute;color:${bg};opacity:1;">${e.date?parseInt(e.date.split('-')[2]):'–'}</span>
+          </div>
+          <div style="width:4px;height:36px;background:${bg};border-radius:2px;flex-shrink:0;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13.5px;font-weight:500;">${e.name||'Einheit'}</div>
+            <div style="font-size:11.5px;color:var(--soft);">${e.time?e.time.slice(0,5)+' Uhr · ':''} ${e.group_name||''} ${isPlanned?'· <span style="color:#15803d;font-weight:600;">✅ geplant</span>':'· <span style="color:var(--xsoft);">⬜ ungeplant</span>'}</div>
+          </div>
+          <div style="color:var(--xsoft);">›</div>
+        </div>`
+      };
+    });
+
+    // iCal events not covered by supabase
+    const icalItems = icalThisMonth
+      .filter(ev=>!allE.find(e=>e.group_name===ev.mannschaftName && e.date===toDateStr(ev.dtstart)))
+      .map(ev=>{
+        const isSpiel=ev.typ==='spiel';
+        const bg=isSpiel?ev.farbe_geplant:ev.farbe_ungeplant;
+        const time=ev.dtstart?ev.dtstart.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
+        const dateStr=toDateStr(ev.dtstart);
+        return {
+          sortKey:dateStr+(time||''),
+          html:`<div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:${isSpiel?'default':'pointer'};" 
+            ${!isSpiel?`onclick="sessionMeta.date='${dateStr}';sessionMeta.group='${ev.mannschaftName||''}';sessionMeta.time='${time}';sessionMeta.name='Training ${ev.mannschaftName}';showView('planer');render();showToast('📋 Klicke + Übung hinzufügen','info');"`:''}>
+            <div style="width:4px;height:36px;background:${bg};border-radius:2px;flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13.5px;font-weight:500;">${isSpiel?'🏆 ':''} ${ev.summary}</div>
+              <div style="font-size:11.5px;color:var(--soft);">${time?time+' Uhr · ':''} ${ev.mannschaftName||''} · <span style="color:${isSpiel?'#d97706':'var(--xsoft)'};">${isSpiel?'Spiel':'⬜ noch nicht geplant'}</span></div>
+            </div>
+            ${!isSpiel?'<div style="color:var(--xsoft);">+</div>':''}
+          </div>`
+        };
+      });
+
+    const allItems=[...supaItems,...icalItems].sort((a,b)=>a.sortKey.localeCompare(b.sortKey));
+    liste.innerHTML=allItems.map(x=>x.html).join('');
+  }
+
+  // Legend
+  renderKalenderLegend(teams, Object.values(einheitenMap).flat().length>0);
+}
+
+function newEinheitOnDate(year,month,day){
+  sessionMeta.date=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  showView('planer'); render();
+  setTimeout(()=>openAddModal(-1),300);
+}
+
+async function loadMostRecentEinheit(){
+  if(!currentUser) return;
+  try {
+    dbg('Lade letzte Einheit…','info');
+    const {data,error}=await supa.from('einheiten')
+      .select('*')
+      .eq('user_id',currentUser.id)
+      .order('updated_at',{ascending:false})
+      .limit(1)
+      .maybeSingle();
+    if(error){
+      dbg('Einheit laden Fehler: '+error.message+' ('+error.code+')','err');
+      return;
+    }
+    if(!data){dbg('Keine gespeicherte Einheit vorhanden','info');return;}
+    dbg('Einheit gefunden: '+data.name+' drills='+JSON.stringify(data.drills||[]).slice(0,80),'ok');
+    currentEinheitId=data.id;
+    sessionMeta={
+      name:data.name||'Einheit',
+      group:data.group_name||'',
+      date:data.date||'',
+      time:data.time||'',
+      ort:data.ort||'',
+      focus:data.focus||'',
+      notes:data.notes||''
+    };
+    const rawDrills = data.drills;
+    if(Array.isArray(rawDrills)){
+      drills=rawDrills;
+    } else if(typeof rawDrills==='string'){
+      try { drills=JSON.parse(rawDrills); } catch(e){ drills=[]; }
+    } else {
+      drills=[];
+    }
+    dbg('Drills geladen: '+drills.length+' Stück','ok');
+    // Show first drill details for debugging
+    if(drills.length>0){
+      const d=drills[0];
+      dbg('Drill[0]: phase='+d.phase+' cat='+d.cat+' name='+d.name,'info');
+    }
+    document.getElementById('s-title').innerText=sessionMeta.name;
+    setStatus('connected','✅ Letzte Einheit: '+sessionMeta.name+' ('+drills.length+' Übungen)');
+    // Render immediately with loaded data
+    render();
+  } catch(e){
+    dbg('loadMostRecentEinheit Exception: '+e.message,'err');
+  }
+}
+
+async function loadEinheit(id){
+  setStatus('saving','⏳ Lade Einheit…');
+  const {data,error}=await supa.from('einheiten').select('*').eq('id',id).single();
+  if(error||!data){setStatus('error','❌ Laden fehlgeschlagen');return;}
+  currentEinheitId=data.id;
+  sessionMeta={
+    name:data.name||'Einheit',
+    group:data.group_name||'',
+    date:data.date||'',
+    time:data.time||'',
+    ort:data.ort||'',
+    focus:data.focus||'',
+    notes:data.notes||''
+  };
+  // drills is stored as jsonb - parse if string
+  drills = Array.isArray(data.drills) ? data.drills : 
+           (typeof data.drills === 'string' ? JSON.parse(data.drills) : []);
+  console.log('Loaded einheit with', drills.length, 'drills');
+  document.getElementById('s-title').innerText=sessionMeta.name;
+  setStatus('connected','✅ Einheit geladen: '+drills.length+' Übungen');
+  showView('planer'); render();
+}
+
+// ══════════════════════════════════════════
+updateCatOptions();
+updateDBCatOptions();
+render();
+setupMobile();
+
+supa.auth.getSession().then(({data:{session}})=>{
+  if(session) onAuthSuccess(session.user);
+});
+supa.auth.onAuthStateChange((event)=>{
+  if(event==='SIGNED_OUT'){/* handled by signOut() */}
+});
+</script>
+
+<!-- MANNSCHAFTEN MODAL -->
+<div class="modal-overlay" id="mannschaften-modal" onclick="if(event.target.id==='mannschaften-modal')closeMannschaftenModal()">
+  <div class="msc-modal">
+    <div class="msc-header">
+      <div>
+        <div class="msc-title">👥 Mannschaften & Feeds</div>
+        <div style="font-size:12px;color:var(--soft);margin-top:2px;">iCal-Feeds von Sportsmember & handball.net verknüpfen</div>
+      </div>
+      <button class="modal-close" onclick="closeMannschaftenModal()">✕</button>
+    </div>
+    <div class="msc-body">
+      <!-- Hinweis -->
+      <div class="info-banner blue" id="msc-hint" style="margin-bottom:16px;">
+        <div class="info-banner-icon">ℹ️</div>
+        <div class="info-banner-text">
+          <strong>Wie funktioniert das?</strong> Trage den iCal-Link aus Sportsmember (Trainings) und handball.net (Spiele) ein.
+          Die Termine erscheinen dann automatisch im Kalender – <em>ungeplante</em> Einheiten in deiner Wunschfarbe, <em>geplante</em> (mit Übungen) in einer anderen.
+          <br><span style="color:#1d4ed8;">🔒 Feeds werden sicher über deine eigene Supabase Edge Function abgerufen – kein Drittanbieter.</span>
+        </div>
+        <span class="info-banner-close" onclick="this.parentElement.remove()">✕</span>
+      </div>
+      <!-- Liste der Mannschaften -->
+      <div id="msc-list"></div>
+      <!-- Formular (neu / bearbeiten) -->
+      <div id="msc-form" style="display:none;"></div>
+      <!-- Neu-Button -->
+      <button class="btn btn-primary" id="msc-add-btn" onclick="showTeamForm(null)" style="margin-top:4px;">+ Mannschaft hinzufügen</button>
+    </div>
+    <div class="msc-footer">
+      <button class="btn btn-ghost" onclick="closeMannschaftenModal()">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEBUG PANEL -->
+<button id="debug-toggle" onclick="toggleDebug()" style="position:fixed;bottom:70px;right:0;z-index:9999;background:#222;color:#0f0;border:none;font-size:14px;padding:8px 10px;cursor:pointer;border-radius:8px 0 0 8px;display:none;">🐛</button>
+<div id="debug-panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;color:white;padding:0 4px;">
+    <strong>Debug Log</strong>
+    <div style="display:flex;gap:8px;">
+      <span onclick="document.getElementById('debug-log').innerHTML=''" style="cursor:pointer;font-size:11px;color:#ff0;">🗑 Clear</span>
+      <span onclick="toggleDebug()" style="cursor:pointer;font-size:11px;">✕</span>
+    </div>
+  </div>
+  <div id="debug-log"></div>
+</div>
+</body>
+</html>
