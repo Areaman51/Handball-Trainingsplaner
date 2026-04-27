@@ -1,6 +1,6 @@
 # 🤾 Handball Trainingsmanager
 
-> Browserbasiertes Coaching-Tool für Handball-Trainer nach DHB-Standard. Entwickelt als vollständiger Ersatz für kommerzielle Software  – kostenlos, ohne Installation, läuft direkt im Browser.
+> Browserbasiertes Coaching-Tool für Handball-Trainer nach DHB-Standard. Entwickelt als vollständiger Ersatz für kommerzielle Software wie XPS Sideline – kostenlos, ohne Installation, läuft direkt im Browser.
 
 ---
 
@@ -39,6 +39,18 @@
 - Zwei Modi: **Nur Ansicht** oder **Bearbeiten erlaubt**
 - Freigaben jederzeit anpassbar oder entziehbar
 
+### 📊 Bank-Statistik (NEU)
+- Live-Spielauswertung direkt von der Trainerbank
+- Spieler-Aufstellung je Spiel mit Torhüter- und Feldspieler-Unterscheidung (DHB-Standard)
+- Aktionserfassung per Tipp: Tor, Assist, 7m, 2min, Fehlwurf, Fehlpass, Turn-Over, 1:1 Gegentor u.v.m.
+- Spieluhr mit Startt/Stopp; Synchronisation mit handball.net Liveticker per Doppelklick
+- Spielstand automatisch beim Tor-Erfassen hochgezählt
+- Undo-Funktion für die letzte Aktion
+- Statistik-Auswertung nach dem Spiel: Handlungseffektivität, Wurfquote, Abwehrquote, +/-Wert
+- Alle Daten live in Supabase gespeichert (kein Datenverlust bei Tablet-Schlaf)
+- Export als JSON für Weiterverarbeitung
+- Optimiert für iPad (Quer- und Hochformat)
+
 ### ⚙️ Administration
 - Nutzerverwaltung (Rollen: admin, manager, trainer)
 - Nutzer aktivieren/deaktivieren
@@ -73,127 +85,29 @@ Erstelle ein neues Projekt auf [supabase.com](https://supabase.com).
 
 ### 2. Datenbank-Schema einrichten
 
-Führe folgendes SQL im Supabase SQL Editor aus:
+Führe die SQL-Dateien nacheinander im Supabase SQL Editor aus:
+
+**a) Trainingsplaner-Tabellen** (siehe vorhandene Dokumentation)
+
+**b) Bank-Statistik-Tabellen** – Inhalt von `bank-statistik-supabase-setup.sql` ausführen:
 
 ```sql
--- Profile
-CREATE TABLE public.profiles (
-  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name text,
-  email text,
-  verein text,
-  mannschaft text,
-  role text DEFAULT 'trainer',
-  aktiv boolean DEFAULT true,
-  eingeladen_von uuid REFERENCES auth.users(id),
-  created_at timestamptz DEFAULT now()
-);
-
--- Trainingseinheiten
-CREATE TABLE public.einheiten (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  name text DEFAULT 'Trainingseinheit',
-  group_name text,
-  date date,
-  time text,
-  ort text,
-  focus text,
-  notes text,
-  drills text,
-  updated_at timestamptz DEFAULT now(),
-  created_at timestamptz DEFAULT now()
-);
-
--- Einheit-Freigaben (nutzer-spezifisch)
-CREATE TABLE public.einheit_freigaben (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  einheit_id uuid NOT NULL REFERENCES public.einheiten(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  mode text NOT NULL DEFAULT 'view' CHECK (mode IN ('view','edit')),
-  created_at timestamptz DEFAULT now(),
-  UNIQUE(einheit_id, user_id)
-);
-
--- Übungsdatenbank (privat)
-CREATE TABLE public.uebungen (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  phase text,
-  cat text,
-  name text,
-  duration text,
-  players text,
-  aufbau text,
-  ablauf text,
-  variationen text,
-  augenmerk text,
-  youtube text,
-  bilder text[],
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
--- Geteilte Übungen
-CREATE TABLE public.geteilte_uebungen (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  original_id uuid REFERENCES public.uebungen(id),
-  vorgeschlagen_von uuid REFERENCES auth.users(id),
-  freigegeben_von uuid REFERENCES auth.users(id),
-  status text DEFAULT 'ausstehend',
-  created_at timestamptz DEFAULT now()
-);
-
--- Kategorien
-CREATE TABLE public.kategorien (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  phase text,
-  key text,
-  label text,
-  color text,
-  erstellt_von uuid REFERENCES auth.users(id),
-  created_at timestamptz DEFAULT now()
-);
-
--- Freigabe-Log
-CREATE TABLE public.freigabe_log (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  uebung_id uuid REFERENCES public.geteilte_uebungen(id),
-  aktion text,
-  von_user uuid REFERENCES auth.users(id),
-  created_at timestamptz DEFAULT now()
-);
-
--- Einladungen
-CREATE TABLE public.einladungen (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  email text,
-  role text,
-  eingeladen_von uuid REFERENCES auth.users(id),
-  token text,
-  verwendet boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-);
+-- Spiele, Spieler-Lineup, Spielaktionen
+-- (vollständiges SQL in bank-statistik-supabase-setup.sql)
 ```
 
-### 3. RLS & Policies aktivieren
-
-RLS für alle Tabellen aktivieren und Policies gemäß dem Projekt einrichten (siehe `STATUS.md`).
-
-### 4. Supabase-Zugangsdaten eintragen
-
-In der HTML-Datei die folgenden Zeilen mit deinen Projektdaten ersetzen:
-
-```js
-const SUPABASE_URL = 'https://DEIN-PROJEKT.supabase.co';
-const SUPABASE_ANON_KEY = 'DEIN-ANON-KEY';
-```
-
-### 5. Auf GitHub Pages deployen
+### 3. Auf GitHub Pages deployen
 
 1. Repository erstellen
-2. `handball_trainer_v4_12.html` als `index.html` hochladen
+2. Dateien hochladen:
+   ```
+   index.html                        ← Trainingsplaner (Hauptdatei)
+   handball-bank-statistik.html      ← Bank-Statistik
+   handball-taktikboard.html         ← Taktikboard
+   README.md
+   STATUS.md
+   bank-statistik-supabase-setup.sql ← Nur als Referenz, nicht vom Browser geladen
+   ```
 3. **Settings → Pages → Deploy from branch → main → / (root) → Save**
 4. Nach 1–2 Minuten erreichbar unter `https://USERNAME.github.io/REPO/`
 
@@ -203,10 +117,12 @@ const SUPABASE_ANON_KEY = 'DEIN-ANON-KEY';
 
 ```
 handball-trainer/
-├── index.html                  ← Hauptanwendung (Trainingsplaner)
-├── handball-taktikboard.html   ← Separates Taktikboard (standalone)
+├── index.html                        ← Trainingsplaner (Hauptanwendung)
+├── handball-bank-statistik.html      ← Bank-Statistik (Spielauswertung)
+├── handball-taktikboard.html         ← Taktikboard (standalone)
+├── bank-statistik-supabase-setup.sql ← SQL-Schema für Bank-Statistik
 ├── README.md
-└── STATUS.md                   ← Interner Entwicklungsstand
+└── STATUS.md                         ← Interner Entwicklungsstand
 ```
 
 ---
@@ -222,6 +138,9 @@ handball-trainer/
 
 ## 🗺 Roadmap
 
+- [ ] Bank-Statistik → Sidebar-Link im Trainingsplaner
+- [ ] Spielauswertungen im Trainingsplaner sichtbar (Verknüpfung Spiel ↔ Einheit)
+- [ ] handball.net Liveticker-Integration (automatische Zeitübernahme)
 - [ ] Taktikboard in Trainingseinheiten einbetten
 - [ ] Anwesenheitsliste (Tab vorhanden, Logik folgt)
 - [ ] Taktikdatenbank (Spielzüge, Abwehrsysteme)
@@ -236,7 +155,7 @@ Das Tool folgt dem DHB-Standard:
 
 | Symbol | Bedeutung |
 |---|---|
-| ▲ | Angriffspositionen |
+| ▲ | Angriffspositionen (Feldspieler) |
 | ● | Abwehrpositionen inkl. Torhüter |
 
 ---
