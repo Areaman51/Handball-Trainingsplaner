@@ -618,6 +618,45 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .mehr-item span { font-size: 17px; }
 }
 
+
+/* ── MANNSCHAFTEN MODAL ── */
+.msc-modal{background:white;border-radius:16px;box-shadow:var(--shadow-lg);width:min(680px,95vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;}
+.msc-header{padding:22px 26px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.msc-title{font-size:17px;font-weight:700;letter-spacing:-.3px;}
+.msc-body{padding:20px 26px;overflow-y:auto;flex:1;}
+.msc-footer{padding:14px 26px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
+.team-card{border:1.5px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;gap:14px;transition:border-color .15s;}
+.team-card:hover{border-color:#c7d2fe;}
+.team-color-dot{width:40px;height:40px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;color:white;font-weight:700;}
+.team-card-info{flex:1;min-width:0;}
+.team-card-name{font-size:14px;font-weight:600;margin-bottom:4px;}
+.team-card-feeds{display:flex;gap:6px;flex-wrap:wrap;}
+.feed-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-size:10.5px;color:var(--soft);}
+.feed-chip.ok{background:#f0fdf4;border-color:#86efac;color:#15803d;}
+.team-card-actions{display:flex;gap:6px;flex-shrink:0;}
+.team-edit-btn{background:none;border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--soft);font-family:'DM Sans',sans-serif;}
+.team-edit-btn:hover{background:var(--bg);color:var(--text);}
+.team-delete-btn{background:none;border:1px solid #fca5a5;border-radius:7px;padding:5px 8px;font-size:12px;cursor:pointer;color:#dc2626;font-family:'DM Sans',sans-serif;}
+.team-delete-btn:hover{background:#fef2f2;}
+.team-form{border:2px solid var(--accent);border-radius:12px;padding:18px 20px;margin-bottom:12px;background:#f8faff;}
+.feed-row{display:flex;gap:8px;align-items:flex-start;}
+.feed-row .form-input{flex:1;}
+.feed-status{display:inline-block;font-size:11px;padding:3px 9px;border-radius:6px;margin-top:5px;}
+.feed-status.ok{background:#f0fdf4;color:#15803d;border:1px solid #86efac;}
+.feed-status.err{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;}
+.feed-status.loading{background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;}
+.color-pair{display:flex;gap:12px;margin-bottom:14px;}
+.color-swatch-wrap{flex:1;}
+.color-swatch-label{font-size:11px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+/* iCal Kalender */
+.ical-sync-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;font-size:11.5px;font-weight:500;background:var(--accent-light);color:var(--accent);border:none;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.ical-sync-btn:hover{background:#dce8ff;}
+.ical-sync-btn svg{transition:transform .1s;}
+.ical-sync-btn.spinning svg{animation:ical-spin .8s linear infinite;}
+@keyframes ical-spin{to{transform:rotate(360deg)}}
+.kal-legend{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 18px;border-top:1px solid var(--border);background:#fafafa;}
+.kal-legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+.kal-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--soft);}
 </style>
 </head>
 <body>
@@ -680,6 +719,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="sidebar-label">Arbeitsbereich</div>
     <div class="sidebar-item" id="nav-kalender" onclick="showView('kalender')"><span>📅</span> Kalender</div>
     <div class="sidebar-item active" id="nav-planer" onclick="showView('planer')"><span>📋</span> Trainingsplaner</div>
+    <div class="sidebar-item" id="nav-mannschaften" onclick="openMannschaftenModal()"><span>👥</span> Mannschaften</div>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Library</div>
@@ -790,7 +830,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
               <div style="font-size:18px;font-weight:700;letter-spacing:-.3px;" id="kal-monat">April 2026</div>
               <div style="font-size:12px;color:var(--soft);margin-top:2px;" id="kal-subtitle">Trainingseinheiten</div>
             </div>
-            <div style="display:flex;gap:6px;">
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button class="ical-sync-btn" id="ical-sync-btn" onclick="refreshAllFeeds()" title="iCal-Feeds aktualisieren">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10"/><path d="M20.49 15a9 9 0 01-14.85 3.36L1 14"/></svg>
+                Feeds sync
+              </button>
               <button class="btn btn-ghost" style="padding:6px 10px;" onclick="kalNav(-1)">‹</button>
               <button class="btn btn-ghost" style="padding:6px 10px;" onclick="kalNav(1)">›</button>
               <button class="btn btn-primary" style="font-size:12px;" onclick="newEinheit()">+ Neue Einheit</button>
@@ -808,6 +852,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           </div>
           <!-- Kalender Grid -->
           <div id="kal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);"></div>
+          <!-- Legende -->
+          <div class="kal-legend" id="kal-legend" style="display:none;">
+            <span style="font-size:10px;font-weight:700;color:var(--xsoft);text-transform:uppercase;letter-spacing:.06em;margin-right:4px;">Legende:</span>
+            <div id="kal-legend-items" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
+          </div>
         </div>
         <!-- Einheiten dieser Woche/Monat -->
         <div style="margin-top:14px;background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);">
@@ -3282,53 +3331,160 @@ async function renderKalender() {
   const startOffset=firstDay===0?6:firstDay-1;
   const daysInMonth=new Date(year,month+1,0).getDate();
   const today=new Date();
+  const teams=loadMannschaften();
 
+  // ── Supabase-Einheiten laden (inkl. drills für geplant/ungeplant) ──
   let einheitenMap={};
   if(currentUser){
     const from=`${year}-${String(month+1).padStart(2,'0')}-01`;
     const to=`${year}-${String(month+1).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}`;
-    const {data}=await supa.from('einheiten').select('id,name,date,time,group_name').eq('user_id',currentUser.id).gte('date',from).lte('date',to);
-    (data||[]).forEach(e=>{const d=e.date?.split('-')[2];if(d){if(!einheitenMap[parseInt(d)])einheitenMap[parseInt(d)]=[];einheitenMap[parseInt(d)].push(e);}});
+    const {data}=await supa.from('einheiten').select('id,name,date,time,group_name,drills').eq('user_id',currentUser.id).gte('date',from).lte('date',to);
+    (data||[]).forEach(e=>{
+      const d=e.date?.split('-')[2];
+      if(d){if(!einheitenMap[parseInt(d)])einheitenMap[parseInt(d)]=[];einheitenMap[parseInt(d)].push(e);}
+    });
   }
 
+  // ── iCal-Events für diesen Monat ──
+  const icalMap={};
+  icalEvents.forEach(ev=>{
+    if(!ev.dtstart) return;
+    if(ev.dtstart.getFullYear()!==year||ev.dtstart.getMonth()!==month) return;
+    const d=ev.dtstart.getDate();
+    if(!icalMap[d]) icalMap[d]=[];
+    icalMap[d].push(ev);
+  });
+
+  // ── Leere Zellen ──
   for(let i=0;i<startOffset;i++){
     const cell=document.createElement('div');
     cell.style.cssText='min-height:60px;background:#fafafa;border-right:1px solid var(--border);border-bottom:1px solid var(--border);';
     grid.appendChild(cell);
   }
 
+  // ── Tage rendern ──
   for(let day=1;day<=daysInMonth;day++){
     const cell=document.createElement('div');
     const isToday=today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===day;
     const dow=(startOffset+day-1)%7, isSun=dow===6;
     const einheiten=einheitenMap[day]||[];
+    const icalDay=icalMap[day]||[];
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     cell.style.cssText=`min-height:60px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px;cursor:pointer;transition:background .1s;${isToday?'background:#eff6ff;':isSun?'background:#fff8f8;':''}`;
     cell.onclick=()=>newEinheitOnDate(year,month,day);
     const dayEl=document.createElement('div');
     dayEl.style.cssText=`font-size:12px;font-weight:${isToday?700:500};width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;${isToday?'background:var(--accent);color:white;':'color:'+(isSun?'#ef4444':'var(--text)')+';'}`;
     dayEl.textContent=day;
     cell.appendChild(dayEl);
+
+    // Supabase-Einheiten: Farbe je nach geplant/ungeplant und Mannschaft
     einheiten.forEach(e=>{
+      const drillsArr=Array.isArray(e.drills)?e.drills:(typeof e.drills==='string'?JSON.parse(e.drills||'[]'):[]);
+      const isPlanned=drillsArr.length>0;
+      const team=teams.find(t=>t.name===e.group_name);
+      const bg=isPlanned?(team?team.farbe_geplant:'var(--accent)'):(team?team.farbe_ungeplant:'#94a3b8');
       const dot=document.createElement('div');
-      dot.style.cssText='margin-top:2px;background:var(--accent);color:white;border-radius:3px;font-size:9px;padding:1px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      dot.style.cssText=`margin-top:2px;background:${bg};color:white;border-radius:3px;font-size:9px;padding:1px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;`;
       dot.textContent=(e.time?e.time.slice(0,5)+' ':'')+( e.name||'Einheit');
-      dot.title=e.name;
+      dot.title=(isPlanned?'✅ Geplant':'⬜ Ungeplant')+': '+e.name;
+      dot.onclick=(ev)=>{ev.stopPropagation();loadEinheit(e.id);};
       cell.appendChild(dot);
     });
+
+    // iCal-Events (nur wenn noch keine Supabase-Einheit dieser Mannschaft an dem Tag)
+    icalDay.forEach(ev=>{
+      const deckungsgleich=einheiten.find(e=>e.group_name===ev.mannschaftName);
+      if(deckungsgleich) return; // Supabase hat Vorrang
+      const isSpiel=ev.typ==='spiel';
+      const bg=isSpiel?ev.farbe_geplant:ev.farbe_ungeplant;
+      const dot=document.createElement('div');
+      const time=ev.dtstart?ev.dtstart.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
+      dot.style.cssText=`margin-top:2px;background:${bg};color:white;border-radius:3px;font-size:9px;padding:1px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:${isSpiel?1:.82};${isSpiel?'border-left:2px solid rgba(0,0,0,.18);':''}`;
+      dot.textContent=(isSpiel?'🏆 ':'🏋 ')+(time?time+' ':'')+ev.summary;
+      dot.title=(isSpiel?'Spiel':'Training')+': '+ev.summary+(ev.location?' · '+ev.location:'');
+      if(!isSpiel){
+        dot.onclick=(e)=>{
+          e.stopPropagation();
+          newEinheit(dateStr);
+          sessionMeta.group=ev.mannschaftName||'';
+          sessionMeta.time=time;
+          sessionMeta.name='Training '+ev.mannschaftName;
+          render();
+          showToast('📋 Datum vorbelegt – jetzt Übungen hinzufügen','info');
+        };
+      }
+      cell.appendChild(dot);
+    });
+
     grid.appendChild(cell);
   }
 
+  // ── Monatsliste ──
   const liste=document.getElementById('kal-einheiten');
   const allE=Object.values(einheitenMap).flat().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  if(!allE.length){
+  const icalMonat=icalEvents
+    .filter(ev=>ev.dtstart&&ev.dtstart.getFullYear()===year&&ev.dtstart.getMonth()===month)
+    .sort((a,b)=>a.dtstart-b.dtstart);
+
+  if(!allE.length && !icalMonat.length){
     liste.innerHTML='<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Keine Einheiten diesen Monat.<br><br><button class="btn btn-primary" style="font-size:12px;" onclick="newEinheit()">+ Neue Einheit</button></div>';
   } else {
-    liste.innerHTML=allE.map(e=>`
-      <div onclick="loadEinheit('${e.id}')" style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer;">
-        <div style="width:36px;height:36px;background:var(--accent-light);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--accent);flex-shrink:0;">${e.date?parseInt(e.date.split('-')[2]):'–'}</div>
-        <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:500;">${e.name||'Einheit'}</div><div style="font-size:11.5px;color:var(--soft);">${e.time?e.time.slice(0,5)+' Uhr · ':''} ${e.group_name||''}</div></div>
-        <div style="color:var(--xsoft);">›</div>
-      </div>`).join('');
+    const supaItems=allE.map(e=>{
+      const drillsArr=Array.isArray(e.drills)?e.drills:(typeof e.drills==='string'?JSON.parse(e.drills||'[]'):[]);
+      const isPlanned=drillsArr.length>0;
+      const team=teams.find(t=>t.name===e.group_name);
+      const bg=isPlanned?(team?team.farbe_geplant:'#0057ff'):(team?team.farbe_ungeplant:'#94a3b8');
+      return {
+        sortKey:(e.date||'')+(e.time||''),
+        html:`<div onclick="loadEinheit('${e.id}')" style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer;">
+          <div style="width:4px;height:38px;background:${bg};border-radius:2px;flex-shrink:0;"></div>
+          <div style="width:32px;text-align:center;font-size:13px;font-weight:700;color:${bg};flex-shrink:0;">${e.date?parseInt(e.date.split('-')[2]):'–'}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13.5px;font-weight:500;">${e.name||'Einheit'}</div>
+            <div style="font-size:11.5px;color:var(--soft);">${e.time?e.time.slice(0,5)+' Uhr · ':''} ${e.group_name||''}${isPlanned?' · <span style="color:#15803d;font-weight:600;">✅ geplant</span>':' · <span style="color:var(--xsoft);">⬜ ungeplant</span>'}</div>
+          </div>
+          <div style="color:var(--xsoft);">›</div>
+        </div>`
+      };
+    });
+
+    const icalItems=icalMonat
+      .filter(ev=>!allE.find(e=>e.group_name===ev.mannschaftName&&e.date===icalDateStr(ev.dtstart)))
+      .map(ev=>{
+        const isSpiel=ev.typ==='spiel';
+        const bg=isSpiel?ev.farbe_geplant:ev.farbe_ungeplant;
+        const time=ev.dtstart?ev.dtstart.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
+        const ds=icalDateStr(ev.dtstart);
+        return {
+          sortKey:ds+(time||''),
+          html:`<div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:${isSpiel?'default':'pointer'};"
+            ${!isSpiel?`onclick="newEinheit('${ds}');sessionMeta.group='${ev.mannschaftName||''}';sessionMeta.time='${time}';sessionMeta.name='Training ${ev.mannschaftName}';render();showToast('📋 Datum vorbelegt','info');"`:''}>
+            <div style="width:4px;height:38px;background:${bg};border-radius:2px;flex-shrink:0;"></div>
+            <div style="width:32px;text-align:center;font-size:13px;font-weight:700;color:${bg};flex-shrink:0;">${ev.dtstart.getDate()}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13.5px;font-weight:500;">${isSpiel?'🏆 ':''} ${ev.summary}</div>
+              <div style="font-size:11.5px;color:var(--soft);">${time?time+' Uhr · ':''} ${ev.mannschaftName||''} · <span style="color:${isSpiel?'#d97706':'var(--xsoft)'};">${isSpiel?'Spiel':'⬜ noch ungeplant'}</span></div>
+            </div>
+            ${!isSpiel?'<div style="color:var(--xsoft);" title="Einheit anlegen">+</div>':''}
+          </div>`
+        };
+      });
+
+    const allItems=[...supaItems,...icalItems].sort((a,b)=>a.sortKey.localeCompare(b.sortKey));
+    liste.innerHTML=allItems.map(x=>x.html).join('');
+  }
+
+  // ── Legende ──
+  const leg=document.getElementById('kal-legend');
+  const legItems=document.getElementById('kal-legend-items');
+  if(!teams.length){leg.style.display='none';}
+  else{
+    leg.style.display='flex';
+    legItems.innerHTML=teams.map(t=>`
+      <div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_geplant};"></div> ${t.name} geplant</div>
+      <div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_ungeplant};"></div> ${t.name} ungeplant</div>
+      ${t.ical_spiele?`<div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_geplant};border:1.5px solid rgba(0,0,0,.15);"></div> ${t.name} Spiel</div>`:''}
+    `).join('');
   }
 }
 
@@ -3426,7 +3582,259 @@ async function loadEinheit(id){
 }
 
 // ══════════════════════════════════════════
-updateCatOptions();
+// MANNSCHAFTEN & iCAL FEEDS
+// ══════════════════════════════════════════
+
+const MSC_KEY = 'handball_mannschaften';
+let icalEvents = [];
+
+function loadMannschaften(){
+  try{return JSON.parse(localStorage.getItem(MSC_KEY)||'[]');}catch(e){return [];}
+}
+function saveMannschaften(arr){
+  localStorage.setItem(MSC_KEY, JSON.stringify(arr));
+}
+
+// ── Modal ──
+function openMannschaftenModal(){
+  document.getElementById('mannschaften-modal').classList.add('open');
+  renderMannschaftenList();
+}
+function closeMannschaftenModal(){
+  document.getElementById('mannschaften-modal').classList.remove('open');
+  document.getElementById('msc-form').style.display='none';
+  document.getElementById('msc-add-btn').style.display='';
+}
+
+function renderMannschaftenList(){
+  const teams=loadMannschaften();
+  const el=document.getElementById('msc-list');
+  if(!teams.length){
+    el.innerHTML='<div style="padding:16px;text-align:center;color:var(--xsoft);font-size:13px;">Noch keine Mannschaft angelegt.</div>';
+    return;
+  }
+  el.innerHTML=teams.map(t=>`
+    <div class="team-card">
+      <div class="team-color-dot" style="background:${t.farbe_geplant||'#0057ff'};">${(t.name||'M')[0].toUpperCase()}</div>
+      <div class="team-card-info">
+        <div class="team-card-name">${t.name}</div>
+        <div class="team-card-feeds">
+          <span class="feed-chip ${t.ical_training?'ok':''}">🏋 ${t.ical_training?'Training-Feed':'Kein Training-Feed'}</span>
+          <span class="feed-chip ${t.ical_spiele?'ok':''}">🏆 ${t.ical_spiele?'Spiel-Feed':'Kein Spiel-Feed'}</span>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:6px;">
+          <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--soft);">
+            <span style="width:12px;height:12px;border-radius:3px;background:${t.farbe_geplant||'#0057ff'};display:inline-block;"></span> Geplant
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--soft);">
+            <span style="width:12px;height:12px;border-radius:3px;background:${t.farbe_ungeplant||'#94a3b8'};display:inline-block;"></span> Ungeplant
+          </span>
+        </div>
+      </div>
+      <div class="team-card-actions">
+        <button class="team-edit-btn" onclick="showTeamForm('${t.id}')">✏ Bearbeiten</button>
+        <button class="team-delete-btn" onclick="deleteTeam('${t.id}')">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showTeamForm(id){
+  const teams=loadMannschaften();
+  const t=id?teams.find(x=>x.id===id):null;
+  document.getElementById('msc-add-btn').style.display='none';
+  const f=document.getElementById('msc-form');
+  f.style.display='';
+  f.innerHTML=`
+    <div class="team-form">
+      <input type="hidden" id="tf-id" value="${t?t.id:''}">
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label">Mannschaftsname *</label>
+        <input class="form-input" id="tf-name" placeholder="z.B. Herren 1" value="${t?t.name:''}">
+      </div>
+      <div class="color-pair">
+        <div class="color-swatch-wrap">
+          <div class="color-swatch-label">✅ Farbe — geplante Einheit</div>
+          <input type="color" class="form-input" id="tf-farbe-geplant" value="${t?t.farbe_geplant:'#0057ff'}" style="height:40px;padding:3px 6px;cursor:pointer;">
+          <div style="font-size:10.5px;color:var(--xsoft);margin-top:3px;">Einheiten mit Übungen</div>
+        </div>
+        <div class="color-swatch-wrap">
+          <div class="color-swatch-label">⬜ Farbe — ungeplante Einheit</div>
+          <input type="color" class="form-input" id="tf-farbe-ungeplant" value="${t?t.farbe_ungeplant:'#94a3b8'}" style="height:40px;padding:3px 6px;cursor:pointer;">
+          <div style="font-size:10.5px;color:var(--xsoft);margin-top:3px;">Feed-Termine ohne Inhalt</div>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label">🏋 iCal-Feed Training (Sportsmember)</label>
+        <div class="feed-row">
+          <input class="form-input" id="tf-ical-training" placeholder="https://sportsmember.com/ical/…" value="${t?t.ical_training||'':''}">
+          <button class="btn btn-ghost" style="font-size:11.5px;white-space:nowrap;" onclick="testFeed('tf-ical-training','tf-training-status')">Testen</button>
+        </div>
+        <div id="tf-training-status"></div>
+        <div style="font-size:11px;color:var(--xsoft);margin-top:4px;">Sportsmember → Kalender → Export → iCal-Link kopieren</div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">🏆 iCal-Feed Spiele (handball.net)</label>
+        <div class="feed-row">
+          <input class="form-input" id="tf-ical-spiele" placeholder="https://handball.net/ical/…" value="${t?t.ical_spiele||'':''}">
+          <button class="btn btn-ghost" style="font-size:11.5px;white-space:nowrap;" onclick="testFeed('tf-ical-spiele','tf-spiele-status')">Testen</button>
+        </div>
+        <div id="tf-spiele-status"></div>
+        <div style="font-size:11px;color:var(--xsoft);margin-top:4px;">handball.net → Team → Spielplan → Kalender-Icon → iCal</div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn btn-ghost" onclick="cancelTeamForm()">Abbrechen</button>
+        <button class="btn btn-primary" onclick="saveTeamForm()">✅ Speichern</button>
+      </div>
+    </div>
+  `;
+}
+
+function cancelTeamForm(){
+  document.getElementById('msc-form').style.display='none';
+  document.getElementById('msc-add-btn').style.display='';
+}
+
+function saveTeamForm(){
+  const id=document.getElementById('tf-id').value;
+  const name=document.getElementById('tf-name').value.trim();
+  if(!name){showToast('⚠️ Bitte Mannschaftsname eingeben','info');return;}
+  const entry={
+    id: id||crypto.randomUUID(),
+    name,
+    farbe_geplant:   document.getElementById('tf-farbe-geplant').value,
+    farbe_ungeplant: document.getElementById('tf-farbe-ungeplant').value,
+    ical_training:   document.getElementById('tf-ical-training').value.trim(),
+    ical_spiele:     document.getElementById('tf-ical-spiele').value.trim(),
+  };
+  let teams=loadMannschaften();
+  if(id){const idx=teams.findIndex(x=>x.id===id);if(idx>=0)teams[idx]=entry;else teams.push(entry);}
+  else teams.push(entry);
+  saveMannschaften(teams);
+  cancelTeamForm();
+  renderMannschaftenList();
+  showToast('✅ Mannschaft gespeichert','success');
+  icalEvents=[];
+  refreshAllFeeds();
+}
+
+function deleteTeam(id){
+  if(!confirm('Mannschaft wirklich löschen?'))return;
+  saveMannschaften(loadMannschaften().filter(t=>t.id!==id));
+  icalEvents=icalEvents.filter(e=>e.mannschaftId!==id);
+  renderMannschaftenList();
+  showToast('🗑 Mannschaft gelöscht','info');
+  if(currentView==='kalender') renderKalender();
+}
+
+// ── Feed testen ──
+async function testFeed(inputId, statusId){
+  const url=document.getElementById(inputId).value.trim();
+  const s=document.getElementById(statusId);
+  if(!url){s.innerHTML='<span class="feed-status err">⚠️ Kein Link eingegeben</span>';return;}
+  s.innerHTML='<span class="feed-status loading">⏳ Verbinde…</span>';
+  try{
+    const evs=await fetchICalFeed(url);
+    s.innerHTML=`<span class="feed-status ok">✅ ${evs.length} Termine gefunden</span>`;
+  }catch(e){
+    s.innerHTML=`<span class="feed-status err">❌ ${e.message||'Feed nicht erreichbar'}</span>`;
+  }
+}
+
+// ── iCal-Fetch via Supabase Edge Function ──
+const ICAL_PROXY_URL = SUPA_URL + '/functions/v1/ical-proxy';
+
+async function fetchICalFeed(url){
+  const {data:{session}}=await supa.auth.getSession();
+  if(!session?.access_token) throw new Error('Nicht eingeloggt');
+  let res;
+  try{
+    res=await fetch(ICAL_PROXY_URL+'?url='+encodeURIComponent(url),{
+      headers:{'Authorization':'Bearer '+session.access_token},
+      signal:AbortSignal.timeout(12000)
+    });
+  }catch(e){throw new Error('Verbindung fehlgeschlagen: '+e.message);}
+  if(!res.ok){
+    let msg='HTTP '+res.status;
+    try{const j=await res.json();msg=j.error||msg;}catch(_){}
+    throw new Error(msg);
+  }
+  const text=await res.text();
+  if(!text.includes('BEGIN:VCALENDAR'))throw new Error('Kein gültiger iCal-Feed');
+  return parseICal(text);
+}
+
+// ── iCal Parser ──
+function parseICal(text){
+  const unfolded=text.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const events=[];
+  const blocks=unfolded.split('BEGIN:VEVENT');
+  for(let i=1;i<blocks.length;i++){
+    const block=blocks[i].split('END:VEVENT')[0];
+    const ev={};
+    block.split('\n').forEach(line=>{
+      const sep=line.indexOf(':');if(sep<0)return;
+      const key=line.slice(0,sep).split(';')[0].trim().toUpperCase();
+      const val=line.slice(sep+1).trim();
+      if(key==='SUMMARY')  ev.summary=val.replace(/\\n/g,' ').replace(/\\,/g,',');
+      if(key==='DTSTART')  ev.dtstart=parseICalDate(val);
+      if(key==='DTEND')    ev.dtend=parseICalDate(val);
+      if(key==='UID')      ev.uid=val;
+      if(key==='LOCATION') ev.location=val.replace(/\\n/g,', ');
+    });
+    if(ev.dtstart)events.push(ev);
+  }
+  return events;
+}
+
+function parseICalDate(s){
+  s=s.replace('Z','');
+  if(s.includes('T')){
+    return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(9,11)}:${s.slice(11,13)}:00`);
+  }
+  return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);
+}
+
+function icalDateStr(d){
+  if(!d)return '';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ── Alle Feeds laden ──
+async function refreshAllFeeds(){
+  const btn=document.getElementById('ical-sync-btn');
+  if(btn)btn.classList.add('spinning');
+  const teams=loadMannschaften();
+  const newEvents=[];
+  let ok=0,fail=0;
+  for(const t of teams){
+    if(t.ical_training){
+      try{
+        const evs=await fetchICalFeed(t.ical_training);
+        evs.forEach(e=>newEvents.push({...e,mannschaftId:t.id,mannschaftName:t.name,typ:'training',farbe_geplant:t.farbe_geplant,farbe_ungeplant:t.farbe_ungeplant}));
+        ok++;
+      }catch(e){fail++;console.warn('Feed Training '+t.name+': '+e.message);}
+    }
+    if(t.ical_spiele){
+      try{
+        const evs=await fetchICalFeed(t.ical_spiele);
+        evs.forEach(e=>newEvents.push({...e,mannschaftId:t.id,mannschaftName:t.name,typ:'spiel',farbe_geplant:t.farbe_geplant,farbe_ungeplant:t.farbe_ungeplant}));
+        ok++;
+      }catch(e){fail++;console.warn('Feed Spiele '+t.name+': '+e.message);}
+    }
+  }
+  icalEvents=newEvents;
+  if(btn)btn.classList.remove('spinning');
+  if(teams.length){
+    showToast(fail>0?`⚠️ ${ok} Feeds geladen, ${fail} Fehler`:`✅ ${newEvents.length} Feed-Termine geladen`,fail>0?'info':'success');
+  }
+  if(currentView==='kalender') renderKalender();
+}
+
+// Auto-laden beim Start (nach Login)
+setTimeout(()=>{if(loadMannschaften().length>0)refreshAllFeeds();},2500);
+
+
 updateDBCatOptions();
 render();
 setupMobile();
@@ -3439,6 +3847,36 @@ supa.auth.onAuthStateChange((event)=>{
 });
 </script>
 
+
+<!-- MANNSCHAFTEN MODAL -->
+<div class="modal-overlay" id="mannschaften-modal" onclick="if(event.target.id==='mannschaften-modal')closeMannschaftenModal()">
+  <div class="msc-modal">
+    <div class="msc-header">
+      <div>
+        <div class="msc-title">👥 Mannschaften & Feeds</div>
+        <div style="font-size:12px;color:var(--soft);margin-top:2px;">iCal-Feeds von Sportsmember &amp; handball.net verknüpfen</div>
+      </div>
+      <button class="modal-close" onclick="closeMannschaftenModal()">✕</button>
+    </div>
+    <div class="msc-body">
+      <div class="info-banner blue" id="msc-hint" style="margin-bottom:16px;">
+        <div class="info-banner-icon">ℹ️</div>
+        <div class="info-banner-text">
+          <strong>Wie funktioniert das?</strong> Trage den iCal-Link aus Sportsmember (Trainings) und handball.net (Spiele) ein.
+          Termine erscheinen automatisch im Kalender — <em>ungeplante</em> Einheiten in der hellen Farbe, <em>geplante</em> (mit Übungen) in der kräftigen.
+          <br><span style="color:#1d4ed8;">🔒 Feeds laufen sicher über deine Supabase Edge Function — kein Drittanbieter.</span>
+        </div>
+        <span class="info-banner-close" onclick="this.parentElement.style.display='none'">✕</span>
+      </div>
+      <div id="msc-list"></div>
+      <div id="msc-form" style="display:none;"></div>
+      <button class="btn btn-primary" id="msc-add-btn" onclick="showTeamForm(null)" style="margin-top:4px;">+ Mannschaft hinzufügen</button>
+    </div>
+    <div class="msc-footer">
+      <button class="btn btn-ghost" onclick="closeMannschaftenModal()">Schließen</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
