@@ -1408,14 +1408,11 @@ async function openLive(spId, skipWizard=false){
     // b) hbn_url gesetzt UND
     // c) noch kein Lineup ODER Spieler hat kein team-Flag (→ vor letzter Session angelegt)
     const baseUrl = getBaseUrl(spielMeta.hbn_url);
-    // Wizard: wenn nicht übersprungen UND URL vorhanden
-    // Lineup-Check entfernt — Wizard läuft auch wenn Lineup schon da (Neustart/Neuauswahl)
-    const needsWizard = !skipWizard && !!baseUrl;
-
+    const needsWizard = !skipWizard;
     console.log('[openLive] baseUrl:', baseUrl, '| needsWizard:', needsWizard);
 
     if (needsWizard) {
-      showGameStartWizard(baseUrl);
+      showGameStartWizard(baseUrl); // baseUrl kann leer sein → URL-Eingabe im Wizard
       return;
     }
 
@@ -2189,6 +2186,13 @@ async function showGameStartWizard(baseUrl) {
   if (titleEl) titleEl.textContent = `${spielMeta.heim} vs. ${spielMeta.gast}`;
   if (subEl)   subEl.textContent   = 'Aufstellung wird geladen…';
   if (footerEl) footerEl.style.display = 'none';
+  // Wenn keine URL bekannt → erst URL-Eingabe zeigen
+  if (!baseUrl) {
+    if (bodyEl) bodyEl.innerHTML = renderWizardUrlInput();
+    if (footerEl) footerEl.style.display = 'none';
+    return;
+  }
+
   if (bodyEl) bodyEl.innerHTML = `
     <div style="text-align:center;padding:40px 24px;color:var(--xsoft);">
       <div style="font-size:32px;margin-bottom:14px;">⏳</div>
@@ -2240,6 +2244,57 @@ async function showGameStartWizard(baseUrl) {
     if (footerEl) footerEl.style.display = 'none';
     toast('Aufstellung konnte nicht geladen werden', 'error');
   }
+}
+
+// URL-Eingabe wenn kein hbn_url am Spiel gespeichert
+function renderWizardUrlInput() {
+  return `
+    <div style="padding:20px 24px;">
+      <div style="background:var(--accent-l);border:1px solid #c7d2fe;border-radius:10px;
+        padding:14px 16px;margin-bottom:18px;font-size:13px;color:var(--accent);line-height:1.6;">
+        ℹ️ Diesem Spiel ist noch keine handball.net URL zugeordnet.
+        Bitte die <strong>Aufstellungs-URL</strong> einfügen:
+      </div>
+      <div class="form-group">
+        <label class="form-label">handball.net Spiel-URL</label>
+        <input class="form-input" id="gs-url-input"
+          placeholder="https://www.handball.net/spiele/…/aufstellung"
+          style="font-size:13px;">
+        <div style="font-size:11.5px;color:var(--xsoft);margin-top:5px;">
+          Format: handball.net/spiele/…/aufstellung oder /info
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:4px;"
+        onclick="wizardLoadFromInput()">
+        Aufstellung laden
+      </button>
+
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);
+        text-align:center;">
+        <button class="btn btn-ghost btn-sm"
+          onclick="closeModal('m-gamestart');showView('live');renderLiveView()">
+          Ohne handball.net öffnen
+        </button>
+      </div>
+    </div>`;
+}
+
+// URL aus dem Eingabefeld laden und Spiel aktualisieren
+async function wizardLoadFromInput() {
+  const rawUrl = (document.getElementById('gs-url-input')?.value || '').trim();
+  if (!rawUrl) { toast('Bitte URL eingeben', 'error'); return; }
+  const baseUrl = getBaseUrl(rawUrl);
+  if (!baseUrl) { toast('Ungültige URL', 'error'); return; }
+
+  // URL in DB speichern
+  await supa.from('spiele').update({ hbn_url: baseUrl, updated_at: new Date().toISOString() }).eq('id', spielId);
+  spielMeta.hbn_url = baseUrl;
+  // Auch in der spiele-Liste aktualisieren
+  const sp = spiele.find(s => s.id === spielId);
+  if (sp) sp.hbn_url = baseUrl;
+
+  _gs.baseUrl = baseUrl;
+  showGameStartWizard(baseUrl); // neu laden mit URL
 }
 
 function renderWizardBody(data, hCount, gCount) {
