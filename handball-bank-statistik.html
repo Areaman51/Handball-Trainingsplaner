@@ -713,6 +713,29 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
+<!-- ════ MODAL: Spiel starten (Game-Start-Wizard) ════ -->
+<div class="overlay" id="m-gamestart">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <div>
+        <div class="modal-title" id="gs-title">Spiel starten</div>
+        <div class="modal-sub" id="gs-sub">Aufstellung & Einstellungen</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('m-gamestart')">✕</button>
+    </div>
+    <div class="modal-body" id="gs-body">
+      <div style="text-align:center;padding:32px;color:var(--xsoft);">
+        <div style="font-size:28px;margin-bottom:12px;">⏳</div>
+        Lade Aufstellung von handball.net…
+      </div>
+    </div>
+    <div class="modal-footer" id="gs-footer" style="display:none;">
+      <button class="btn btn-ghost" onclick="closeModal('m-gamestart')">Abbrechen</button>
+      <button class="btn btn-primary" id="gs-confirm" onclick="confirmGameStart()">▶ Spiel starten</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1358,28 +1381,37 @@ async function deleteSpiel(id){
 // ════════════════════════════════════════════════════════════
 // LIVE: SPIEL LADEN
 // ════════════════════════════════════════════════════════════
-async function openLive(spId){
+async function openLive(spId, skipWizard=false){
   setStatus('saving','Lade Spiel…');
   const sp=spiele.find(s=>s.id===spId);
   if(!sp) return;
   spielId=spId; spielMeta={...sp};
   selPlayerId=null;
 
-  // Load lineup
   const{data:pl}=await supa.from('spieler_lineup').select('*').eq('spiel_id',spId).order('sort_order');
   lineup=pl||[];
-
-  // Load actions
   const{data:ak}=await supa.from('spielaktionen').select('*').eq('spiel_id',spId).order('erstellt_am');
   aktionen=ak||[];
 
-  // Timer: restore timer_offset from DB; don't auto-start
   timerRunning=false; timerOffset=spielMeta.timer_offset||0; timerStartedAt=null;
   clearInterval(timerIv);
-
   setStatus('ok','Spiel geladen');
+
+  // Wenn handball.net URL vorhanden und noch kein Lineup → Game-Start-Wizard
+  const baseUrl = getBaseUrl(spielMeta.hbn_url);
+  if (!skipWizard && baseUrl && lineup.length === 0) {
+    showGameStartWizard(baseUrl);
+    return;
+  }
+
   showView('live');
   renderLiveView();
+}
+
+// Basisurl ohne Suffix ableiten
+function getBaseUrl(url){
+  if(!url) return '';
+  return url.replace(/\/(info|aufstellung|ticker|spielbericht|tabelle|halle)\/?$/, '').trim();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1497,7 +1529,10 @@ function renderLiveView(){
         <div style="display:flex;gap:5px;margin-top:2px;">
           <div id="live-timer" class="lsb-timer" onclick="timerClick()">${fmtTime(timerSec())}</div>
           <button class="lsb-hz" id="live-hz" onclick="toggleHz()">${spielMeta.hz||1}. HZ</button>
-          ${spielMeta.hbn_url ? `<button class="lsb-hz" style="background:rgba(255,255,255,.12);font-size:10px;" onclick="openTimeModal()" title="handball.net Ticker sync">📡</button>` : ''}
+          ${spielMeta.hbn_url ? `
+            <button class="lsb-hz" style="background:rgba(255,255,255,.12);font-size:10px;" onclick="openTimeModal()" title="Spielzeit sync">⏱</button>
+            <button class="lsb-hz" style="background:rgba(34,197,94,.2);border-color:rgba(34,197,94,.4);font-size:10px;" onclick="liveRefreshTicker()" title="Ticker aktualisieren">📡</button>
+          ` : ''}
         </div>
       </div>
       <div class="lsb-score">
@@ -1527,20 +1562,35 @@ function renderLiveView(){
   // ── Players panel ──
   const pp=document.createElement('div');
   pp.className='live-players';
+  const hasBothTeams = lineup.some(p=>p.team==='home') && lineup.some(p=>p.team==='away');
   const sorted=[...lineup].sort((a,b)=>{
+    // Wenn beide Teams: erst nach Team, dann Pos, dann Nummer
+    if(hasBothTeams && (a.team||'home')!==(b.team||'home')) return (a.team||'home')==='home'?-1:1;
     if(a.pos!==b.pos) return a.pos==='TH'?-1:1;
     return (parseInt(a.nummer)||99)-(parseInt(b.nummer)||99);
   });
-  pp.innerHTML=`<div class="live-players-hdr"><span>Aufstellung</span><span>${sorted.filter(p=>!p.bench).length}/${sorted.length}</span></div>`;
+  pp.innerHTML=`<div class="live-players-hdr"><span>${hasBothTeams?'Beide Teams':'Aufstellung'}</span><span>${sorted.filter(p=>!p.bench).length}/${sorted.length}</span></div>`;
   const pl=document.createElement('div');
   pl.className='live-players-list';
   pl.id='players-list';
+  let lastTeamLabel='';
   sorted.forEach(p=>{
     const st=p.pos==='TH'?getThStats(p.id):getFlStats(p.id);
     const tile=document.createElement('div');
     tile.className='player-tile'+(selPlayerId===p.id?' active':'');
     tile.id='pt-'+p.id;
     tile.onclick=()=>selectPlayer(p.id);
+    // Team-Trenner bei gemischter Aufstellung
+    if(hasBothTeams){
+      const teamLabel=p.team==='away'?spielMeta.gast:spielMeta.heim;
+      if(teamLabel!==lastTeamLabel){
+        lastTeamLabel=teamLabel;
+        const sep=document.createElement('div');
+        sep.style.cssText='font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.3);padding:8px 4px 4px;';
+        sep.textContent=(p.team==='away'?'✈️ ':'🏠 ')+teamLabel;
+        pl.appendChild(sep);
+      }
+    }
     tile.innerHTML=`
       <div class="pt-num">${p.nummer||'?'}</div>
       <div class="pt-info">
@@ -2067,11 +2117,15 @@ async function createGameFromIcal(idx){
   if(!g){toast('Spiel nicht gefunden','error');return;}
 
   setStatus('saving','Lege Spiel an…');
+  // Base-URL speichern (ohne /info Suffix) — Aufstellung und Ticker werden daraus abgeleitet
+  const baseUrl = g.baseUrl || (g.url||'').replace(/\/(info|aufstellung|ticker|spielbericht|tabelle|halle)\/?$/,'').trim();
+
   const payload={
     user_id:currentUser.id,
     heim:g.heim||'',gast:g.gast||'',
     datum:g.datum||null,uhrzeit:g.uhrzeit||null,
-    ort:g.ort||'',hbn_url:g.url||null,
+    ort:g.ort||'',
+    hbn_url: baseUrl || g.url || null,  // Base-URL für Aufstellung+Ticker
     spielart:'heim',liga:'',status:'geplant',
     score_home:0,score_away:0,hz:1,timer_offset:0,
     updated_at:new Date().toISOString()
@@ -2083,9 +2137,365 @@ async function createGameFromIcal(idx){
   await loadSpiele();
   setStatus('ok','Spiel angelegt');
   toast(`${g.heim} vs. ${g.gast} angelegt ✓`,'success');
-
-  // Neu rendern mit aktualisierten Daten
   renderIcalMain(window._icalGamesMain||[]);
+}
+
+// ════════════════════════════════════════════════════════════
+// GAME-START WIZARD
+// ════════════════════════════════════════════════════════════
+
+// State für den Wizard
+let _gs = {
+  baseUrl: '', data: null, selectedTeam: null,
+  timerMode: 'manual',   // 'manual' | 'ticker'
+  importTicker: false,
+};
+
+async function showGameStartWizard(baseUrl) {
+  _gs = { baseUrl, data: null, selectedTeam: null, timerMode: 'manual', importTicker: false };
+  openModal('m-gamestart');
+  document.getElementById('gs-title').textContent = `${spielMeta.heim} vs. ${spielMeta.gast}`;
+  document.getElementById('gs-sub').textContent = 'Aufstellung wird geladen…';
+  document.getElementById('gs-footer').style.display = 'none';
+  document.getElementById('gs-body').innerHTML = `
+    <div style="text-align:center;padding:32px;color:var(--xsoft);">
+      <div style="font-size:28px;margin-bottom:12px;">⏳</div>
+      Lade Aufstellung von handball.net…
+    </div>`;
+
+  try {
+    const data = await hbnFetch(baseUrl + '/aufstellung', 'match');
+    _gs.data = data;
+
+    const hCount = data.heimRoster?.length || 0;
+    const gCount = data.gastRoster?.length || 0;
+
+    document.getElementById('gs-sub').textContent =
+      `${data.heim || spielMeta.heim} vs. ${data.gast || spielMeta.gast}`;
+
+    document.getElementById('gs-body').innerHTML = renderWizardBody(data, hCount, gCount);
+    document.getElementById('gs-footer').style.display = '';
+    document.getElementById('gs-confirm').disabled = true; // bis Team gewählt
+
+  } catch(e) {
+    document.getElementById('gs-body').innerHTML = `
+      <div style="padding:20px;color:var(--red);background:var(--red-l);
+        border-radius:8px;margin:16px;font-size:13px;">
+        ❌ Aufstellung konnte nicht geladen werden: ${e.message}<br>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="closeModal('m-gamestart');showView('live');renderLiveView()">
+            Trotzdem öffnen
+          </button>
+        </div>
+      </div>`;
+    document.getElementById('gs-footer').style.display = 'none';
+  }
+}
+
+function renderWizardBody(data, hCount, gCount) {
+  const rosterPreview = (players) => players.slice(0, 4).map(p =>
+    `<div style="font-size:11.5px;color:var(--soft);padding:2px 0;">#${p.nummer} ${p.name}</div>`
+  ).join('') + (players.length > 4 ? `<div style="font-size:11px;color:var(--xsoft);">+${players.length-4} weitere</div>` : '');
+
+  return `
+    <!-- Team-Auswahl -->
+    <div style="padding:16px 20px 0;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+        color:var(--xsoft);margin-bottom:12px;">👥 Welchen Kader analysierst du?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
+
+        <div class="wizard-team-card" id="wc-home" onclick="selectWizardTeam('home')"
+          style="border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:6px;">🏠 ${data.heim || spielMeta.heim}</div>
+          <div style="font-size:11.5px;color:var(--soft);margin-bottom:8px;">${hCount} Spieler</div>
+          ${hCount ? rosterPreview(data.heimRoster) : '<div style="font-size:11.5px;color:var(--xsoft);">Kein Kader</div>'}
+        </div>
+
+        <div class="wizard-team-card" id="wc-away" onclick="selectWizardTeam('away')"
+          style="border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:6px;">✈️ ${data.gast || spielMeta.gast}</div>
+          <div style="font-size:11.5px;color:var(--soft);margin-bottom:8px;">${gCount} Spieler</div>
+          ${gCount ? rosterPreview(data.gastRoster) : '<div style="font-size:11.5px;color:var(--xsoft);">Kein Kader</div>'}
+        </div>
+      </div>
+      <button onclick="selectWizardTeam('both')" id="wc-both"
+        style="width:100%;padding:8px;border:2px solid var(--border);border-radius:8px;
+        background:white;cursor:pointer;font-size:12.5px;font-weight:600;
+        color:var(--soft);transition:all .15s;font-family:'DM Sans',sans-serif;">
+        ↕ Beide Kader analysieren
+      </button>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0 0;">
+
+    <!-- Timer-Modus -->
+    <div style="padding:0 20px 0;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+        color:var(--xsoft);margin-bottom:10px;">⏱ Spielzeit</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <div onclick="setWizardTimer('manual')" id="wt-manual"
+          style="flex:1;border:2px solid var(--accent);border-radius:8px;padding:10px;cursor:pointer;
+          background:var(--accent-l);text-align:center;transition:all .15s;">
+          <div style="font-size:16px;">⏱</div>
+          <div style="font-size:12px;font-weight:700;margin-top:4px;">Manuell</div>
+          <div style="font-size:10.5px;color:var(--soft);margin-top:2px;">Start/Stopp selbst bedienen</div>
+        </div>
+        <div onclick="setWizardTimer('ticker')" id="wt-ticker"
+          style="flex:1;border:2px solid var(--border);border-radius:8px;padding:10px;cursor:pointer;
+          background:white;text-align:center;transition:all .15s;">
+          <div style="font-size:16px;">📡</div>
+          <div style="font-size:12px;font-weight:700;margin-top:4px;">Ticker-Sync</div>
+          <div style="font-size:10.5px;color:var(--soft);margin-top:2px;">Zeit wird aus Ticker übernommen</div>
+        </div>
+      </div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0 0;">
+
+    <!-- Ticker-Import -->
+    <div style="padding:0 20px 16px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+        color:var(--xsoft);margin-bottom:10px;">📊 Statistik</div>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;
+        padding:10px;border:1.5px solid var(--border);border-radius:8px;transition:border-color .15s;"
+        id="ticker-import-label">
+        <input type="checkbox" id="gs-import-ticker" onchange="toggleTickerImport(this.checked)"
+          style="margin-top:2px;width:16px;height:16px;accent-color:var(--accent);flex-shrink:0;">
+        <div>
+          <div style="font-size:13px;font-weight:600;">Ticker-Aktionen automatisch importieren</div>
+          <div style="font-size:11.5px;color:var(--soft);margin-top:3px;line-height:1.5;">
+            Tore, 7m-Tore, 7m-Fehlwürfe und 2min-Strafen werden direkt aus dem
+            handball.net Liveticker in die Statistik übernommen und den Spielern zugeordnet.
+          </div>
+        </div>
+      </label>
+    </div>`;
+}
+
+function selectWizardTeam(which) {
+  _gs.selectedTeam = which;
+  ['home','away','both'].forEach(t => {
+    const el = document.getElementById('wc-' + (t === 'both' ? 'both' : t));
+    if (!el) return;
+    const isSelected = t === which;
+    if (t === 'both') {
+      el.style.borderColor = isSelected ? 'var(--accent)' : 'var(--border)';
+      el.style.background  = isSelected ? 'var(--accent-l)' : 'white';
+      el.style.color       = isSelected ? 'var(--accent)' : 'var(--soft)';
+    } else {
+      el.style.borderColor = isSelected ? 'var(--accent)' : 'var(--border)';
+      el.style.background  = isSelected ? 'var(--accent-l)' : 'white';
+    }
+  });
+  document.getElementById('gs-confirm').disabled = false;
+}
+
+function setWizardTimer(mode) {
+  _gs.timerMode = mode;
+  document.getElementById('wt-manual').style.borderColor = mode === 'manual' ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('wt-manual').style.background  = mode === 'manual' ? 'var(--accent-l)' : 'white';
+  document.getElementById('wt-ticker').style.borderColor = mode === 'ticker' ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('wt-ticker').style.background  = mode === 'ticker' ? 'var(--accent-l)' : 'white';
+}
+
+function toggleTickerImport(checked) {
+  _gs.importTicker = checked;
+  const label = document.getElementById('ticker-import-label');
+  if (label) label.style.borderColor = checked ? 'var(--accent)' : 'var(--border)';
+}
+
+async function confirmGameStart() {
+  const { data, selectedTeam, timerMode, importTicker, baseUrl } = _gs;
+  if (!selectedTeam || !data) return;
+
+  const btn = document.getElementById('gs-confirm');
+  btn.textContent = '⏳'; btn.disabled = true;
+
+  try {
+    // Kader in DB schreiben
+    const heimPlayers = (data.heimRoster || []).map((p, i) => ({
+      spiel_id: spielId, user_id: currentUser.id,
+      nummer: p.nummer, name: p.name, pos: p.pos,
+      bench: false, sort_order: i, team: 'home'
+    }));
+    const gastPlayers = (data.gastRoster || []).map((p, i) => ({
+      spiel_id: spielId, user_id: currentUser.id,
+      nummer: p.nummer, name: p.name, pos: p.pos,
+      bench: false, sort_order: i + 100, team: 'away'
+    }));
+
+    let toInsert = [];
+    if (selectedTeam === 'home')  toInsert = heimPlayers;
+    if (selectedTeam === 'away')  toInsert = gastPlayers;
+    if (selectedTeam === 'both')  toInsert = [...heimPlayers, ...gastPlayers];
+
+    // Spielart anpassen
+    const spielart = selectedTeam === 'away' ? 'auswaerts' : 'heim';
+    await supa.from('spiele').update({ spielart, status: 'live', updated_at: new Date().toISOString() }).eq('id', spielId);
+    spielMeta.spielart = spielart;
+    spielMeta.status = 'live';
+
+    if (toInsert.length) {
+      const { error } = await supa.from('spieler_lineup').insert(toInsert);
+      if (error) { toast('Fehler beim Speichern des Kaders: ' + error.message, 'error'); return; }
+    }
+
+    // Lineup neu laden
+    const { data: pl } = await supa.from('spieler_lineup').select('*').eq('spiel_id', spielId).order('sort_order');
+    lineup = pl || [];
+
+    // Ticker importieren
+    if (importTicker && baseUrl) {
+      await autoImportTickerActions(baseUrl, timerMode);
+    } else if (timerMode === 'ticker' && baseUrl) {
+      // Nur Zeit holen
+      await syncTimerFromTicker(baseUrl);
+    }
+
+    closeModal('m-gamestart');
+    showView('live');
+    renderLiveView();
+    toast('Spiel gestartet ✓', 'success');
+
+  } catch(e) {
+    toast('Fehler: ' + e.message, 'error');
+    btn.textContent = '▶ Spiel starten'; btn.disabled = false;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// TICKER AUTO-IMPORT
+// ════════════════════════════════════════════════════════════
+async function autoImportTickerActions(baseUrl, timerMode='manual') {
+  setStatus('saving', 'Importiere Ticker…');
+  try {
+    const ticker = await hbnFetch(baseUrl + '/ticker', 'ticker');
+
+    // Score übernehmen
+    if (ticker.score_home !== undefined) {
+      spielMeta.score_home = ticker.score_home;
+      spielMeta.score_away = ticker.score_away;
+    }
+    if (ticker.status === 'beendet') spielMeta.status = 'beendet';
+
+    // Timer aus Ticker
+    if (timerMode === 'ticker' && ticker.lastMinute > 0) {
+      timerOffset = ticker.lastMinute * 60;
+    }
+
+    await saveSpielMeta();
+
+    // Aktionen zuordnen und einfügen
+    const events = ticker.events || [];
+    if (!events.length) { setStatus('ok', 'Ticker leer'); return; }
+
+    // Bestimmte Teams erkennen (heim vs. gast des aktuellen Spiels)
+    const myTeamSide = spielMeta.spielart === 'auswaerts' ? 'away' : 'home';
+
+    // Nur meine Mannschaft oder alle (je nach Auswahl)
+    const myLineup = lineup.filter(p => {
+      // Wenn "beide": alle; wenn Heim/Gast: nur die passende Seite
+      if (_gs.selectedTeam === 'both') return true;
+      return (p.team || 'home') === myTeamSide;
+    });
+
+    // Spieler-Name-Map für schnelles Lookup
+    const playerMap = new Map(myLineup.map(p => [normName(p.name), p.id]));
+
+    // Aktionen die bereits importiert sind (für Deduplizierung)
+    const existingKeys = new Set(aktionen.map(a => `${a.spielminute}-${a.type}-${a.spieler_id}`));
+
+    const toInsert = [];
+    let importedCount = 0, skippedCount = 0;
+
+    for (const ev of events) {
+      // Nur relevante Aktionen
+      const mappedType = tickerTypeMap[ev.type];
+      if (!mappedType) continue;
+
+      // Spieler in Lineup suchen
+      const pid = ev.playerName ? playerMap.get(normName(ev.playerName)) : null;
+      if (!pid) { skippedCount++; continue; }
+
+      const key = `${ev.minute}-${mappedType.type}-${pid}`;
+      if (existingKeys.has(key)) continue; // bereits vorhanden
+
+      existingKeys.add(key);
+      toInsert.push({
+        spiel_id: spielId, spieler_id: pid,
+        user_id: currentUser.id,
+        type: mappedType.type,
+        label: mappedType.label,
+        color: mappedType.color,
+        polarity: mappedType.polarity,
+        spielminute: ev.minute,
+        erstellt_am: new Date().toISOString(),
+      });
+      importedCount++;
+    }
+
+    if (toInsert.length) {
+      const { error } = await supa.from('spielaktionen').insert(toInsert);
+      if (error) { setStatus('err', 'Fehler'); return; }
+      // Lokal mergen
+      aktionen = [...aktionen, ...toInsert.map((a, i) => ({ ...a, id: 'tmp-' + i }))];
+    }
+
+    setStatus('ok', `${importedCount} Aktionen importiert`);
+    if (skippedCount) toast(`${importedCount} importiert, ${skippedCount} Spieler nicht gefunden`, 'info');
+    else toast(`${importedCount} Ticker-Aktionen importiert ✓`, 'success');
+
+    // Score im Header aktualisieren
+    const sh = document.getElementById('live-sc-home');
+    const sa = document.getElementById('live-sc-away');
+    if (sh) sh.textContent = spielMeta.score_home;
+    if (sa) sa.textContent = spielMeta.score_away;
+    renderLog();
+    renderGrid && typeof renderGrid === 'function' && renderGrid();
+
+  } catch(e) {
+    setStatus('err', 'Ticker-Fehler');
+    toast('Ticker-Import fehlgeschlagen: ' + e.message, 'error');
+  }
+}
+
+// ── Nur Timer aus Ticker setzen ──────────────────────────────
+async function syncTimerFromTicker(baseUrl) {
+  try {
+    const ticker = await hbnFetch(baseUrl + '/ticker', 'ticker');
+    if (ticker.lastMinute > 0) {
+      timerOffset = ticker.lastMinute * 60;
+      updateTimerEl();
+    }
+    if (ticker.score_home !== undefined) {
+      spielMeta.score_home = ticker.score_home;
+      spielMeta.score_away = ticker.score_away;
+      await saveSpielMeta();
+    }
+  } catch { /* ignorieren */ }
+}
+
+// ── Ticker-Typ → Aktion Mapping ──────────────────────────────
+const tickerTypeMap = {
+  tor:     { type: 'tor',     label: 'Tor',          color: '#15803d', polarity:  1 },
+  tor_7m:  { type: 'tor_7m',  label: 'Tor 7m',       color: '#16a34a', polarity:  1 },
+  fw_7m:   { type: 'fw_7m',   label: 'Fehlwurf 7m',  color: '#c2410c', polarity: -1 },
+  '2min':  { type: 'rot',     label: '2min-Strafe',   color: '#991b1b', polarity: -1 },
+  rot:     { type: 'rot',     label: 'Rote Karte',    color: '#7f1d1d', polarity: -1 },
+};
+
+// Namens-Normalisierung für Matching (Groß/Klein, extra Leerzeichen)
+function normName(s) {
+  return (s||'').toLowerCase().replace(/\s+/g,' ').trim();
+}
+
+// ── Live-View: Ticker-Button ─────────────────────────────────
+// Wird beim Render der Live-View aufgerufen wenn hbn_url vorhanden
+async function liveRefreshTicker() {
+  const baseUrl = getBaseUrl(spielMeta.hbn_url);
+  if (!baseUrl) { toast('Keine handball.net URL am Spiel', 'info'); return; }
+  await autoImportTickerActions(baseUrl, _gs.timerMode || 'manual');
+  renderLog();
 }
 
 // ════════════════════════════════════════════════════════════
