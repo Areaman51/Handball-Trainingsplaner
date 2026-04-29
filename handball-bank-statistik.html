@@ -1382,30 +1382,50 @@ async function deleteSpiel(id){
 // LIVE: SPIEL LADEN
 // ════════════════════════════════════════════════════════════
 async function openLive(spId, skipWizard=false){
-  setStatus('saving','Lade Spiel…');
-  const sp=spiele.find(s=>s.id===spId);
-  if(!sp) return;
-  spielId=spId; spielMeta={...sp};
-  selPlayerId=null;
+  try {
+    setStatus('saving','Lade Spiel…');
+    const sp=spiele.find(s=>s.id===spId);
+    if(!sp){ toast('Spiel nicht gefunden','error'); return; }
+    spielId=spId; spielMeta={...sp};
+    selPlayerId=null;
 
-  const{data:pl}=await supa.from('spieler_lineup').select('*').eq('spiel_id',spId).order('sort_order');
-  lineup=pl||[];
-  const{data:ak}=await supa.from('spielaktionen').select('*').eq('spiel_id',spId).order('erstellt_am');
-  aktionen=ak||[];
+    const{data:pl,error:plErr}=await supa.from('spieler_lineup').select('*').eq('spiel_id',spId).order('sort_order');
+    if(plErr) console.warn('lineup Fehler:',plErr);
+    lineup=pl||[];
 
-  timerRunning=false; timerOffset=spielMeta.timer_offset||0; timerStartedAt=null;
-  clearInterval(timerIv);
-  setStatus('ok','Spiel geladen');
+    const{data:ak,error:akErr}=await supa.from('spielaktionen').select('*').eq('spiel_id',spId).order('erstellt_am');
+    if(akErr) console.warn('aktionen Fehler:',akErr);
+    aktionen=ak||[];
 
-  // Wenn handball.net URL vorhanden und noch kein Lineup → Game-Start-Wizard
-  const baseUrl = getBaseUrl(spielMeta.hbn_url);
-  if (!skipWizard && baseUrl && lineup.length === 0) {
-    showGameStartWizard(baseUrl);
-    return;
+    timerRunning=false; timerOffset=spielMeta.timer_offset||0; timerStartedAt=null;
+    clearInterval(timerIv);
+    setStatus('ok','Spiel geladen');
+
+    console.log('[openLive] hbn_url:', spielMeta.hbn_url, '| lineup:', lineup.length, '| skipWizard:', skipWizard);
+
+    // Wizard zeigen wenn:
+    // a) nicht übersprungen UND
+    // b) hbn_url gesetzt UND
+    // c) noch kein Lineup ODER Spieler hat kein team-Flag (→ vor letzter Session angelegt)
+    const baseUrl = getBaseUrl(spielMeta.hbn_url);
+    // Wizard: wenn nicht übersprungen UND URL vorhanden
+    // Lineup-Check entfernt — Wizard läuft auch wenn Lineup schon da (Neustart/Neuauswahl)
+    const needsWizard = !skipWizard && !!baseUrl;
+
+    console.log('[openLive] baseUrl:', baseUrl, '| needsWizard:', needsWizard);
+
+    if (needsWizard) {
+      showGameStartWizard(baseUrl);
+      return;
+    }
+
+    showView('live');
+    renderLiveView();
+  } catch(err) {
+    console.error('[openLive] Fehler:', err);
+    toast('Fehler beim Laden: ' + (err.message||err), 'error');
+    setStatus('err','Fehler');
   }
-
-  showView('live');
-  renderLiveView();
 }
 
 // Basisurl ohne Suffix ableiten
@@ -1959,6 +1979,7 @@ function renderSpieleList(){
       </div>
       <div class="spiel-actions">
         <button class="btn btn-primary btn-sm" onclick="openLive('${sp.id}')">▶ Live öffnen</button>
+        ${sp.hbn_url ? `<button class="btn btn-ghost btn-sm" onclick="openLive('${sp.id}',true)" title="Ohne Wizard direkt öffnen">⚡ Direkt</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="openStatistik('${sp.id}')">📊 Statistik</button>
         <button class="btn btn-ghost btn-sm" onclick="openSpielModal('${sp.id}')">✏️ Bearbeiten</button>
         <button class="btn btn-danger btn-sm" onclick="deleteSpiel('${sp.id}')">🗑</button>
@@ -2153,42 +2174,71 @@ let _gs = {
 
 async function showGameStartWizard(baseUrl) {
   _gs = { baseUrl, data: null, selectedTeam: null, timerMode: 'manual', importTicker: false };
+
+  // Modal-Element prüfen
+  const modal = document.getElementById('m-gamestart');
+  if (!modal) { console.error('m-gamestart Modal nicht gefunden!'); return; }
+
   openModal('m-gamestart');
-  document.getElementById('gs-title').textContent = `${spielMeta.heim} vs. ${spielMeta.gast}`;
-  document.getElementById('gs-sub').textContent = 'Aufstellung wird geladen…';
-  document.getElementById('gs-footer').style.display = 'none';
-  document.getElementById('gs-body').innerHTML = `
-    <div style="text-align:center;padding:32px;color:var(--xsoft);">
-      <div style="font-size:28px;margin-bottom:12px;">⏳</div>
-      Lade Aufstellung von handball.net…
+
+  const titleEl  = document.getElementById('gs-title');
+  const subEl    = document.getElementById('gs-sub');
+  const bodyEl   = document.getElementById('gs-body');
+  const footerEl = document.getElementById('gs-footer');
+
+  if (titleEl) titleEl.textContent = `${spielMeta.heim} vs. ${spielMeta.gast}`;
+  if (subEl)   subEl.textContent   = 'Aufstellung wird geladen…';
+  if (footerEl) footerEl.style.display = 'none';
+  if (bodyEl) bodyEl.innerHTML = `
+    <div style="text-align:center;padding:40px 24px;color:var(--xsoft);">
+      <div style="font-size:32px;margin-bottom:14px;">⏳</div>
+      <div style="font-size:14px;">Lade Aufstellung von handball.net…</div>
+      <div style="font-size:12px;margin-top:6px;opacity:.7;">${baseUrl}/aufstellung</div>
     </div>`;
+
+  console.log('[wizard] Lade Aufstellung:', baseUrl + '/aufstellung');
 
   try {
     const data = await hbnFetch(baseUrl + '/aufstellung', 'match');
     _gs.data = data;
 
+    console.log('[wizard] Aufstellung geladen:', {
+      heim: data.heim, gast: data.gast,
+      heimRoster: data.heimRoster?.length, gastRoster: data.gastRoster?.length,
+      parseMethod: data.parseMethod
+    });
+
     const hCount = data.heimRoster?.length || 0;
     const gCount = data.gastRoster?.length || 0;
 
-    document.getElementById('gs-sub').textContent =
-      `${data.heim || spielMeta.heim} vs. ${data.gast || spielMeta.gast}`;
+    if (subEl) subEl.textContent = `${data.heim || spielMeta.heim} vs. ${data.gast || spielMeta.gast}`;
+    if (bodyEl) bodyEl.innerHTML = renderWizardBody(data, hCount, gCount);
+    if (footerEl) footerEl.style.display = '';
 
-    document.getElementById('gs-body').innerHTML = renderWizardBody(data, hCount, gCount);
-    document.getElementById('gs-footer').style.display = '';
-    document.getElementById('gs-confirm').disabled = true; // bis Team gewählt
+    const confirmBtn = document.getElementById('gs-confirm');
+    if (confirmBtn) confirmBtn.disabled = true;
 
   } catch(e) {
-    document.getElementById('gs-body').innerHTML = `
-      <div style="padding:20px;color:var(--red);background:var(--red-l);
-        border-radius:8px;margin:16px;font-size:13px;">
-        ❌ Aufstellung konnte nicht geladen werden: ${e.message}<br>
-        <div style="margin-top:12px;display:flex;gap:8px;">
-          <button class="btn btn-ghost btn-sm" onclick="closeModal('m-gamestart');showView('live');renderLiveView()">
-            Trotzdem öffnen
+    console.error('[wizard] Fehler beim Laden:', e);
+    if (bodyEl) bodyEl.innerHTML = `
+      <div style="padding:20px;margin:16px;color:var(--red);background:var(--red-l);
+        border:1px solid var(--red-b);border-radius:10px;font-size:13px;line-height:1.6;">
+        <strong>❌ Aufstellung konnte nicht geladen werden</strong><br>
+        ${e.message}<br><br>
+        <strong>URL:</strong> ${baseUrl}/aufstellung<br><br>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+          <button class="btn btn-ghost btn-sm"
+            onclick="closeModal('m-gamestart');showView('live');renderLiveView()">
+            Ohne Aufstellung öffnen
+          </button>
+          <button class="btn btn-primary btn-sm"
+            onclick="showGameStartWizard('${baseUrl}')">
+            Nochmal versuchen
           </button>
         </div>
       </div>`;
-    document.getElementById('gs-footer').style.display = 'none';
+    if (footerEl) footerEl.style.display = 'none';
+    toast('Aufstellung konnte nicht geladen werden', 'error');
   }
 }
 
