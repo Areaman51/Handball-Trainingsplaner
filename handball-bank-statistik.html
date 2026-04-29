@@ -1408,10 +1408,11 @@ async function openLive(spId, skipWizard=false){
     // b) hbn_url gesetzt UND
     // c) noch kein Lineup ODER Spieler hat kein team-Flag (→ vor letzter Session angelegt)
     const baseUrl = getBaseUrl(spielMeta.hbn_url);
-    // Wizard nur zeigen wenn nicht gerade offen
-    const wizardAlreadyOpen = document.getElementById('m-gamestart')?.classList.contains('open');
-    const needsWizard = !skipWizard && !wizardAlreadyOpen;
-    console.log('[openLive] baseUrl:', baseUrl, '| needsWizard:', needsWizard, '| wizardOpen:', wizardAlreadyOpen);
+    // Wizard: nur beim allerersten Öffnen (kein Lineup) — nicht bei jedem Wiedereintritt
+    // skipWizard=true → immer direkt rein
+    // showWizard=true (explizit via Button) → immer Wizard
+    const needsWizard = !skipWizard && lineup.length === 0;
+    console.log('[openLive] baseUrl:', baseUrl, '| lineup:', lineup.length, '| needsWizard:', needsWizard);
 
     if (needsWizard) {
       showGameStartWizard(baseUrl);
@@ -1542,6 +1543,20 @@ function renderLiveView(){
   const sb=document.createElement('div');
   sb.style.cssText='flex-shrink:0;';
   sb.innerHTML=`
+    <!-- Ticker-Status-Bar (nur wenn hbn_url vorhanden) -->
+    ${spielMeta.hbn_url ? `
+    <div id="ticker-status-bar" style="background:rgba(0,0,0,.3);border-bottom:1px solid rgba(255,255,255,.08);
+      padding:5px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;">
+      <span style="color:var(--xsoft);">📡 Auto-Ticker aus</span>
+      <div style="display:flex;gap:5px;">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.15);"
+          onclick="liveRefreshTicker()">🔄 Jetzt</button>
+        <button class="btn btn-primary btn-sm" style="font-size:11px;"
+          onclick="startAutoTicker(2)">▶ Alle 2 Min</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.15);"
+          onclick="startAutoTicker(5)">▶ Alle 5 Min</button>
+      </div>
+    </div>` : ''}
     <div class="live-score-bar">
       <div style="display:flex;flex-direction:column;gap:3px;">
         <div class="lsb-team home">${spielMeta.heim||'Mein Team'}</div>
@@ -1978,7 +1993,7 @@ function renderSpieleList(){
       </div>
       <div class="spiel-actions">
         <button class="btn btn-primary btn-sm" onclick="openLive('${sp.id}')">▶ Live öffnen</button>
-        ${sp.hbn_url ? `<button class="btn btn-ghost btn-sm" onclick="openLive('${sp.id}',true)" title="Ohne Wizard direkt öffnen">⚡ Direkt</button>` : ''}
+        ${sp.hbn_url ? `<button class="btn btn-ghost btn-sm" onclick="forceWizard('${sp.id}')" title="Team neu auswählen / Aufstellung neu laden">⚙️ Einrichten</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="openStatistik('${sp.id}')">📊 Statistik</button>
         <button class="btn btn-ghost btn-sm" onclick="openSpielModal('${sp.id}')">✏️ Bearbeiten</button>
         <button class="btn btn-danger btn-sm" onclick="deleteSpiel('${sp.id}')">🗑</button>
@@ -2022,6 +2037,8 @@ const VIEW_TITLES={
   statistik:'Statistik',spielplan:'Spielplan – handball.net'
 };
 function showView(id){
+  // Ticker stoppen wenn Live-View verlassen wird
+  if (id !== 'live' && _tickerRunning) stopAutoTicker();
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('view-'+id).classList.add('active');
@@ -2622,6 +2639,91 @@ async function liveRefreshTicker() {
   if (!baseUrl) { toast('Keine handball.net URL am Spiel', 'info'); return; }
   await autoImportTickerActions(baseUrl, _gs.timerMode || 'manual');
   renderLog();
+}
+
+// forceWizard: Wizard auch bei bestehendem Lineup erzwingen
+async function forceWizard(spId) {
+  setStatus('saving','Lade Spiel…');
+  const sp = spiele.find(s => s.id === spId);
+  if (!sp) return;
+  spielId = spId; spielMeta = {...sp}; selPlayerId = null;
+  const{data:pl}=await supa.from('spieler_lineup').select('*').eq('spiel_id',spId).order('sort_order');
+  lineup=pl||[];
+  const{data:ak}=await supa.from('spielaktionen').select('*').eq('spiel_id',spId).order('erstellt_am');
+  aktionen=ak||[];
+  timerRunning=false; timerOffset=spielMeta.timer_offset||0; timerStartedAt=null;
+  clearInterval(timerIv); setStatus('ok','');
+  const baseUrl = getBaseUrl(spielMeta.hbn_url);
+  showGameStartWizard(baseUrl);
+}
+
+// ════════════════════════════════════════════════════════════
+// AUTO-TICKER REFRESH
+// ════════════════════════════════════════════════════════════
+let _tickerIv = null;
+let _tickerLastRun = null;
+let _tickerRunning = false;
+
+function startAutoTicker(intervalMinutes = 2) {
+  if (_tickerIv) stopAutoTicker();
+  _tickerRunning = true;
+  _tickerLastRun = new Date();
+  updateTickerStatusBar();
+
+  // Sofort einmal laufen
+  const baseUrl = getBaseUrl(spielMeta?.hbn_url);
+  if (baseUrl) autoImportTickerActions(baseUrl, 'manual').then(() => {
+    _tickerLastRun = new Date();
+    updateTickerStatusBar();
+  });
+
+  _tickerIv = setInterval(async () => {
+    if (!spielId) { stopAutoTicker(); return; }
+    // Stoppen wenn Spiel beendet
+    if (spielMeta?.status === 'beendet') { stopAutoTicker(); return; }
+    const baseUrl = getBaseUrl(spielMeta?.hbn_url);
+    if (!baseUrl) return;
+    await autoImportTickerActions(baseUrl, 'manual');
+    _tickerLastRun = new Date();
+    updateTickerStatusBar();
+  }, intervalMinutes * 60 * 1000);
+}
+
+function stopAutoTicker() {
+  if (_tickerIv) clearInterval(_tickerIv);
+  _tickerIv = null; _tickerRunning = false;
+  updateTickerStatusBar();
+}
+
+function updateTickerStatusBar() {
+  const bar = document.getElementById('ticker-status-bar');
+  if (!bar) return;
+  if (_tickerRunning) {
+    const lastStr = _tickerLastRun
+      ? _tickerLastRun.toLocaleTimeString('de', {hour:'2-digit',minute:'2-digit',second:'2-digit'})
+      : '–';
+    bar.innerHTML = `
+      <span style="color:#22c55e;font-weight:700;">📡 Auto-Ticker aktiv</span>
+      <span style="color:var(--xsoft);font-size:10.5px;">Zuletzt: ${lastStr}</span>
+      <button class="btn btn-danger btn-sm" style="padding:3px 10px;font-size:11px;"
+        onclick="stopAutoTicker()">⏹ Stoppen</button>`;
+  } else {
+    bar.innerHTML = `
+      <span style="color:var(--xsoft);">📡 Auto-Ticker aus</span>
+      <div style="display:flex;gap:5px;">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;"
+          onclick="liveRefreshTicker()">🔄 Jetzt</button>
+        <button class="btn btn-primary btn-sm" style="font-size:11px;"
+          onclick="startAutoTicker(2)">▶ Alle 2 Min</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;"
+          onclick="startAutoTicker(5)">▶ Alle 5 Min</button>
+      </div>`;
+  }
+}
+
+// Ticker stoppen wenn Spiel verlassen wird
+function stopTickerOnLeave() {
+  if (_tickerRunning) stopAutoTicker();
 }
 
 // ════════════════════════════════════════════════════════════
