@@ -424,6 +424,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
     </div>
 
+    <div class="sidebar-section">
+      <div class="sidebar-label">handball.net</div>
+      <div class="sidebar-item" id="nav-spielplan" onclick="showView('spielplan')">
+        <span class="si-icon">📅</span> Spielplan laden
+      </div>
+    </div>
+
     <div class="sidebar-bottom">
       <a class="sidebar-link" href="index.html">
         <span>📅</span> Trainingsplaner
@@ -480,6 +487,43 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           </div>
         </div>
         <div id="stat-content"></div>
+      </div>
+
+      <!-- ── SPIELPLAN ── -->
+      <div class="view" id="view-spielplan">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Spielplan</div>
+            <div class="page-subtitle">Spiele aus handball.net importieren</div>
+          </div>
+        </div>
+
+        <!-- iCal Import -->
+        <div class="card" style="margin-bottom:18px;">
+          <div class="card-body">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+              color:var(--xsoft);margin-bottom:10px;">📅 iCal / Spielplan-URL</div>
+            <p style="font-size:13px;color:var(--soft);margin-bottom:12px;line-height:1.6;">
+              Die iCal-URL deines Teams von handball.net einfügen. Du findest sie im Teambereich
+              unter <strong>Kalender-Export</strong> oder <strong>Abonnieren</strong>.
+              Das Format ist <code style="background:var(--bg);padding:1px 5px;border-radius:4px;
+              font-size:12px;">webcal://www.handball.net/…</code>
+            </p>
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
+              <input class="form-input" id="sp-ical-main"
+                placeholder="webcal://www.handball.net/de/ical/team/12345"
+                style="flex:1;">
+              <button class="btn btn-primary" id="sp-ical-main-btn"
+                onclick="loadIcalMain()">🔄 Laden</button>
+            </div>
+            <div style="font-size:11.5px;color:var(--xsoft);">
+              Die URL wird lokal im Browser gespeichert und beim nächsten Besuch vorausgefüllt.
+            </div>
+          </div>
+        </div>
+
+        <!-- Ergebnisliste -->
+        <div id="sp-ical-main-result"></div>
       </div>
 
     </div><!-- /content -->
@@ -557,17 +601,59 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
 
       <hr class="form-divider" style="margin-top:14px;">
+      <!-- handball.net Import -->
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
-        color:var(--xsoft);margin-bottom:8px;">🔗 handball.net</div>
-      <div style="display:flex;gap:8px;">
-        <input class="form-input" id="sp-hbnurl" placeholder="handball.net Spiel-URL (optional)"
-          style="flex:1;font-size:12.5px;">
-        <button class="btn btn-ghost btn-sm" onclick="openHbn()">↗ Öffnen</button>
+        color:var(--xsoft);margin-bottom:10px;">🔗 handball.net Import</div>
+
+      <!-- Tab-Switch -->
+      <div style="display:flex;gap:4px;background:var(--bg);border-radius:8px;padding:3px;margin-bottom:12px;">
+        <button id="hbn-tab-ical" class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;background:white;box-shadow:var(--shadow);"
+          onclick="switchHbnTab('ical')">📅 Spielplan (iCal)</button>
+        <button id="hbn-tab-match" class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;"
+          onclick="switchHbnTab('match')">⚽ Einzelspiel / Aufstellung</button>
       </div>
-      <p style="font-size:11.5px;color:var(--xsoft);margin-top:6px;line-height:1.5;">
-        Spielzeit per <strong>Doppelklick auf die Uhr</strong> im Live-Modus synchronisieren.
-        Jedes erfasste Tor zählt automatisch im Spielstand.
-      </p>
+
+      <!-- iCal Tab -->
+      <div id="hbn-ical-tab">
+        <div style="font-size:12px;color:var(--soft);margin-bottom:8px;line-height:1.5;">
+          iCal-URL des Teams von handball.net einfügen. Alle Spiele werden geladen
+          und können direkt als Spiel angelegt werden.
+        </div>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="sp-ical-url"
+            placeholder="webcal://www.handball.net/de/ical/team/12345"
+            style="flex:1;font-size:12.5px;">
+          <button class="btn btn-primary btn-sm" id="hbn-ical-btn"
+            onclick="loadIcalIntoModal()">Laden</button>
+        </div>
+        <div id="hbn-ical-result" style="margin-top:10px;"></div>
+      </div>
+
+      <!-- Match Tab -->
+      <div id="hbn-match-tab" style="display:none;">
+        <div style="font-size:12px;color:var(--soft);margin-bottom:8px;line-height:1.5;">
+          Spiel-URL von handball.net einfügen → Spielinfo & Aufstellung beider
+          Teams werden automatisch übernommen.
+        </div>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="sp-hbnurl"
+            placeholder="https://www.handball.net/de/matchcenter/12345/info"
+            style="flex:1;font-size:12.5px;">
+          <button class="btn btn-primary btn-sm" id="hbn-match-btn"
+            onclick="loadMatchIntoModal()">Laden</button>
+          <button class="btn btn-ghost btn-sm" onclick="openHbn()">↗</button>
+        </div>
+        <div id="hbn-match-result" style="margin-top:10px;"></div>
+        <!-- Gastmannschaft Kader -->
+        <div id="hbn-guest-roster-wrap" style="display:none;margin-top:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+              color:var(--xsoft);">Gegner Kader (importiert)</div>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('hbn-guest-roster-wrap').style.display='none'">✕</button>
+          </div>
+          <div id="hbn-guest-roster"></div>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('m-spiel')">Abbrechen</button>
@@ -576,18 +662,37 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
-<!-- ════ MODAL: Zeitsync ════ -->
+<!-- ════ MODAL: Zeitsync (erweitert mit handball.net) ════ -->
 <div class="overlay" id="m-time">
   <div class="modal modal-sm">
     <div class="modal-hdr">
       <div>
         <div class="modal-title">⏱ Spielzeit synchronisieren</div>
-        <div class="modal-sub">Aktuelle Minute vom handball.net Liveticker eingeben</div>
+        <div class="modal-sub">Manuell oder automatisch via handball.net</div>
       </div>
       <button class="modal-close" onclick="closeModal('m-time')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-group">
+      <!-- Auto-Sync via handball.net -->
+      <div id="m-time-hbn" style="background:var(--bg);border:1px solid var(--border);
+        border-radius:9px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;
+          letter-spacing:.07em;color:var(--xsoft);margin-bottom:8px;">⚡ Auto-Sync handball.net</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <input class="form-input" id="m-time-hbnurl"
+            placeholder="handball.net Spiel-URL"
+            style="flex:1;font-size:12.5px;">
+          <button class="btn btn-primary btn-sm" id="m-time-fetch-btn"
+            onclick="fetchTickerSync()">Jetzt laden</button>
+        </div>
+        <div id="m-time-ticker-result" style="display:none;padding:10px;background:white;
+          border:1px solid var(--border);border-radius:7px;font-size:12.5px;line-height:1.6;">
+        </div>
+      </div>
+      <!-- Manuell -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;
+        letter-spacing:.07em;color:var(--xsoft);margin-bottom:6px;">⌨️ Manuell</div>
+      <div class="form-group" style="margin-bottom:0;">
         <label class="form-label">Spielminute</label>
         <input class="form-input" id="m-min" type="number" min="0" max="60" placeholder="z.B. 27"
           style="font-size:22px;text-align:center;font-family:'DM Mono',monospace;">
@@ -596,6 +701,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('m-time')">Abbrechen</button>
       <button class="btn btn-primary" onclick="doTimeSync()">Setzen & Starten</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: iCal Spielplan ════ -->
+<div class="overlay" id="m-ical">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <div>
+        <div class="modal-title">📅 Spielplan – handball.net</div>
+        <div class="modal-sub" id="m-ical-sub">Spiele aus dem Kalender</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('m-ical')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <div id="m-ical-list" style="max-height:65vh;overflow-y:auto;"></div>
     </div>
   </div>
 </div>
@@ -610,6 +731,268 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 const SUPA_URL = 'https://dlofjsmnkwltuutpxoer.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
 const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ════════════════════════════════════════════════════════════
+// HANDBALL.NET — Edge Function
+// ════════════════════════════════════════════════════════════
+const EDGE_FN = `${SUPA_URL}/functions/v1/handball-net-proxy`;
+
+// Ruft die Edge Function auf — universaler Einstiegspunkt
+async function hbnFetch(url, requestType) {
+  const session = await supa.auth.getSession();
+  const token = session.data?.session?.access_token;
+
+  const res = await fetch(EDGE_FN, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ url, requestType }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Unbekannter Fehler' }));
+    throw new Error(err.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ── Tab-Switch im Spiel-Modal ────────────────────────────────
+function switchHbnTab(tab) {
+  document.getElementById('hbn-ical-tab').style.display   = tab === 'ical'  ? '' : 'none';
+  document.getElementById('hbn-match-tab').style.display  = tab === 'match' ? '' : 'none';
+  document.getElementById('hbn-tab-ical').style.cssText  += tab === 'ical'
+    ? ';background:white;box-shadow:var(--shadow);' : ';background:transparent;box-shadow:none;';
+  document.getElementById('hbn-tab-match').style.cssText += tab === 'match'
+    ? ';background:white;box-shadow:var(--shadow);' : ';background:transparent;box-shadow:none;';
+}
+
+// ── iCal laden (im Spiel-Modal) ──────────────────────────────
+async function loadIcalIntoModal() {
+  const url = document.getElementById('sp-ical-url').value.trim();
+  if (!url) { toast('Bitte iCal-URL eingeben', 'error'); return; }
+
+  const btn = document.getElementById('hbn-ical-btn');
+  const result = document.getElementById('hbn-ical-result');
+  btn.textContent = '⏳'; btn.disabled = true;
+  result.innerHTML = '';
+
+  try {
+    const data = await hbnFetch(url, 'ical');
+    if (!data.games?.length) {
+      result.innerHTML = '<div style="color:var(--soft);font-size:12.5px;">Keine Spiele gefunden.</div>';
+      return;
+    }
+
+    // Spiele anzeigen (nur zukünftige zuerst)
+    const today = new Date().toISOString().split('T')[0];
+    const sorted = [...data.games].sort((a, b) => (a.datum || '').localeCompare(b.datum || ''));
+
+    result.innerHTML = `
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;
+        letter-spacing:.07em;color:var(--xsoft);margin-bottom:8px;">
+        ${data.games.length} Spiele gefunden – Spiel antippen zum Übernehmen
+      </div>
+      <div style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+        ${sorted.map((g, i) => {
+          const isPast = g.datum && g.datum < today;
+          return `<div onclick="fillSpielFromIcal(${i})" data-game='${JSON.stringify(g).replace(/'/g, '&#39;')}'
+            style="display:flex;align-items:center;gap:12px;padding:10px 14px;
+            border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;
+            ${isPast ? 'opacity:.55;' : ''}background:white;"
+            onmouseover="this.style.background='var(--accent-l)'"
+            onmouseout="this.style.background='white'">
+            <div style="min-width:70px;font-size:11.5px;color:var(--soft);font-family:'DM Mono',monospace;">
+              ${g.datum ? g.datum.split('-').reverse().join('.') : '–'}<br>
+              <span style="font-size:12px;color:var(--text);font-weight:600">${g.uhrzeit||''}</span>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                ${g.heim} vs. ${g.gast}
+              </div>
+              <div style="font-size:11.5px;color:var(--soft);">${g.ort || ''}</div>
+            </div>
+            <div style="font-size:11px;color:var(--accent);font-weight:700;">Übernehmen ›</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+
+    // Store games for fillSpielFromIcal
+    window._icalGames = data.games;
+
+  } catch (e) {
+    result.innerHTML = `<div style="color:var(--red);font-size:12.5px;padding:8px;background:var(--red-l);
+      border-radius:7px;">❌ ${e.message}</div>`;
+  } finally {
+    btn.textContent = 'Laden'; btn.disabled = false;
+  }
+}
+
+function fillSpielFromIcal(idx) {
+  const g = window._icalGames?.[idx];
+  if (!g) return;
+  document.getElementById('sp-heim').value    = g.heim    || '';
+  document.getElementById('sp-gast').value    = g.gast    || '';
+  document.getElementById('sp-datum').value   = g.datum   || '';
+  document.getElementById('sp-uhrzeit').value = g.uhrzeit || '';
+  document.getElementById('sp-ort').value     = g.ort     || '';
+  // Spielart bestimmen (grob: wenn eigener Teamname in heim-Feld → Heimspiel)
+  document.getElementById('hbn-ical-result').innerHTML =
+    `<div style="padding:8px;background:var(--green-l);border:1px solid var(--green-b);border-radius:7px;
+    font-size:12.5px;color:var(--green);">✅ Spielinfo übernommen. Aufstellung über "Einzelspiel"-Tab laden oder manuell eintragen.</div>`;
+
+  // Wenn Match-URL vorhanden → in Match-Tab speichern
+  if (g.url) {
+    document.getElementById('sp-hbnurl').value = g.url;
+  }
+}
+
+// ── Match-Seite laden (im Spiel-Modal) ──────────────────────
+async function loadMatchIntoModal() {
+  const url = document.getElementById('sp-hbnurl').value.trim();
+  if (!url) { toast('Bitte Spiel-URL eingeben', 'error'); return; }
+
+  const btn = document.getElementById('hbn-match-btn');
+  const res  = document.getElementById('hbn-match-result');
+  btn.textContent = '⏳'; btn.disabled = true;
+  res.innerHTML = '';
+
+  try {
+    const data = await hbnFetch(url, 'match');
+
+    // Spielinfo füllen
+    if (data.heim) document.getElementById('sp-heim').value    = data.heim;
+    if (data.gast) document.getElementById('sp-gast').value    = data.gast;
+    if (data.datum) document.getElementById('sp-datum').value  = data.datum;
+    if (data.uhrzeit) document.getElementById('sp-uhrzeit').value = data.uhrzeit;
+    if (data.ort)   document.getElementById('sp-ort').value    = data.ort;
+
+    // Heim-Kader in Aufstellung übernehmen
+    if (data.heimRoster?.length) {
+      // Existierende Feldspieler leeren, TH behalten
+      editRoster = editRoster.filter(p => p.pos === 'TH' && p.name); // bestehende TH behalten
+      // Kader hinzufügen
+      for (const p of data.heimRoster) {
+        editRoster.push({ id: null, num: p.nummer, name: p.name, pos: p.pos });
+      }
+      renderRosterTable();
+    }
+
+    // Status-Anzeige
+    const rosterCount = data.heimRoster?.length || 0;
+    const method = data.parseMethod === 'next-data' ? 'Next.js SSR' : 'HTML-Fallback';
+    res.innerHTML = `
+      <div style="padding:10px;background:var(--green-l);border:1px solid var(--green-b);
+        border-radius:7px;font-size:12.5px;color:var(--green);line-height:1.6;">
+        ✅ <strong>${data.heim} vs. ${data.gast}</strong> geladen (${method})<br>
+        ${rosterCount > 0 ? `${rosterCount} Spieler im Heim-Kader übernommen.` : 'Kein Kader gefunden – bitte manuell eintragen.'}
+        ${data.gastRoster?.length ? ` <a onclick="showGuestRoster()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">Gegner-Kader anzeigen (${data.gastRoster.length})</a>` : ''}
+      </div>`;
+
+    // Gast-Kader speichern für Anzeige
+    window._lastGastRoster = data.gastRoster || [];
+
+  } catch (e) {
+    res.innerHTML = `<div style="color:var(--red);font-size:12.5px;padding:8px;
+      background:var(--red-l);border-radius:7px;">❌ ${e.message}<br>
+      <span style="font-size:11px;opacity:.8;">Tipp: Die Matchcenter-URL von handball.net verwenden, z.B. .../matchcenter/12345/info</span>
+      </div>`;
+  } finally {
+    btn.textContent = 'Laden'; btn.disabled = false;
+  }
+}
+
+function showGuestRoster() {
+  const wrap = document.getElementById('hbn-guest-roster-wrap');
+  const list  = document.getElementById('hbn-guest-roster');
+  wrap.style.display = '';
+  const players = window._lastGastRoster || [];
+  list.innerHTML = players.map(p =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;
+      border-bottom:1px solid var(--border);font-size:13px;">
+      <span style="font-weight:700;color:var(--accent);min-width:28px;font-family:'DM Mono',monospace;">#${p.nummer}</span>
+      <span>${p.name}</span>
+      <span class="pos-badge ${p.pos}" style="margin-left:auto;">${p.pos==='TH'?'● TH':'▲ FL'}</span>
+    </div>`
+  ).join('');
+}
+
+// ── Live Ticker Sync ─────────────────────────────────────────
+async function fetchTickerSync() {
+  const url = document.getElementById('m-time-hbnurl').value.trim()
+    || spielMeta?.hbn_url || '';
+
+  if (!url) { toast('Bitte handball.net Spiel-URL eingeben', 'error'); return; }
+
+  const btn    = document.getElementById('m-time-fetch-btn');
+  const result = document.getElementById('m-time-ticker-result');
+  btn.textContent = '⏳'; btn.disabled = true;
+  result.style.display = 'none';
+
+  try {
+    const data = await hbnFetch(url, 'match');
+
+    // Spielstand übernehmen
+    if (data.score_home !== undefined) {
+      spielMeta.score_home = data.score_home;
+      spielMeta.score_away = data.score_away;
+      const sh = document.getElementById('live-sc-home');
+      const sa = document.getElementById('live-sc-away');
+      if (sh) sh.textContent = data.score_home;
+      if (sa) sa.textContent = data.score_away;
+      await saveSpielMeta();
+    }
+
+    // Letzte Ticker-Minute als Zeitvorschlag
+    const latestMin = data.ticker?.length
+      ? Math.max(...data.ticker.map(e => e.minute))
+      : null;
+
+    if (latestMin !== null) {
+      document.getElementById('m-min').value = latestMin;
+    }
+
+    // Letzten 3 Ticker-Events anzeigen
+    const recentEvents = (data.ticker || []).slice(-3).reverse();
+    const statusColor = data.status === 'live' ? '#dc2626' : '#15803d';
+
+    result.style.display = '';
+    result.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <span style="font-size:18px;font-weight:800;color:var(--accent);font-family:'DM Mono',monospace;">
+          ${data.score_home} : ${data.score_away}
+        </span>
+        <span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;
+          background:${statusColor}22;color:${statusColor};">${data.status}</span>
+        ${latestMin !== null ? `<span style="font-size:12px;color:var(--soft);">${latestMin}. Minute vorgeschlagen</span>` : ''}
+      </div>
+      ${recentEvents.map(e => `
+        <div style="display:flex;gap:8px;font-size:12px;padding:3px 0;color:var(--soft);">
+          <span style="font-family:'DM Mono',monospace;color:var(--xsoft);min-width:28px;">${e.minute}'</span>
+          <span>${e.playerName || '–'}</span>
+          <span style="margin-left:auto;font-weight:600;color:var(--accent);">${e.score}</span>
+        </div>`).join('')}
+      <div style="font-size:10.5px;color:var(--xsoft);margin-top:6px;">Spielstand & Zeit aktualisiert. Unten bestätigen.</div>`;
+
+  } catch (e) {
+    result.style.display = '';
+    result.innerHTML = `<div style="color:var(--red);">❌ ${e.message}</div>`;
+  } finally {
+    btn.textContent = 'Jetzt laden'; btn.disabled = false;
+  }
+}
+
+// ── Beim Öffnen des Zeit-Modals: URL vorausfüllen ────────────
+function openTimeModal() {
+  const hbnInput = document.getElementById('m-time-hbnurl');
+  if (hbnInput && spielMeta?.hbn_url) {
+    hbnInput.value = spielMeta.hbn_url;
+  }
+  document.getElementById('m-min').value = timerMin();
+  document.getElementById('m-time-ticker-result').style.display = 'none';
+  openModal('m-time');
+}
 
 // ════════════════════════════════════════════════════════════
 // STATE
@@ -831,6 +1214,7 @@ async function saveSpiel(){
     spielart:document.getElementById('sp-art').value,
     liga:document.getElementById('sp-liga').value,
     ort:document.getElementById('sp-ort').value,
+    hbn_url:document.getElementById('sp-hbnurl').value.trim()||null,
     updated_at:new Date().toISOString()
   };
 
@@ -931,8 +1315,7 @@ function timerClick(){
   if(!_timerClickTs){ _timerClickTs=Date.now(); setTimeout(()=>{_timerClickTs=null;toggleTimer();},350);return;}
   clearTimeout(_timerClickTimeout);
   _timerClickTs=null;
-  document.getElementById('m-min').value=timerMin();
-  openModal('m-time');
+  openTimeModal();
 }
 let _timerClickTs=null,_timerClickTimeout=null;
 
@@ -1013,6 +1396,7 @@ function renderLiveView(){
         <div style="display:flex;gap:5px;margin-top:2px;">
           <div id="live-timer" class="lsb-timer" onclick="timerClick()">${fmtTime(timerSec())}</div>
           <button class="lsb-hz" id="live-hz" onclick="toggleHz()">${spielMeta.hz||1}. HZ</button>
+          ${spielMeta.hbn_url ? `<button class="lsb-hz" style="background:rgba(255,255,255,.12);font-size:10px;" onclick="openTimeModal()" title="handball.net Ticker sync">📡</button>` : ''}
         </div>
       </div>
       <div class="lsb-score">
@@ -1462,7 +1846,10 @@ function setStatus(type,msg){
 // ════════════════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════════════════
-const VIEW_TITLES={spiele:'Meine Spiele',live:'Live-Erfassung',statistik:'Statistik'};
+const VIEW_TITLES={
+  spiele:'Meine Spiele',live:'Live-Erfassung',
+  statistik:'Statistik',spielplan:'Spielplan – handball.net'
+};
 function showView(id){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('active'));
@@ -1471,6 +1858,133 @@ function showView(id){
   if(navEl) navEl.classList.add('active');
   document.getElementById('topbar-title-text').textContent=VIEW_TITLES[id]||'';
   if(id==='statistik') renderStatistik();
+  if(id==='spielplan'){
+    // URL aus localStorage vorausfüllen
+    const saved=localStorage.getItem('hbs_ical_url');
+    if(saved) document.getElementById('sp-ical-main').value=saved;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// SPIELPLAN VIEW — iCal Hauptlader
+// ════════════════════════════════════════════════════════════
+async function loadIcalMain(){
+  const url=document.getElementById('sp-ical-main').value.trim();
+  if(!url){toast('Bitte iCal-URL eingeben','error');return;}
+  localStorage.setItem('hbs_ical_url',url);
+
+  const btn=document.getElementById('sp-ical-main-btn');
+  const out=document.getElementById('sp-ical-main-result');
+  btn.textContent='⏳'; btn.disabled=true;
+  out.innerHTML='<div style="color:var(--soft);font-size:13px;padding:16px;">Lade Spielplan…</div>';
+
+  try {
+    const data=await hbnFetch(url,'ical');
+    window._icalGamesMain=data.games||[];
+    renderIcalMain(data.games||[]);
+  } catch(e){
+    out.innerHTML=`<div style="padding:16px;color:var(--red);background:var(--red-l);
+      border-radius:var(--radius);font-size:13px;">❌ ${e.message}<br>
+      <span style="font-size:11.5px;opacity:.8;margin-top:4px;display:block;">
+        Tipp: webcal://-URLs werden automatisch zu https:// umgewandelt.
+      </span></div>`;
+  } finally {
+    btn.textContent='🔄 Laden'; btn.disabled=false;
+  }
+}
+
+function renderIcalMain(games){
+  const out=document.getElementById('sp-ical-main-result');
+  if(!games.length){
+    out.innerHTML='<div class="empty"><div class="e-icon">📅</div><p>Keine Spiele gefunden.</p></div>';
+    return;
+  }
+
+  const today=new Date().toISOString().split('T')[0];
+  const upcoming=games.filter(g=>!g.datum||g.datum>=today);
+  const past=games.filter(g=>g.datum&&g.datum<today);
+
+  let html='';
+
+  // Zukünftige
+  if(upcoming.length){
+    html+=`<div style="font-size:11px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.08em;color:var(--xsoft);margin-bottom:10px;">
+      Kommende Spiele (${upcoming.length})</div>`;
+    html+=renderIcalTable(upcoming,today,false);
+  }
+
+  // Vergangene
+  if(past.length){
+    html+=`<div style="font-size:11px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.08em;color:var(--xsoft);margin:18px 0 10px;">
+      Vergangene Spiele (${past.length})</div>`;
+    html+=renderIcalTable([...past].reverse(),today,true);
+  }
+
+  out.innerHTML=html;
+}
+
+function renderIcalTable(games,today,isPast){
+  const rows=games.map((g,rawIdx)=>{
+    // Echten Index im _icalGamesMain finden
+    const idx=(window._icalGamesMain||[]).indexOf(g);
+    // Bereits als Spiel angelegt?
+    const alreadyExists=spiele.some(sp=>
+      sp.datum===g.datum && sp.heim===g.heim && sp.gast===g.gast
+    );
+    return `<div style="display:flex;align-items:center;gap:14px;padding:12px 16px;
+      background:white;border-bottom:1px solid var(--border);
+      ${isPast?'opacity:.65;':''}">
+      <div style="min-width:80px;text-align:center;">
+        <div style="font-size:13.5px;font-weight:700;font-family:'DM Mono',monospace;">
+          ${g.datum?g.datum.split('-').reverse().join('.'):'–'}</div>
+        <div style="font-size:11.5px;color:var(--soft);">${g.uhrzeit||''}</div>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          ${g.heim} vs. ${g.gast}</div>
+        <div style="font-size:11.5px;color:var(--soft);">${g.ort||'–'}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        ${g.url?`<button class="btn btn-ghost btn-sm" onclick="window.open('${g.url.replace(/'/g,"\\'")}','_blank')" title="handball.net öffnen">🔗</button>`:''}
+        ${alreadyExists
+          ? `<span style="font-size:11px;color:var(--green);font-weight:700;padding:5px 8px;">✅ Angelegt</span>`
+          : `<button class="btn btn-primary btn-sm" onclick="createGameFromIcal(${idx})">+ Anlegen</button>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="card" style="overflow:hidden;margin-bottom:4px;">
+    <div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">${rows}</div>
+  </div>`;
+}
+
+async function createGameFromIcal(idx){
+  const g=window._icalGamesMain?.[idx];
+  if(!g){toast('Spiel nicht gefunden','error');return;}
+
+  setStatus('saving','Lege Spiel an…');
+  const payload={
+    user_id:currentUser.id,
+    heim:g.heim||'',gast:g.gast||'',
+    datum:g.datum||null,uhrzeit:g.uhrzeit||null,
+    ort:g.ort||'',hbn_url:g.url||null,
+    spielart:'heim',liga:'',status:'geplant',
+    score_home:0,score_away:0,hz:1,timer_offset:0,
+    updated_at:new Date().toISOString()
+  };
+
+  const{data,error}=await supa.from('spiele').insert(payload).select().single();
+  if(error){setStatus('err','Fehler');toast('Fehler: '+error.message,'error');return;}
+
+  await loadSpiele();
+  setStatus('ok','Spiel angelegt');
+  toast(`${g.heim} vs. ${g.gast} angelegt ✓`,'success');
+
+  // Neu rendern mit aktualisierten Daten
+  renderIcalMain(window._icalGamesMain||[]);
 }
 
 // ════════════════════════════════════════════════════════════
