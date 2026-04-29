@@ -632,27 +632,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Match Tab -->
       <div id="hbn-match-tab" style="display:none;">
         <div style="font-size:12px;color:var(--soft);margin-bottom:8px;line-height:1.5;">
-          Spiel-URL von handball.net einfügen → Spielinfo & Aufstellung beider
-          Teams werden automatisch übernommen.
+          /aufstellung-URL von handball.net einfügen. Nach dem Laden wählst du,
+          welchen Kader du analysieren möchtest — oder beide.
         </div>
         <div style="display:flex;gap:8px;">
           <input class="form-input" id="sp-hbnurl"
-            placeholder="https://www.handball.net/de/matchcenter/12345/info"
+            placeholder="https://www.handball.net/spiele/…/aufstellung"
             style="flex:1;font-size:12.5px;">
           <button class="btn btn-primary btn-sm" id="hbn-match-btn"
             onclick="loadMatchIntoModal()">Laden</button>
           <button class="btn btn-ghost btn-sm" onclick="openHbn()">↗</button>
         </div>
+        <!-- Ergebnis + Teamauswahl wird hier dynamisch gerendert -->
         <div id="hbn-match-result" style="margin-top:10px;"></div>
-        <!-- Gastmannschaft Kader -->
-        <div id="hbn-guest-roster-wrap" style="display:none;margin-top:10px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
-              color:var(--xsoft);">Gegner Kader (importiert)</div>
-            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('hbn-guest-roster-wrap').style.display='none'">✕</button>
-          </div>
-          <div id="hbn-guest-roster"></div>
-        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -851,7 +843,7 @@ function fillSpielFromIcal(idx) {
 // ── Match-Seite laden (im Spiel-Modal) ──────────────────────
 async function loadMatchIntoModal() {
   const url = document.getElementById('sp-hbnurl').value.trim();
-  if (!url) { toast('Bitte Spiel-URL eingeben', 'error'); return; }
+  if (!url) { toast('Bitte /aufstellung-URL eingeben', 'error'); return; }
 
   const btn = document.getElementById('hbn-match-btn');
   const res  = document.getElementById('hbn-match-result');
@@ -861,61 +853,135 @@ async function loadMatchIntoModal() {
   try {
     const data = await hbnFetch(url, 'match');
 
-    // Spielinfo füllen
-    if (data.heim) document.getElementById('sp-heim').value    = data.heim;
-    if (data.gast) document.getElementById('sp-gast').value    = data.gast;
-    if (data.datum) document.getElementById('sp-datum').value  = data.datum;
+    // Spielinfo-Felder befüllen
+    if (data.heim)    document.getElementById('sp-heim').value    = data.heim;
+    if (data.gast)    document.getElementById('sp-gast').value    = data.gast;
+    if (data.datum)   document.getElementById('sp-datum').value   = data.datum;
     if (data.uhrzeit) document.getElementById('sp-uhrzeit').value = data.uhrzeit;
-    if (data.ort)   document.getElementById('sp-ort').value    = data.ort;
+    if (data.ort)     document.getElementById('sp-ort').value     = data.ort;
 
-    // Heim-Kader in Aufstellung übernehmen
-    if (data.heimRoster?.length) {
-      // Existierende Feldspieler leeren, TH behalten
-      editRoster = editRoster.filter(p => p.pos === 'TH' && p.name); // bestehende TH behalten
-      // Kader hinzufügen
-      for (const p of data.heimRoster) {
-        editRoster.push({ id: null, num: p.nummer, name: p.name, pos: p.pos });
-      }
-      renderRosterTable();
-    }
+    // Kader speichern für Auswahl
+    window._lastMatchData = data;
 
-    // Status-Anzeige
-    const rosterCount = data.heimRoster?.length || 0;
-    const method = data.parseMethod === 'next-data' ? 'Next.js SSR' : 'HTML-Fallback';
-    res.innerHTML = `
-      <div style="padding:10px;background:var(--green-l);border:1px solid var(--green-b);
-        border-radius:7px;font-size:12.5px;color:var(--green);line-height:1.6;">
-        ✅ <strong>${data.heim} vs. ${data.gast}</strong> geladen (${method})<br>
-        ${rosterCount > 0 ? `${rosterCount} Spieler im Heim-Kader übernommen.` : 'Kein Kader gefunden – bitte manuell eintragen.'}
-        ${data.gastRoster?.length ? ` <a onclick="showGuestRoster()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">Gegner-Kader anzeigen (${data.gastRoster.length})</a>` : ''}
-      </div>`;
-
-    // Gast-Kader speichern für Anzeige
-    window._lastGastRoster = data.gastRoster || [];
+    // Auswahl-UI rendern
+    res.innerHTML = renderTeamSelection(data);
 
   } catch (e) {
-    res.innerHTML = `<div style="color:var(--red);font-size:12.5px;padding:8px;
-      background:var(--red-l);border-radius:7px;">❌ ${e.message}<br>
-      <span style="font-size:11px;opacity:.8;">Tipp: Die Matchcenter-URL von handball.net verwenden, z.B. .../matchcenter/12345/info</span>
-      </div>`;
+    res.innerHTML = `<div style="color:var(--red);font-size:12.5px;padding:10px;
+      background:var(--red-l);border:1px solid var(--red-b);border-radius:8px;">
+      ❌ ${e.message}<br>
+      <span style="font-size:11px;opacity:.8;display:block;margin-top:4px;">
+        Tipp: Die /aufstellung-URL des Spiels verwenden, z.B.
+        handball.net/spiele/…/aufstellung
+      </span></div>`;
   } finally {
     btn.textContent = 'Laden'; btn.disabled = false;
   }
 }
 
-function showGuestRoster() {
-  const wrap = document.getElementById('hbn-guest-roster-wrap');
-  const list  = document.getElementById('hbn-guest-roster');
-  wrap.style.display = '';
-  const players = window._lastGastRoster || [];
-  list.innerHTML = players.map(p =>
-    `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;
-      border-bottom:1px solid var(--border);font-size:13px;">
-      <span style="font-weight:700;color:var(--accent);min-width:28px;font-family:'DM Mono',monospace;">#${p.nummer}</span>
-      <span>${p.name}</span>
-      <span class="pos-badge ${p.pos}" style="margin-left:auto;">${p.pos==='TH'?'● TH':'▲ FL'}</span>
-    </div>`
-  ).join('');
+// ── Team-Auswahl UI rendern ──────────────────────────────────
+function renderTeamSelection(data) {
+  const hCount = data.heimRoster?.length || 0;
+  const gCount = data.gastRoster?.length || 0;
+  const method = data.parseMethod?.includes('next-data') ? 'Next.js' : 'HTML';
+
+  const rosterRow = (players, label) => players.slice(0, 5).map(p =>
+    `<span style="font-size:11px;color:var(--soft);">#${p.nummer} ${p.name}</span>`
+  ).join('<br>') + (players.length > 5 ? `<br><span style="font-size:10.5px;color:var(--xsoft);">+${players.length-5} weitere…</span>` : '');
+
+  return `
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;
+      padding:14px;margin-top:4px;">
+      <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+        color:var(--xsoft);margin-bottom:12px;">
+        ✅ ${data.heim} vs. ${data.gast} geladen (${method}) — Welchen Kader analysieren?
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+
+        <!-- Heim -->
+        <div style="background:white;border:2px solid var(--border);border-radius:8px;padding:12px;
+          transition:border-color .15s;" id="team-card-home">
+          <div style="font-size:13.5px;font-weight:700;margin-bottom:4px;">
+            🏠 ${data.heim}
+          </div>
+          <div style="font-size:11px;color:var(--soft);margin-bottom:10px;">
+            ${hCount} Spieler
+          </div>
+          ${hCount > 0 ? `<div style="margin-bottom:10px;line-height:1.8;">${rosterRow(data.heimRoster, 'heim')}</div>` : '<div style="font-size:11.5px;color:var(--xsoft);margin-bottom:10px;">Kein Kader verfügbar</div>'}
+          <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center;"
+            onclick="applyRoster('home')" ${hCount===0?'disabled':''}>
+            Als meine Mannschaft übernehmen
+          </button>
+        </div>
+
+        <!-- Gast -->
+        <div style="background:white;border:2px solid var(--border);border-radius:8px;padding:12px;
+          transition:border-color .15s;" id="team-card-away">
+          <div style="font-size:13.5px;font-weight:700;margin-bottom:4px;">
+            ✈️ ${data.gast}
+          </div>
+          <div style="font-size:11px;color:var(--soft);margin-bottom:10px;">
+            ${gCount} Spieler
+          </div>
+          ${gCount > 0 ? `<div style="margin-bottom:10px;line-height:1.8;">${rosterRow(data.gastRoster, 'gast')}</div>` : '<div style="font-size:11.5px;color:var(--xsoft);margin-bottom:10px;">Kein Kader verfügbar</div>'}
+          <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center;"
+            onclick="applyRoster('away')" ${gCount===0?'disabled':''}>
+            Als meine Mannschaft übernehmen
+          </button>
+        </div>
+      </div>
+
+      <!-- Beide -->
+      <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;font-size:12px;"
+        onclick="applyRoster('both')" ${hCount===0&&gCount===0?'disabled':''}>
+        ↕ Beide Kader übernehmen (getrennt auswertbar)
+      </button>
+    </div>`;
+}
+
+// ── Kader in editRoster übernehmen ──────────────────────────
+function applyRoster(which) {
+  const data = window._lastMatchData;
+  if (!data) return;
+
+  const heimPlayers = (data.heimRoster || []).map(p => ({
+    id: null, num: p.nummer, name: p.name, pos: p.pos,
+    team: 'home', teamLabel: data.heim
+  }));
+  const gastPlayers = (data.gastRoster || []).map(p => ({
+    id: null, num: p.nummer, name: p.name, pos: p.pos,
+    team: 'away', teamLabel: data.gast
+  }));
+
+  if (which === 'home') {
+    editRoster = heimPlayers;
+    document.getElementById('sp-art').value = 'heim';
+    toast(`${data.heim}: ${heimPlayers.length} Spieler übernommen`, 'success');
+  } else if (which === 'away') {
+    editRoster = gastPlayers;
+    document.getElementById('sp-art').value = 'auswaerts';
+    toast(`${data.gast}: ${gastPlayers.length} Spieler übernommen`, 'success');
+  } else {
+    // Beide: Heim zuerst, dann Gast — mit Trennlinie-Kommentar im Namen
+    editRoster = [
+      ...heimPlayers,
+      ...gastPlayers
+    ];
+    toast(`Beide Kader übernommen (${heimPlayers.length + gastPlayers.length} Spieler)`, 'success');
+  }
+
+  renderRosterTable();
+
+  // Visual feedback: highlight gewählte Karte
+  ['home','away'].forEach(side => {
+    const card = document.getElementById('team-card-' + side);
+    if (card) card.style.borderColor = 'var(--border)';
+  });
+  if (which !== 'both') {
+    const card = document.getElementById('team-card-' + which);
+    if (card) card.style.borderColor = 'var(--accent)';
+  }
 }
 
 // ── Live Ticker Sync ─────────────────────────────────────────
@@ -1187,10 +1253,34 @@ function addRosterRow(pos){
 function renderRosterTable(){
   const tbody=document.getElementById('roster-body');
   tbody.innerHTML='';
+
+  // Wenn beide Kader geladen → Gruppentrennlinie anzeigen
+  const hasTeamLabels = editRoster.some(p => p.teamLabel);
+  let lastTeam = null;
+
   editRoster.forEach((p,i)=>{
+    // Trennlinie bei Teamwechsel (bei "beide" Modus)
+    if (hasTeamLabels && p.teamLabel && p.teamLabel !== lastTeam) {
+      lastTeam = p.teamLabel;
+      const sep = document.createElement('tr');
+      sep.innerHTML = `<td colspan="4" style="padding:8px 4px 4px;font-size:10px;font-weight:700;
+        text-transform:uppercase;letter-spacing:.07em;color:var(--xsoft);
+        border-top:${i>0?'2px solid var(--border)':'none'};">
+        ${p.team==='home'?'🏠':'✈️'} ${p.teamLabel}
+      </td>`;
+      tbody.appendChild(sep);
+    }
+
     const tr=document.createElement('tr');
+    // Pos-Toggle: Klick wechselt zwischen FL und TH
+    const nextPos = p.pos==='TH' ? 'FL' : 'TH';
     tr.innerHTML=`
-      <td><span class="pos-badge ${p.pos}">${p.pos==='TH'?'● TH':'▲ FL'}</span></td>
+      <td>
+        <span class="pos-badge ${p.pos}" style="cursor:pointer;" title="Klick zum Wechseln"
+          onclick="editRoster[${i}].pos='${nextPos}';renderRosterTable()">
+          ${p.pos==='TH'?'● TH':'▲ FL'}
+        </span>
+      </td>
       <td><input class="roster-input" style="width:60px;text-align:center;" type="number"
         placeholder="#" value="${p.num}" onchange="editRoster[${i}].num=this.value"></td>
       <td><input class="roster-input" type="text" placeholder="Name"
@@ -1198,6 +1288,17 @@ function renderRosterTable(){
       <td><button class="btn-icon btn" onclick="editRoster.splice(${i},1);renderRosterTable()">✕</button></td>`;
     tbody.appendChild(tr);
   });
+
+  // Hinweis wenn Pos klickbar
+  const hint = document.getElementById('roster-pos-hint');
+  if (!hint && editRoster.length > 0) {
+    const wrap = document.getElementById('roster-wrap');
+    const h = document.createElement('div');
+    h.id = 'roster-pos-hint';
+    h.style.cssText = 'font-size:11px;color:var(--xsoft);padding:6px 2px;';
+    h.textContent = '💡 Position antippen um zwischen ▲ FL und ● TH zu wechseln';
+    wrap.appendChild(h);
+  }
 }
 
 async function saveSpiel(){
