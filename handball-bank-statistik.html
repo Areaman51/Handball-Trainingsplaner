@@ -1408,11 +1408,13 @@ async function openLive(spId, skipWizard=false){
     // b) hbn_url gesetzt UND
     // c) noch kein Lineup ODER Spieler hat kein team-Flag (→ vor letzter Session angelegt)
     const baseUrl = getBaseUrl(spielMeta.hbn_url);
-    const needsWizard = !skipWizard;
-    console.log('[openLive] baseUrl:', baseUrl, '| needsWizard:', needsWizard);
+    // Wizard nur zeigen wenn nicht gerade offen
+    const wizardAlreadyOpen = document.getElementById('m-gamestart')?.classList.contains('open');
+    const needsWizard = !skipWizard && !wizardAlreadyOpen;
+    console.log('[openLive] baseUrl:', baseUrl, '| needsWizard:', needsWizard, '| wizardOpen:', wizardAlreadyOpen);
 
     if (needsWizard) {
-      showGameStartWizard(baseUrl); // baseUrl kann leer sein → URL-Eingabe im Wizard
+      showGameStartWizard(baseUrl);
       return;
     }
 
@@ -2441,8 +2443,19 @@ async function confirmGameStart() {
     spielMeta.status = 'live';
 
     if (toInsert.length) {
-      const { error } = await supa.from('spieler_lineup').insert(toInsert);
-      if (error) { toast('Fehler beim Speichern des Kaders: ' + error.message, 'error'); return; }
+      let { error } = await supa.from('spieler_lineup').insert(toInsert);
+      if (error) {
+        // Fallback: team-Spalte fehlt noch → ohne team einfügen
+        console.warn('[confirm] Insert mit team fehlgeschlagen, versuche ohne:', error.message);
+        const toInsertFallback = toInsert.map(({team, ...rest}) => rest);
+        const { error: err2 } = await supa.from('spieler_lineup').insert(toInsertFallback);
+        if (err2) {
+          toast('Fehler beim Speichern: ' + err2.message, 'error');
+          const confirmBtn = document.getElementById('gs-confirm');
+          if (confirmBtn) { confirmBtn.textContent = '▶ Spiel starten'; confirmBtn.disabled = false; }
+          return;
+        }
+      }
     }
 
     // Lineup neu laden
@@ -2457,14 +2470,22 @@ async function confirmGameStart() {
       await syncTimerFromTicker(baseUrl);
     }
 
+    // Aktionen neu laden falls Ticker importiert wurde
+    const{data:akNeu}=await supa.from('spielaktionen').select('*').eq('spiel_id',spielId).order('erstellt_am');
+    aktionen=akNeu||[];
+
     closeModal('m-gamestart');
+    // Mit skipWizard=true direkt in Live-Modus — kein erneuter Wizard-Aufruf
+    timerRunning=false;
     showView('live');
     renderLiveView();
     toast('Spiel gestartet ✓', 'success');
 
   } catch(e) {
+    console.error('[confirmGameStart] Fehler:', e);
     toast('Fehler: ' + e.message, 'error');
-    btn.textContent = '▶ Spiel starten'; btn.disabled = false;
+    const btn2 = document.getElementById('gs-confirm');
+    if (btn2) { btn2.textContent = '▶ Spiel starten'; btn2.disabled = false; }
   }
 }
 
