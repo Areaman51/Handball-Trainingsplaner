@@ -2512,7 +2512,27 @@ async function confirmGameStart() {
 async function autoImportTickerActions(baseUrl, timerMode='manual') {
   setStatus('saving', 'Importiere Ticker…');
   try {
-    const ticker = await hbnFetch(baseUrl + '/ticker', 'ticker');
+    // Ticker laden — für abgelaufene Spiele als Fallback Basis-URL (Spielbericht) versuchen
+    let ticker;
+    try {
+      ticker = await hbnFetch(baseUrl + '/ticker', 'ticker');
+    } catch (tickerErr) {
+      // Fallback: Spielbericht-Seite enthält ebenfalls Ticker-Events
+      setStatus('saving', 'Ticker n/v – lade Spielbericht…');
+      const spielbericht = await hbnFetch(baseUrl, 'match');
+      ticker = {
+        type: 'ticker',
+        score_home: spielbericht.score_home,
+        score_away: spielbericht.score_away,
+        status: spielbericht.status || 'beendet',
+        events: spielbericht.ticker || [],
+        lastMinute: 0,
+      };
+      if (ticker.events.length) {
+        const withMin = ticker.events.filter(e => e.minute > 0);
+        if (withMin.length) ticker.lastMinute = Math.max(...withMin.map(e => e.minute));
+      }
+    }
 
     // Score übernehmen
     if (ticker.score_home !== undefined) {
@@ -2598,7 +2618,9 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
 
   } catch(e) {
     setStatus('err', 'Ticker-Fehler');
-    toast('Ticker-Import fehlgeschlagen: ' + e.message, 'error');
+    const msg = e?.message || String(e);
+    toast(`Ticker-Import fehlgeschlagen: ${msg}`, 'error');
+    console.error('[Ticker]', e);
   }
 }
 
