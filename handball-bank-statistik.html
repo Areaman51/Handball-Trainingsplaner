@@ -2614,7 +2614,7 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
     if (sh) sh.textContent = spielMeta.score_home;
     if (sa) sa.textContent = spielMeta.score_away;
     renderLog();
-    renderGrid && typeof renderGrid === 'function' && renderGrid();
+    if (typeof renderGrid === 'function') renderGrid();
 
   } catch(e) {
     setStatus('err', 'Ticker-Fehler');
