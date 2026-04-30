@@ -2534,6 +2534,24 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       }
     }
 
+    // Debug-Output: immer in Konsole, hilft bei Diagnose
+    if (ticker._debug) {
+      console.group('[Ticker Debug]');
+      console.log('parseMethod:', ticker._debug.parseMethod);
+      console.log('scoreSource:', ticker._debug.scoreSource);
+      console.log('score_home:', ticker.score_home, '  score_away:', ticker.score_away);
+      console.log('eventCount:', ticker._debug.eventCount);
+      console.log('propsKeys:', ticker._debug.propsKeys);
+      console.log('matchKeys:', ticker._debug.matchKeys);
+      console.log('rawScore:', ticker._debug.rawScore);
+      console.log('rawMatchScore:', ticker._debug.rawMatchScore);
+      console.log('sampleEventText:', ticker._debug.sampleEventText);
+      console.log('sampleEvent:', ticker._debug.sampleEvent);
+      console.log('lastEvent:', ticker._debug.lastEvent);
+      console.groupEnd();
+      toast(`Debug: ${ticker._debug.eventCount} Events, Score-Quelle: ${ticker._debug.scoreSource}`, 'info');
+    }
+
     // Score übernehmen
     if (ticker.score_home !== undefined) {
       spielMeta.score_home = ticker.score_home;
