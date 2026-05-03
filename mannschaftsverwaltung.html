@@ -192,6 +192,8 @@ tbody tr:hover{background:#fafbff;}
       <a class="sidebar-link" href="handball-bank-statistik.html">&#128202; Bank-Statistik</a>
       <a class="sidebar-link" href="nutzerverwaltung.html">&#128101; Nutzerverwaltung</a>
       <div class="sidebar-link" onclick="logout()" style="margin-top:4px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px;">&#8947; Abmelden</div>
+    
+      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1400</div>
     </div>
   </aside>
   <main class="main">
@@ -715,6 +717,32 @@ function parseICalDate(s){
   return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);
 }
 
+
+// ── UTILS ────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type='success'){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = type==='error' ? '#7f1d1d' : type==='info' ? '#1e3a8a' : '#111827';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// Suchfeld bei Klick außerhalb schließen
+document.addEventListener('click', e => {
+  const r = document.getElementById('freigabe-results');
+  if (r && !e.target.closest('.search-wrap-rel')) r.style.display = 'none';
+});
+
+// ESC schließt alle Modals
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  ['team-modal','player-modal','delete-modal'].forEach(id =>
+    document.getElementById(id).classList.remove('open'));
+  const r = document.getElementById('freigabe-results');
+  if (r) r.style.display = 'none';
+});
 
 supa.auth.getSession().then(({data:{session}})=>{if(session)onAuth(session.user);});
 supa.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'&&session&&!currentUser)onAuth(session.user);if(event==='SIGNED_OUT')location.reload();});
