@@ -1434,12 +1434,15 @@ async function authSubmit(){
     if(!verein||!mannschaft){showAuthError('Verein und Mannschaft sind Pflichtfelder.');btn.disabled=false;btn.textContent='Registrieren';return;}
     const {data,error}=await supa.auth.signUp({
       email,password:pw,
-      options:{data:{full_name:name,verein,mannschaft}}
+      options:{
+        data:{full_name:name,verein,mannschaft},
+        emailRedirectTo: window.location.origin+window.location.pathname
+      }
     });
     btn.disabled=false; btn.textContent='Registrieren';
     if(error){showAuthError(error.message);return;}
     if(!data.session){
-      showAuthError('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen und dann anmelden.',false);
+      showAuthError('✅ Registrierung erfolgreich! Bitte bestätige deine E-Mail-Adresse. Nach der Bestätigung wird dein Konto noch durch einen Administrator freigeschaltet – du erhältst dann Zugang zur App.',false);
       return;
     }
     await onAuthSuccess(data.session.user);
@@ -1447,7 +1450,15 @@ async function authSubmit(){
     console.log('1b. Sende Login-Anfrage an Supabase…');
     const {data,error}=await supa.auth.signInWithPassword({email,password:pw});
     btn.disabled=false; btn.textContent='Anmelden';
-    if(error){log('❌ Login-Fehler: '+error.message);showAuthError(error.message);return;}
+    if(error){
+      log('❌ Login-Fehler: '+error.message);
+      if(error.message.toLowerCase().includes('email not confirmed')||error.message.toLowerCase().includes('email_not_confirmed')){
+        showAuthError('📧 E-Mail-Adresse noch nicht bestätigt. Bitte prüfe dein Postfach (auch Spam-Ordner) und klicke auf den Bestätigungslink.');
+      } else {
+        showAuthError(error.message);
+      }
+      return;
+    }
     console.log('✅ Supabase Auth OK');
     await onAuthSuccess(data.user);
   }
@@ -1505,7 +1516,13 @@ async function onAuthSuccess(user){
   // Aktivierungs-Check
   if(profile && !profile.aktiv){
     console.log('Konto NICHT aktiviert – Abbruch');
-    showAuthError('Dein Konto ist noch nicht aktiviert. Bitte wende dich an den Administrator.',true);
+    const isFromEmailConfirm = window.location.hash.includes('access_token');
+    if(isFromEmailConfirm){
+      history.replaceState(null,'',window.location.pathname);
+      showAuthError('✅ E-Mail-Adresse erfolgreich bestätigt! Dein Konto wird noch durch einen Administrator freigeschaltet. Du wirst informiert, sobald dein Zugang aktiviert ist.',false);
+    } else {
+      showAuthError('⏳ Konto noch nicht aktiviert. Bitte wende dich an den Administrator.',true);
+    }
     await supa.auth.signOut();
     currentUser=null;
     document.getElementById('auth-btn').disabled=false;
@@ -3880,7 +3897,11 @@ setupMobile();
 supa.auth.getSession().then(({data:{session}})=>{
   if(session) onAuthSuccess(session.user);
 });
-supa.auth.onAuthStateChange((event)=>{
+supa.auth.onAuthStateChange((event,session)=>{
+  // Wird ausgelöst wenn User nach E-Mail-Bestätigung auf die App zurückgeleitet wird
+  if(event==='SIGNED_IN'&&session&&!currentUser){
+    onAuthSuccess(session.user);
+  }
   if(event==='SIGNED_OUT'){/* handled by signOut() */}
 });
 </script>
