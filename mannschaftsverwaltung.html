@@ -1,11 +1,12 @@
 <!DOCTYPE html>
+<!-- Handball Coaching Tools v1.260503.1400 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>&#127939; Mannschaftsverwaltung &#8211; Handball Coaching Tools</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#f2f4f8;--white:#fff;--sidebar:#141820;--sidebar-h:#1e2535;
@@ -463,7 +464,7 @@ function renderTabFeeds(team){
       <div style="font-size:14px;font-weight:600;margin-bottom:16px;">&#127947; Training-Feed</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${fld('feed-training',team.ical_training,'https://sportsmember.com/ical/...')}
         <button class="btn btn-ghost" onclick="testFeed('feed-training','s-training')">Testen</button>
-        ${owned?'<button class="btn btn-primary" onclick="saveFeed('training')">Speichern</button>':''}
+        ${owned?'<button class="btn btn-primary" onclick="saveFeed(&apos;training&apos;)">Speichern</button>':''}
       </div>
       <div id="s-training" style="margin-top:7px;min-height:18px;"></div>
     </div>
@@ -471,7 +472,7 @@ function renderTabFeeds(team){
       <div style="font-size:14px;font-weight:600;margin-bottom:16px;">&#127942; Spiel-Feed</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${fld('feed-spiele',team.ical_spiele,'webcal://handball.net/ical/...')}
         <button class="btn btn-ghost" onclick="testFeed('feed-spiele','s-spiele')">Testen</button>
-        ${owned?'<button class="btn btn-primary" onclick="saveFeed('spiele')">Speichern</button>':''}
+        ${owned?'<button class="btn btn-primary" onclick="saveFeed(&apos;spiele&apos;)">Speichern</button>':''}
       </div>
       <div id="s-spiele" style="margin-top:7px;min-height:18px;"></div>
     </div>
@@ -693,16 +694,14 @@ async function fetchICalFeed(url){
   throw lastErr||new Error('Feed nicht abrufbar');
 }
 function parseICal(text){
-  const u=text.replace(/
-[ 	]/g,'').replace(/
-/g,'
-').replace(//g,'
-'),events=[],blocks=u.split('BEGIN:VEVENT');
+  const u=text.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const events=[],blocks=u.split('BEGIN:VEVENT');
   for(let i=1;i<blocks.length;i++){
     const block=blocks[i].split('END:VEVENT')[0],ev={};
-    block.split('
-').forEach(line=>{const sep=line.indexOf(':');if(sep<0)return;const key=line.slice(0,sep).split(';')[0].trim().toUpperCase(),val=line.slice(sep+1).trim();
-      if(key==='SUMMARY')ev.summary=val.replace(/\n/g,' ').replace(/\,/g,',');
+    block.split('\n').forEach(line=>{
+      const sep=line.indexOf(':');if(sep<0)return;
+      const key=line.slice(0,sep).split(';')[0].trim().toUpperCase(),val=line.slice(sep+1).trim();
+      if(key==='SUMMARY')ev.summary=val.replace(/\\n/g,' ').replace(/\\,/g,',');
       if(key==='DTSTART')ev.dtstart=parseICalDate(val);
       if(key==='DTEND')ev.dtend=parseICalDate(val);
     });
@@ -710,20 +709,15 @@ function parseICal(text){
   }
   return events;
 }
-function parseICalDate(s){s=s.replace('Z','');if(s.includes('T'))return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(9,11)}:${s.slice(11,13)}:00`);return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);}
-
-// UTILS
-let toastTimer;
-function showToast(msg,type='success'){
-  const el=document.getElementById('toast');el.textContent=msg;
-  el.style.background=type==='error'?'#7f1d1d':type==='info'?'#1e3a8a':'#111827';
-  el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3500);
+function parseICalDate(s){
+  s=s.replace('Z','');
+  if(s.includes('T'))return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(9,11)}:${s.slice(11,13)}:00`);
+  return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);
 }
-document.addEventListener('click',e=>{const r=document.getElementById('freigabe-results');if(r&&!e.target.closest('.search-wrap-rel'))r.style.display='none';});
-document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;['team-modal','player-modal','delete-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));const r=document.getElementById('freigabe-results');if(r)r.style.display='none';});
+
 
 supa.auth.getSession().then(({data:{session}})=>{if(session)onAuth(session.user);});
 supa.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'&&session&&!currentUser)onAuth(session.user);if(event==='SIGNED_OUT')location.reload();});
-<\/script>
+</script>
 </body>
 </html>
