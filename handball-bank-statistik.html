@@ -431,17 +431,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
     </div>
 
-    <div class="sidebar-bottom">
-      <a class="sidebar-link" href="nutzerverwaltung.html">
-        <span>👤</span> Nutzerverwaltung
+    <div class="sidebar-section">
+      <div class="sidebar-label">Verwaltung</div>
+      <a class="sidebar-item" href="mannschaftsverwaltung.html" style="text-decoration:none;color:inherit;">
+        <span class="si-icon">🏃</span> Mannschaften
       </a>
+    </div>
+
+    <div class="sidebar-bottom">
       <a class="sidebar-link" href="index.html">
         <span>📅</span> Trainingsplaner
       </a>
       <div class="sidebar-link" onclick="signOut()">
         <span>↩</span> Abmelden
       </div>
-      <div id="version-label" style="padding:8px 18px 4px;font-size:9.5px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;"></div><script>!function(){var d=new Date(document.lastModified);var pad=function(n){return String(n).padStart(2,'0');};var v='v1.260503.1055'; document.getElementById('version-label').textContent=v+' · Handball Coaching Tools';}();</script>
     </div>
   </aside>
 
@@ -500,28 +503,51 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <div class="page-title">Spielplan</div>
             <div class="page-subtitle">Spiele aus handball.net importieren</div>
           </div>
+          <a class="btn btn-ghost" href="mannschaftsverwaltung.html" style="font-size:12.5px;">🏃 Mannschaften verwalten</a>
         </div>
 
-        <!-- iCal Import -->
+        <!-- Team-Selector -->
         <div class="card" style="margin-bottom:18px;">
           <div class="card-body">
             <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
-              color:var(--xsoft);margin-bottom:10px;">📅 iCal / Spielplan-URL</div>
-            <p style="font-size:13px;color:var(--soft);margin-bottom:12px;line-height:1.6;">
-              Die iCal-URL deines Teams von handball.net einfügen. Du findest sie im Teambereich
-              unter <strong>Kalender-Export</strong> oder <strong>Abonnieren</strong>.
-              Das Format ist <code style="background:var(--bg);padding:1px 5px;border-radius:4px;
-              font-size:12px;">webcal://www.handball.net/…</code>
-            </p>
-            <div style="display:flex;gap:8px;margin-bottom:8px;">
+              color:var(--xsoft);margin-bottom:10px;">🏃 Mannschaft</div>
+
+            <div id="sp-team-empty" style="display:none;padding:12px 0;font-size:13px;color:var(--soft);">
+              Noch keine Mannschaften angelegt. →
+              <a href="mannschaftsverwaltung.html" style="color:var(--accent);font-weight:600;">Zur Mannschaftsverwaltung</a>
+            </div>
+
+            <div id="sp-team-row" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+              <select class="form-select" id="sp-team-select" onchange="onTeamSelectChange()"
+                style="flex:1;min-width:180px;">
+                <option value="">– Mannschaft wählen –</option>
+              </select>
+              <button class="btn btn-ghost" onclick="reloadMannschaften()" title="Mannschaftsliste aktualisieren">🔄</button>
+            </div>
+
+            <!-- URL-Vorschau (readonly, aus Mannschaftsverwaltung) -->
+            <div id="sp-feed-preview" style="display:none;margin-bottom:12px;">
+              <div style="font-size:11.5px;color:var(--xsoft);margin-bottom:5px;">iCal-URL (aus Mannschaftsverwaltung):</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <code id="sp-feed-url-text" style="flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);
+                  border-radius:7px;font-size:11.5px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></code>
+                <button class="btn btn-ghost btn-sm" onclick="editFeedUrl()" title="URL manuell überschreiben">✏️</button>
+              </div>
+            </div>
+
+            <!-- Manueller URL-Eingang (Fallback / Überschreibung) -->
+            <div id="sp-manual-url" style="margin-bottom:12px;">
+              <div style="font-size:11.5px;color:var(--xsoft);margin-bottom:5px;">
+                iCal-URL manuell eingeben
+                <span id="sp-manual-hint" style="color:var(--accent);">(kein Feed in Mannschaftsverwaltung hinterlegt)</span>:
+              </div>
               <input class="form-input" id="sp-ical-main"
                 placeholder="webcal://www.handball.net/de/ical/team/12345"
-                style="flex:1;">
-              <button class="btn btn-primary" id="sp-ical-main-btn"
-                onclick="loadIcalMain()">🔄 Laden</button>
+                style="margin:0;">
             </div>
-            <div style="font-size:11.5px;color:var(--xsoft);">
-              Die URL wird lokal im Browser gespeichert und beim nächsten Besuch vorausgefüllt.
+
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary" id="sp-ical-main-btn" onclick="loadIcalMain()">🔄 Spielplan laden</button>
             </div>
           </div>
         </div>
@@ -587,10 +613,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
 
       <hr class="form-divider">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;
           letter-spacing:.08em;color:var(--xsoft);">👥 Aufstellung</div>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="loadKaderFromDB()" title="Kader aus Mannschaftsverwaltung laden">📋 Kader laden</button>
           <button class="btn btn-ghost btn-sm" onclick="addRosterRow('FL')">+ ▲ Feldspieler</button>
           <button class="btn btn-ghost btn-sm" onclick="addRosterRow('TH')">+ ● Torhüter</button>
         </div>
@@ -1091,6 +1118,7 @@ function openTimeModal() {
 // STATE
 // ════════════════════════════════════════════════════════════
 let currentUser = null, currentProfile = null;
+let allMannschaften = [];       // Mannschaften aus Supabase (zentral)
 let spiele = [];                // alle Spiele des Users
 let spielId = null;             // aktives Spiel
 let spielMeta = {};             // meta des aktiven Spiels
@@ -1166,31 +1194,15 @@ async function authSubmit(){
     const verein=document.getElementById('a-verein').value.trim();
     const mann=document.getElementById('a-mannschaft').value.trim();
     if(!verein||!mann){showAuthErr('Verein und Mannschaft sind Pflichtfelder.');btn.disabled=false;btn.textContent='Registrieren';return;}
-    const{data,error}=await supa.auth.signUp({
-      email,password:pw,
-      options:{
-        data:{full_name:name,verein,mannschaft:mann},
-        emailRedirectTo: window.location.origin+window.location.pathname
-      }
-    });
+    const{data,error}=await supa.auth.signUp({email,password:pw,options:{data:{full_name:name,verein,mannschaft:mann}}});
     btn.disabled=false;btn.textContent='Registrieren';
     if(error){showAuthErr(error.message);return;}
-    if(!data.session){
-      showAuthErr('✅ Registrierung erfolgreich! Bitte bestätige deine E-Mail-Adresse. Nach der Bestätigung wird dein Konto noch durch einen Administrator freigeschaltet – du erhältst dann Zugang zur App.',false);
-      return;
-    }
+    if(!data.session){showAuthErr('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen.',false);return;}
     await onAuth(data.session.user);
   } else {
     const{data,error}=await supa.auth.signInWithPassword({email,password:pw});
     btn.disabled=false;btn.textContent='Anmelden';
-    if(error){
-      if(error.message.toLowerCase().includes('email not confirmed')||error.message.toLowerCase().includes('email_not_confirmed')){
-        showAuthErr('📧 E-Mail-Adresse noch nicht bestätigt. Bitte prüfe dein Postfach (auch Spam-Ordner) und klicke auf den Bestätigungslink.');
-      } else {
-        showAuthErr(error.message);
-      }
-      return;
-    }
+    if(error){showAuthErr(error.message);return;}
     await onAuth(data.user);
   }
 }
@@ -1215,23 +1227,40 @@ async function onAuth(user){
   }
   currentProfile=profile;
   if(profile&&!profile.aktiv){
-    // Unterscheide: kam via E-Mail-Bestätigung (Hash in URL) oder normaler Login
-    const isFromEmailConfirm = window.location.hash.includes('access_token');
-    if(isFromEmailConfirm){
-      // Hash aus URL entfernen damit kein Loop entsteht
-      history.replaceState(null,'',window.location.pathname);
-      showAuthErr('✅ E-Mail-Adresse erfolgreich bestätigt! Dein Konto wird noch durch einen Administrator freigeschaltet. Du wirst per E-Mail informiert, sobald dein Zugang aktiviert ist.',false);
-    } else {
-      showAuthErr('⏳ Konto noch nicht aktiviert. Bitte wende dich an den Administrator.');
-    }
+    showAuthErr('Konto noch nicht aktiviert. Bitte wende dich an den Administrator.');
     await supa.auth.signOut(); currentUser=null; return;
   }
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').style.display='';
   document.getElementById('topbar-user').textContent=profile?.full_name||profile?.email||user.email;
+  // Mannschaften zentral laden
+  await reloadMannschaften();
   await loadSpiele();
   showView('spiele');
 }
+/** Lädt alle Mannschaften aus Supabase (zentraler Cache) */
+async function reloadMannschaften(){
+  const { data, error } = await supa
+    .from('mannschaften')
+    .select('*')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error){ console.warn('Mannschaften laden:', error.message); return; }
+  allMannschaften = data || [];
+  renderSpielpanTeamSelector();
+}
+
+/** Aktualisiert den Team-Picker im Spielplan-View */
+function renderSpielpanTeamSelector(){
+  const sel = document.getElementById('sp-team-select');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">– Mannschaft wählen –</option>' +
+    allMannschaften.map(t =>
+      `<option value="${t.id}" ${t.id === current ? 'selected' : ''}>${t.name}${t.verein ? ' ('+t.verein+')' : ''}</option>`
+    ).join('');
+}
+
 async function signOut(){
   if(!confirm('Abmelden?')) return;
   await supa.auth.signOut();
@@ -1294,6 +1323,65 @@ async function openSpielModal(spId=null){
   }
   renderRosterTable();
   openModal('m-spiel');
+}
+
+/** Öffnet einen Mini-Dialog zur Kader-Auswahl aus der Mannschaftsverwaltung */
+async function loadKaderFromDB(){
+  if(!allMannschaften.length){
+    toast('Keine Mannschaften in der Mannschaftsverwaltung gefunden. Bitte zuerst anlegen.','error');
+    return;
+  }
+
+  // Inline-Picker bauen
+  const rw = document.getElementById('roster-wrap');
+  if(document.getElementById('kader-picker')) return; // schon offen
+
+  const opts = allMannschaften.map(t=>
+    `<option value="${t.id}">${t.name}${t.verein?' ('+t.verein+')':''}</option>`
+  ).join('');
+
+  const picker = document.createElement('div');
+  picker.id = 'kader-picker';
+  picker.style.cssText = 'margin-bottom:12px;padding:12px 14px;background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:9px;';
+  picker.innerHTML = `
+    <div style="font-size:12px;font-weight:600;color:#1e3a8a;margin-bottom:8px;">📋 Kader aus Mannschaftsverwaltung laden</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <select id="kader-picker-sel" style="flex:1;min-width:160px;padding:7px 10px;border:1.5px solid #bfdbfe;
+        border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;background:white;color:var(--text);outline:none;">
+        ${opts}
+      </select>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--soft);cursor:pointer;">
+        <input type="checkbox" id="kader-picker-aktiv" checked> Nur aktive Spieler
+      </label>
+      <button class="btn btn-primary btn-sm" onclick="applyKaderFromDB()">Übernehmen</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('kader-picker').remove()">×</button>
+    </div>`;
+  rw.insertAdjacentElement('beforebegin', picker);
+}
+
+async function applyKaderFromDB(){
+  const teamId = document.getElementById('kader-picker-sel')?.value;
+  const nurAktiv = document.getElementById('kader-picker-aktiv')?.checked ?? true;
+  if(!teamId) return;
+
+  let query = supa.from('mannschaft_spieler').select('*').eq('mannschaft_id', teamId).order('pos').order('nummer');
+  if(nurAktiv) query = query.eq('aktiv', true);
+  const { data, error } = await query;
+
+  if(error){ toast('Kader laden fehlgeschlagen: ' + error.message, 'error'); return; }
+  if(!data?.length){ toast('Keine Spieler für diese Mannschaft gefunden.', 'error'); return; }
+
+  // Aktuellen Kader ersetzen
+  editRoster = data.map(p => ({ id: null, num: p.nummer ?? '', name: p.name, pos: p.pos }));
+  renderRosterTable();
+
+  // Team-Name in "Meine Mannschaft" übertragen falls leer
+  const team = allMannschaften.find(t => t.id === teamId);
+  const heimInput = document.getElementById('sp-heim');
+  if(team && heimInput && !heimInput.value) heimInput.value = team.name;
+
+  document.getElementById('kader-picker')?.remove();
+  toast(`✅ ${data.length} Spieler übernommen`, 'success');
 }
 
 function addRosterRow(pos){
@@ -2075,15 +2163,62 @@ function showView(id){
   document.getElementById('topbar-title-text').textContent=VIEW_TITLES[id]||'';
   if(id==='statistik') renderStatistik();
   if(id==='spielplan'){
-    // URL aus localStorage vorausfüllen
-    const saved=localStorage.getItem('hbs_ical_url');
-    if(saved) document.getElementById('sp-ical-main').value=saved;
+    // Team-Selector befüllen und passenden Feed vorab laden
+    renderSpielpanTeamSelector();
+    const teamCount = allMannschaften.length;
+    document.getElementById('sp-team-empty').style.display = teamCount ? 'none' : '';
+    document.getElementById('sp-team-row').style.display   = teamCount ? '' : 'none';
+    // Manuelles Feld: zeige wenn kein Team ausgewählt oder kein Feed vorhanden
+    onTeamSelectChange(true);
   }
 }
 
 // ════════════════════════════════════════════════════════════
 // SPIELPLAN VIEW — iCal Hauptlader
 // ════════════════════════════════════════════════════════════
+
+/** Reagiert auf Auswahl im Team-Picker */
+function onTeamSelectChange(silent = false){
+  const sel  = document.getElementById('sp-team-select');
+  const teamId = sel ? sel.value : '';
+  const team   = allMannschaften.find(t => t.id === teamId);
+  const feedUrl = team?.ical_spiele || '';
+
+  const previewEl   = document.getElementById('sp-feed-preview');
+  const manualEl    = document.getElementById('sp-manual-url');
+  const hintEl      = document.getElementById('sp-manual-hint');
+  const urlText     = document.getElementById('sp-feed-url-text');
+  const input       = document.getElementById('sp-ical-main');
+
+  if (feedUrl) {
+    // Team hat Feed hinterlegt → Vorschau zeigen, Manuell ausblenden
+    urlText.textContent = feedUrl;
+    if (previewEl) previewEl.style.display = '';
+    if (manualEl)  manualEl.style.display  = 'none';
+    if (input)     input.value             = feedUrl;
+  } else {
+    // Kein Feed → manuelles Eingabefeld
+    if (previewEl) previewEl.style.display = 'none';
+    if (manualEl)  manualEl.style.display  = '';
+    if (hintEl)    hintEl.style.display    = teamId ? '' : 'none';
+    // Fallback: gespeicherte URL aus localStorage
+    if (!silent && input && !input.value) {
+      const saved = localStorage.getItem('hbs_ical_url');
+      if (saved) input.value = saved;
+    }
+  }
+}
+
+/** Ermöglicht manuelle URL-Überschreibung wenn Feed-Vorschau angezeigt wird */
+function editFeedUrl(){
+  const previewEl = document.getElementById('sp-feed-preview');
+  const manualEl  = document.getElementById('sp-manual-url');
+  const hintEl    = document.getElementById('sp-manual-hint');
+  if (previewEl) previewEl.style.display = 'none';
+  if (manualEl)  manualEl.style.display  = '';
+  if (hintEl)    hintEl.style.display    = 'none';
+}
+
 async function loadIcalMain(){
   const url=document.getElementById('sp-ical-main').value.trim();
   if(!url){toast('Bitte iCal-URL eingeben','error');return;}
@@ -2776,11 +2911,7 @@ function toast(msg,type='info'){
 supa.auth.getSession().then(({data:{session}})=>{
   if(session) onAuth(session.user);
 });
-supa.auth.onAuthStateChange((event,session)=>{
-  // Wird ausgelöst wenn User nach E-Mail-Bestätigung auf die App zurückgeleitet wird
-  if(event==='SIGNED_IN'&&session&&!currentUser){
-    onAuth(session.user);
-  }
+supa.auth.onAuthStateChange((event)=>{
   if(event==='SIGNED_OUT') location.reload();
 });
 </script>

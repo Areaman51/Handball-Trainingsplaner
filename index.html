@@ -405,19 +405,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     z-index: 100;
     overflow: hidden;
   }
-  /* Alles ausblenden außer den 4 Bottom-Nav-Buttons */
-  .sidebar-logo,
-  .sidebar-footer,
-  .sidebar-actions,
-  .sidebar-section,
+  .sidebar-logo { display: none !important; }
+  .sidebar > div:last-child { display: none !important; }
+  .sidebar-footer { display: none !important; }
+  .sidebar-section { display: contents; }
   .sidebar-label { display: none !important; }
-
-  /* Die 4 Bottom-Nav-Buttons sichtbar machen */
-  #nav-kalender-m,
-  #nav-planer-m,
-  #nav-uebungen-m,
-  #nav-mehr {
-    display: flex !important;
+  .sidebar-item {
     flex: 1;
     flex-direction: column;
     align-items: center;
@@ -429,24 +422,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     font-weight: 600;
     color: rgba(255,255,255,0.5);
     text-align: center;
-    cursor: pointer;
+    min-width: 0;
     transition: all .15s;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
   }
-  #nav-kalender-m span:first-child,
-  #nav-planer-m span:first-child,
-  #nav-uebungen-m span:first-child,
-  #nav-mehr span:first-child { font-size: 19px; line-height: 1.2; }
-
-  #nav-kalender-m.active,
-  #nav-planer-m.active,
-  #nav-uebungen-m.active {
+  .sidebar-item span:first-child { font-size: 19px; line-height: 1.2; }
+  .sidebar-item.active {
     color: white;
     background: rgba(0,87,255,0.25);
     border-top: 2px solid #0057ff;
   }
-  #nav-mehr { color: rgba(255,255,255,0.5); }
-  #nav-mehr:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.05); }
+  /* Mobile: only show 4 nav items + Mehr */
+  #nav-geteilt,#nav-taktik,#nav-board { display: none !important; }
+  #admin-nav { display: none !important; }
+
+  /* Mehr-Menü */
+  #nav-mehr { display: flex !important; }
+  #mehr-menu.open { display: block; }
 
   /* Main */
   .main {
@@ -455,22 +449,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   }
 
   /* Topbar – auf Mobile sichtbar */
-  .topbar { display: flex; padding: 0 12px; height: 50px; gap: 4px; }
+  .topbar { display:flex; padding: 0 12px; height: 50px; gap: 4px; }
+  .sidebar-footer, .sidebar-actions, .sidebar-save-btn, .sidebar-add-btn { display: none !important; }
   .topbar-title { font-size: 12.5px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .topbar-actions { gap: 4px; }
   .topbar-actions .btn { padding: 6px 9px; font-size: 11px; }
-  .hide-mobile { display: none !important; }
-  .show-mobile { display: flex !important; }
+  .topbar-actions .btn-ghost:not(#admin-btn) { display: none; }
   #topbar-user { display: none; }
+  #admin-btn { display: flex !important; font-size: 11px; padding: 5px 8px; }
 
   /* Content */
-  .content { padding: 14px; }
-  .form-row { grid-template-columns: 1fr; }
-  .modal-sm, .modal-lg { max-width: 96vw; }
-  .db-panel { width: 340px; }
-  .session-title { font-size: 21px; }
-  #admin-nav { display: none !important; }
-}  /* Content */
   .content { padding: 10px; }
   .content-inner { max-width: 100%; }
 
@@ -609,7 +597,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     border-radius: 14px;
     box-shadow: 0 -4px 30px rgba(0,0,0,0.5);
     z-index: 102;
-    min-width: 220px;
+    min-width: 210px;
     overflow: hidden;
     display: none;
   }
@@ -618,7 +606,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 13px 18px;
+    padding: 14px 18px;
     color: rgba(255,255,255,0.8);
     font-size: 14px;
     cursor: pointer;
@@ -628,9 +616,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .mehr-item:hover { background: var(--sidebar-hover); }
   .mehr-item:last-child { border-bottom: none; }
   .mehr-item span { font-size: 17px; }
-  .mehr-sep { height: 1px; background: rgba(255,255,255,0.12); margin: 2px 0; }
-  .mehr-danger { color: rgba(255,100,100,0.85) !important; }
-  .mehr-danger:hover { background: rgba(220,38,38,0.15) !important; }
 }
 
 
@@ -734,7 +719,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="sidebar-label">Arbeitsbereich</div>
     <div class="sidebar-item" id="nav-kalender" onclick="showView('kalender')"><span>📅</span> Kalender</div>
     <div class="sidebar-item active" id="nav-planer" onclick="showView('planer')"><span>📋</span> Trainingsplaner</div>
-    <div class="sidebar-item" id="nav-mannschaften" onclick="openMannschaftenModal()"><span>👥</span> Mannschaften</div>
+    <a class="sidebar-item" id="nav-mannschaften" href="mannschaftsverwaltung.html" style="text-decoration:none;color:inherit;"><span>🏃</span> Mannschaften</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Library</div>
@@ -744,14 +729,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="sidebar-item" id="nav-board"><span>🖊</span> Taktikboard</div>
   </div>
   <div class="sidebar-section">
-    <div class="sidebar-label">Spiel</div>
-    <a class="sidebar-item" href="handball-bank-statistik.html" style="text-decoration:none;color:inherit;">
-      <span>📊</span> Bank-Statistik
-    </a>
-  </div>
+  <div class="sidebar-label">Spiel</div>
+  <a class="sidebar-item" href="handball-bank-statistik.html" style="text-decoration:none;color:inherit;">
+    <span>📊</span> Bank-Statistik
+  </a>
+</div>
   <div class="sidebar-section" id="admin-nav" style="display:none">
     <div class="sidebar-label">Administration</div>
-    <a class="sidebar-item" href="nutzerverwaltung.html" style="text-decoration:none;color:inherit;"><span>👤</span> Nutzerverwaltung</a>
+    <a class="sidebar-item" href="nutzerverwaltung.html" style="text-decoration:none;color:inherit;"><span>👥</span> Nutzerverwaltung</a>
     <div class="sidebar-item" onclick="openAdmin('freigabe')"><span>✅</span> Freigaben <span id="pending-count"></span></div>
     <div class="sidebar-item" onclick="openAdmin('kategorien')"><span>🏷</span> Kategorien</div>
   </div>
@@ -767,20 +752,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;" onclick="resetSession()"><span>↺</span> Reset</div>
       <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;color:rgba(255,100,100,.7);" onclick="signOut()"><span>⏻</span></div>
     </div>
-    <div id="version-label" style="padding:8px 18px 4px;font-size:9.5px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;"></div><script>!function(){var d=new Date(document.lastModified);var pad=function(n){return String(n).padStart(2,'0');};var v='v1.260503.1055'; document.getElementById('version-label').textContent=v+' · Handball Coaching Tools';}();</script>
   </div>
 
-  <!-- Mobile: Bottom-Nav Buttons (Kalender, Planer, Übungen, Mehr) -->
-  <div id="nav-kalender-m" class="sidebar-item" onclick="showView('kalender')">
-    <span>📅</span><span>Kalender</span>
-  </div>
-  <div id="nav-planer-m" class="sidebar-item active" onclick="showView('planer')">
-    <span>📋</span><span>Planer</span>
-  </div>
-  <div id="nav-uebungen-m" class="sidebar-item" onclick="openDB()">
-    <span>🗂</span><span>Übungen</span>
-  </div>
-  <div id="nav-mehr" onclick="toggleMehrMenu()">
+  <!-- Mobile: Mehr Button -->
+  <div id="nav-mehr" style="display:none;" onclick="toggleMehrMenu()">
     <span>☰</span>
     <span>Mehr</span>
   </div>
@@ -789,15 +764,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 <!-- Mehr-Menü (mobile only) -->
 <div id="mehr-menu" onclick="event.stopPropagation()">
-  <div class="mehr-item" onclick="closeMehrMenu();openMannschaftenModal()"><span>👥</span> Mannschaften</div>
   <div class="mehr-item" onclick="closeMehrMenu();openDB('geteilt')"><span>🌐</span> Geteilte DB</div>
-  <div class="mehr-item" onclick="closeMehrMenu();window.location.href='handball-bank-statistik.html'"><span>📊</span> Bank-Statistik</div>
-  <div class="mehr-item" id="mehr-nutzerverwaltung" style="display:none" onclick="closeMehrMenu();window.location.href='nutzerverwaltung.html'"><span>👤</span> Nutzerverwaltung</div>
-  <div class="mehr-item" id="mehr-admin" style="display:none" onclick="closeMehrMenu();openAdmin('freigabe')"><span>✅</span> Admin-Panel</div>
-  <div class="mehr-sep"></div>
+  <div class="mehr-item" id="mehr-admin" style="display:none" onclick="closeMehrMenu();openAdmin('freigabe')"><span>⚙️</span> Admin-Panel</div>
   <div class="mehr-item" onclick="closeMehrMenu();window.print()"><span>🖨</span> Drucken</div>
   <div class="mehr-item" onclick="closeMehrMenu();resetSession()"><span>↺</span> Zurücksetzen</div>
-  <div class="mehr-item mehr-danger" onclick="closeMehrMenu();signOut()"><span>⏻</span> Abmelden</div>
+  <div class="mehr-item" onclick="closeMehrMenu();signOut()" style="border-top:1px solid rgba(255,255,255,0.1);color:rgba(255,100,100,0.8)"><span>⏻</span> Abmelden</div>
 </div>
 <div id="mehr-overlay" onclick="closeMehrMenu()" style="position:fixed;inset:0;z-index:100;display:none;background:rgba(0,0,0,0.3);"></div>
 
@@ -813,7 +784,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="btn btn-ghost hide-mobile" id="admin-btn" onclick="openAdmin('freigabe')" style="display:none;">⚙️ Admin</button>
       <button class="btn btn-primary hide-mobile" onclick="openAddModal(-1)">+ Übung hinzufügen</button>
       <button class="btn btn-save" id="save-btn" onclick="saveAll()">💾</button>
-      <button class="btn btn-ghost show-mobile" onclick="signOut()" title="Abmelden" style="color:rgba(255,100,100,.8);">⏻</button>
+      <button class="btn btn-ghost" id="admin-btn-mobile" onclick="openAdmin('freigabe')" style="display:none;" title="Admin">⚙️</button>
+      <button class="btn btn-ghost" id="logout-btn" onclick="signOut()" title="Abmelden" style="display:flex!important;">⏻</button>
     </div>
   </div>
 
@@ -1569,11 +1541,11 @@ async function onAuthSuccess(user){
     if(nav) nav.style.display='';
     const btn=document.getElementById('admin-btn');
     if(btn) btn.style.display='';
-    // Mehr-Menü: Admin + Nutzerverwaltung einblenden
+    // Show admin in mehr-menu
     const ma=document.getElementById('mehr-admin');
     if(ma) ma.style.display='';
-    const mn=document.getElementById('mehr-nutzerverwaltung');
-    if(mn) mn.style.display='';
+    const mb=document.getElementById('admin-btn-mobile');
+    if(mb) mb.style.display='';
   }
 
   console.log('Lade Kategorien…');
@@ -1585,6 +1557,9 @@ async function onAuthSuccess(user){
   if(profile?.role==='admin'||profile?.role==='manager') checkPending();
   console.log('Lade letzte Einheit…');
   await loadMostRecentEinheit();
+  console.log('Lade Mannschaften…');
+  await reloadMannschaften();
+  if(allMannschaften.length > 0) refreshAllFeeds();
   render();
   console.log('App bereit ✅');
 }
@@ -3361,14 +3336,9 @@ function showView(view) {
   document.getElementById('kalender-view').style.display = view==='kalender' ? '' : 'none';
   const sh = document.querySelector('.session-header');
   if(sh) sh.style.display = view==='planer' ? '' : 'none';
-  // Desktop sidebar active states
   document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
   if(view==='kalender' && document.getElementById('nav-kalender')) document.getElementById('nav-kalender').classList.add('active');
   if(view==='planer' && document.getElementById('nav-planer')) document.getElementById('nav-planer').classList.add('active');
-  // Mobile bottom nav active states
-  document.getElementById('nav-kalender-m')?.classList.toggle('active', view==='kalender');
-  document.getElementById('nav-planer-m')?.classList.toggle('active', view==='planer');
-  document.getElementById('nav-uebungen-m')?.classList.remove('active');
   if(view==='kalender') renderKalender();
   closeMehrMenu();
 }
@@ -3640,147 +3610,59 @@ async function loadEinheit(id){
 // MANNSCHAFTEN & iCAL FEEDS
 // ══════════════════════════════════════════
 
-const MSC_KEY = 'handball_mannschaften';
-let icalEvents = [];
+// ── Mannschaften: Supabase-backed (ersetzt localStorage) ──────────
+let icalEvents        = [];
+let allMannschaften   = [];   // in-memory cache, befüllt nach Login
 
-function loadMannschaften(){
-  try{return JSON.parse(localStorage.getItem(MSC_KEY)||'[]');}catch(e){return [];}
-}
-function saveMannschaften(arr){
-  localStorage.setItem(MSC_KEY, JSON.stringify(arr));
+/** Synchroner Accessor – gibt den aktuellen Cache zurück */
+function loadMannschaften(){ return allMannschaften; }
+
+/** Lädt alle Mannschaften aus Supabase und füllt den Cache */
+async function reloadMannschaften(){
+  const { data, error } = await supa
+    .from('mannschaften')
+    .select('*')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error){ console.warn('Mannschaften laden:', error.message); return; }
+  allMannschaften = data || [];
 }
 
-// ── Modal ──
+// ── Modal: Mannschaften (Lesemodus + Link zur Verwaltung) ──────────
 function openMannschaftenModal(){
   document.getElementById('mannschaften-modal').classList.add('open');
   renderMannschaftenList();
 }
 function closeMannschaftenModal(){
   document.getElementById('mannschaften-modal').classList.remove('open');
-  document.getElementById('msc-form').style.display='none';
-  document.getElementById('msc-add-btn').style.display='';
 }
 
 function renderMannschaftenList(){
-  const teams=loadMannschaften();
+  const teams=allMannschaften;
   const el=document.getElementById('msc-list');
   if(!teams.length){
-    el.innerHTML='<div style="padding:16px;text-align:center;color:var(--xsoft);font-size:13px;">Noch keine Mannschaft angelegt.</div>';
+    el.innerHTML='<div style="padding:16px;text-align:center;color:var(--xsoft);font-size:13px;">Noch keine Mannschaft angelegt.<br><br><a href="mannschaftsverwaltung.html" style="color:var(--accent);font-weight:600;">→ Zur Mannschaftsverwaltung</a></div>';
     return;
   }
   el.innerHTML=teams.map(t=>`
     <div class="team-card">
       <div class="team-color-dot" style="background:${t.farbe_geplant||'#0057ff'};">${(t.name||'M')[0].toUpperCase()}</div>
       <div class="team-card-info">
-        <div class="team-card-name">${t.name}</div>
+        <div class="team-card-name">${t.name}${t.verein?'<span style="font-size:11px;color:var(--xsoft);font-weight:400;margin-left:8px;">'+t.verein+'</span>':''}</div>
         <div class="team-card-feeds">
           <span class="feed-chip ${t.ical_training?'ok':''}">🏋 ${t.ical_training?'Training-Feed':'Kein Training-Feed'}</span>
           <span class="feed-chip ${t.ical_spiele?'ok':''}">🏆 ${t.ical_spiele?'Spiel-Feed':'Kein Spiel-Feed'}</span>
         </div>
-        <div style="display:flex;gap:10px;margin-top:6px;">
-          <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--soft);">
-            <span style="width:12px;height:12px;border-radius:3px;background:${t.farbe_geplant||'#0057ff'};display:inline-block;"></span> Geplant
-          </span>
-          <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--soft);">
-            <span style="width:12px;height:12px;border-radius:3px;background:${t.farbe_ungeplant||'#94a3b8'};display:inline-block;"></span> Ungeplant
-          </span>
-        </div>
-      </div>
-      <div class="team-card-actions">
-        <button class="team-edit-btn" onclick="showTeamForm('${t.id}')">✏ Bearbeiten</button>
-        <button class="team-delete-btn" onclick="deleteTeam('${t.id}')">🗑</button>
       </div>
     </div>
   `).join('');
 }
 
-function showTeamForm(id){
-  const teams=loadMannschaften();
-  const t=id?teams.find(x=>x.id===id):null;
-  document.getElementById('msc-add-btn').style.display='none';
-  const f=document.getElementById('msc-form');
-  f.style.display='';
-  f.innerHTML=`
-    <div class="team-form">
-      <input type="hidden" id="tf-id" value="${t?t.id:''}">
-      <div class="form-group" style="margin-bottom:12px;">
-        <label class="form-label">Mannschaftsname *</label>
-        <input class="form-input" id="tf-name" placeholder="z.B. Herren 1" value="${t?t.name:''}">
-      </div>
-      <div class="color-pair">
-        <div class="color-swatch-wrap">
-          <div class="color-swatch-label">✅ Farbe — geplante Einheit</div>
-          <input type="color" class="form-input" id="tf-farbe-geplant" value="${t?t.farbe_geplant:'#0057ff'}" style="height:40px;padding:3px 6px;cursor:pointer;">
-          <div style="font-size:10.5px;color:var(--xsoft);margin-top:3px;">Einheiten mit Übungen</div>
-        </div>
-        <div class="color-swatch-wrap">
-          <div class="color-swatch-label">⬜ Farbe — ungeplante Einheit</div>
-          <input type="color" class="form-input" id="tf-farbe-ungeplant" value="${t?t.farbe_ungeplant:'#94a3b8'}" style="height:40px;padding:3px 6px;cursor:pointer;">
-          <div style="font-size:10.5px;color:var(--xsoft);margin-top:3px;">Feed-Termine ohne Inhalt</div>
-        </div>
-      </div>
-      <div class="form-group" style="margin-bottom:12px;">
-        <label class="form-label">🏋 iCal-Feed Training (Sportsmember)</label>
-        <div class="feed-row">
-          <input class="form-input" id="tf-ical-training" placeholder="https://sportsmember.com/ical/…" value="${t?t.ical_training||'':''}">
-          <button class="btn btn-ghost" style="font-size:11.5px;white-space:nowrap;" onclick="testFeed('tf-ical-training','tf-training-status')">Testen</button>
-        </div>
-        <div id="tf-training-status"></div>
-        <div style="font-size:11px;color:var(--xsoft);margin-top:4px;">Sportsmember → Kalender → Export → iCal-Link kopieren</div>
-      </div>
-      <div class="form-group" style="margin-bottom:16px;">
-        <label class="form-label">🏆 iCal-Feed Spiele (handball.net)</label>
-        <div class="feed-row">
-          <input class="form-input" id="tf-ical-spiele" placeholder="https://handball.net/ical/…" value="${t?t.ical_spiele||'':''}">
-          <button class="btn btn-ghost" style="font-size:11.5px;white-space:nowrap;" onclick="testFeed('tf-ical-spiele','tf-spiele-status')">Testen</button>
-        </div>
-        <div id="tf-spiele-status"></div>
-        <div style="font-size:11px;color:var(--xsoft);margin-top:4px;">handball.net → Team → Spielplan → Kalender-Icon → iCal</div>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;">
-        <button class="btn btn-ghost" onclick="cancelTeamForm()">Abbrechen</button>
-        <button class="btn btn-primary" onclick="saveTeamForm()">✅ Speichern</button>
-      </div>
-    </div>
-  `;
-}
-
-function cancelTeamForm(){
-  document.getElementById('msc-form').style.display='none';
-  document.getElementById('msc-add-btn').style.display='';
-}
-
-function saveTeamForm(){
-  const id=document.getElementById('tf-id').value;
-  const name=document.getElementById('tf-name').value.trim();
-  if(!name){showToast('⚠️ Bitte Mannschaftsname eingeben','info');return;}
-  const entry={
-    id: id||crypto.randomUUID(),
-    name,
-    farbe_geplant:   document.getElementById('tf-farbe-geplant').value,
-    farbe_ungeplant: document.getElementById('tf-farbe-ungeplant').value,
-    ical_training:   document.getElementById('tf-ical-training').value.trim(),
-    ical_spiele:     document.getElementById('tf-ical-spiele').value.trim(),
-  };
-  let teams=loadMannschaften();
-  if(id){const idx=teams.findIndex(x=>x.id===id);if(idx>=0)teams[idx]=entry;else teams.push(entry);}
-  else teams.push(entry);
-  saveMannschaften(teams);
-  cancelTeamForm();
-  renderMannschaftenList();
-  showToast('✅ Mannschaft gespeichert','success');
-  icalEvents=[];
-  refreshAllFeeds();
-}
-
-function deleteTeam(id){
-  if(!confirm('Mannschaft wirklich löschen?'))return;
-  saveMannschaften(loadMannschaften().filter(t=>t.id!==id));
-  icalEvents=icalEvents.filter(e=>e.mannschaftId!==id);
-  renderMannschaftenList();
-  showToast('🗑 Mannschaft gelöscht','info');
-  if(currentView==='kalender') renderKalender();
-}
+// Verwaltung erfolgt zentral in mannschaftsverwaltung.html
+function showTeamForm(){ window.location.href='mannschaftsverwaltung.html'; }
+function saveTeamForm(){ window.location.href='mannschaftsverwaltung.html'; }
+function cancelTeamForm(){ closeMannschaftenModal(); }
+function deleteTeam(){ window.location.href='mannschaftsverwaltung.html'; }
 
 // ── Feed testen ──
 async function testFeed(inputId, statusId){
@@ -3919,7 +3801,7 @@ async function refreshAllFeeds(){
 }
 
 // Auto-laden beim Start (nach Login)
-setTimeout(()=>{if(loadMannschaften().length>0)refreshAllFeeds();},2500);
+// Mannschaften werden nach Login in onAuthSuccess geladen
 
 
 updateDBCatOptions();
@@ -3960,8 +3842,10 @@ supa.auth.onAuthStateChange((event,session)=>{
         <span class="info-banner-close" onclick="this.parentElement.style.display='none'">✕</span>
       </div>
       <div id="msc-list"></div>
-      <div id="msc-form" style="display:none;"></div>
-      <button class="btn btn-primary" id="msc-add-btn" onclick="showTeamForm(null)" style="margin-top:4px;">+ Mannschaft hinzufügen</button>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <button class="btn btn-ghost btn-sm" onclick="reloadMannschaften().then(()=>{renderMannschaftenList();refreshAllFeeds();})">🔄 Neu laden</button>
+        <a class="btn btn-primary btn-sm" href="mannschaftsverwaltung.html">🏃 Mannschaften verwalten →</a>
+      </div>
     </div>
     <div class="msc-footer">
       <button class="btn btn-ghost" onclick="closeMannschaftenModal()">Schließen</button>

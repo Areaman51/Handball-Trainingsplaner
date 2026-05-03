@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>&#127939; Mannschaftsverwaltung &#8211; Handball Coaching Tools</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>
+<style>
+:root{
+  --bg:#f2f4f8;--white:#fff;--sidebar:#141820;--sidebar-h:#1e2535;
+  --accent:#0057ff;--accent-l:#e6eeff;
+  --text:#111827;--soft:#6b7280;--xsoft:#9ca3af;--border:#e5e7eb;
+  --shadow:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.14);--radius:12px;
+  --green:#15803d;--green-l:#f0fdf4;--green-b:#86efac;
+  --red:#dc2626;--red-l:#fee2e2;--red-b:#fca5a5;
+  --yellow:#d97706;--yellow-l:#fffbeb;--yellow-b:#fde68a;
+  --orange:#ea580c;--orange-l:#fff7ed;--orange-b:#fed7aa;
+  --purple:#7c3aed;--purple-l:#ede9fe;--purple-b:#c4b5fd;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{overflow-x:hidden;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+.sidebar{width:220px;min-height:100vh;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;}
+.sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;}
+.logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;color:white;flex-shrink:0;}
+.logo-text{color:white;font-size:14px;font-weight:600;letter-spacing:-.3px;}
+.logo-sub{color:rgba(255,255,255,.35);font-size:10px;margin-top:1px;}
+.sidebar-section{padding:14px 10px 4px;}
+.sidebar-label{font-size:9.5px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.25);text-transform:uppercase;padding:0 8px;margin-bottom:4px;}
+.sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;transition:all .15s;}
+.sidebar-item:hover{background:var(--sidebar-h);color:rgba(255,255,255,.8);}
+.sidebar-item.active{background:rgba(0,87,255,.18);color:white;font-weight:500;}
+.sidebar-bottom{margin-top:auto;padding:12px 10px;border-top:1px solid rgba(255,255,255,.06);}
+.sidebar-link{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;color:rgba(255,255,255,.35);font-size:12px;cursor:pointer;transition:all .15s;text-decoration:none;}
+.sidebar-link:hover{color:rgba(255,255,255,.6);background:var(--sidebar-h);}
+.team-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;flex:1;}
+.topbar{background:white;border-bottom:1px solid var(--border);padding:0 26px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:15;}
+.topbar-title{font-size:13.5px;font-weight:500;color:var(--soft);}
+.topbar-title span{color:var(--text);font-weight:600;}
+.topbar-user{font-size:12px;color:var(--soft);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 12px;}
+.content{padding:26px;flex:1;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:12px;flex-wrap:wrap;}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.4px;}
+.page-subtitle{font-size:13px;color:var(--soft);margin-top:2px;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:22px;}
+.stat-card{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:16px 20px;}
+.stat-num{font-size:26px;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:-.5px;}
+.stat-label{font-size:12px;color:var(--soft);margin-top:2px;}
+.stat-card.blue .stat-num{color:var(--accent);}
+.stat-card.green .stat-num{color:var(--green);}
+.stat-card.yellow .stat-num{color:var(--yellow);}
+.stat-card.purple .stat-num{color:var(--purple);}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;text-decoration:none;}
+.btn-primary{background:var(--accent);color:white;}
+.btn-primary:hover{background:#0044cc;}
+.btn-ghost{background:transparent;color:var(--soft);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--bg);}
+.btn-danger{background:var(--red-l);color:var(--red);border:1px solid var(--red-b);}
+.btn-danger:hover{background:#fecaca;}
+.btn-sm{padding:4px 9px;font-size:11.5px;border-radius:6px;}
+.card{background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead tr{background:#f8f9fb;border-bottom:2px solid var(--border);}
+th{padding:11px 16px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);white-space:nowrap;}
+td{padding:13px 16px;border-bottom:1px solid #f1f3f7;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:#fafbff;}
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:24px;}
+.team-card-outer{background:white;border-radius:var(--radius);border:1.5px solid var(--border);box-shadow:var(--shadow);padding:20px;cursor:pointer;transition:all .2s;}
+.team-card-outer:hover{border-color:var(--accent);box-shadow:0 4px 18px rgba(0,87,255,.13);transform:translateY(-1px);}
+.team-card-outer.shared{border-color:var(--purple-b);}
+.team-card-outer.shared:hover{border-color:var(--purple);}
+.team-color-dot{width:44px;height:44px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:white;font-weight:700;}
+.badge-owner{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--accent-l);color:var(--accent);}
+.badge-shared{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--purple-l);color:var(--purple);}
+.feed-chip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:500;background:var(--bg);color:var(--xsoft);border:1px solid var(--border);}
+.feed-chip.ok{background:var(--green-l);color:var(--green);border-color:var(--green-b);}
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:20px;}
+.tab-btn{padding:10px 18px;font-size:13px;font-weight:500;color:var(--soft);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:all .15s;}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-btn:hover:not(.active){color:var(--text);}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-aktiv{background:var(--green-l);color:var(--green);}
+.badge-inaktiv{background:var(--red-l);color:var(--red);}
+.pos-fl{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--accent-l);color:var(--accent);}
+.pos-th{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--orange-l);color:var(--orange);}
+.form-group{margin-bottom:16px;}
+.form-group:last-child{margin-bottom:0;}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--soft);margin-bottom:5px;letter-spacing:.02em;}
+.form-input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);outline:none;transition:border-color .15s;margin-bottom:14px;}
+.form-input:focus{border-color:var(--accent);}
+.form-group .form-input{margin-bottom:0;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-select{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);outline:none;background:white;cursor:pointer;}
+.form-hint{font-size:11.5px;color:var(--xsoft);}
+.color-input{width:42px;height:42px;border:2px solid var(--border);border-radius:8px;cursor:pointer;padding:2px;background:none;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg);border-radius:9px;border:1.5px solid var(--border);}
+.toggle-label{font-size:13.5px;font-weight:500;}
+.toggle-sub{font-size:11px;color:var(--xsoft);}
+.toggle{position:relative;width:44px;height:24px;cursor:pointer;}
+.toggle input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;background:#e2e8f0;border-radius:24px;transition:.2s;}
+.slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25);}
+.toggle input:checked+.slider{background:var(--accent);}
+.toggle input:checked+.slider:before{transform:translateX(20px);}
+/* Freigaben */
+.trainer-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:9px;border:1px solid var(--border);background:white;margin-bottom:8px;}
+.trainer-avatar{width:34px;height:34px;border-radius:50%;background:var(--accent-l);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.trainer-name{flex:1;min-width:0;}
+.trainer-name-text{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.trainer-name-sub{font-size:11.5px;color:var(--xsoft);}
+.search-wrap-rel{position:relative;}
+.search-results{position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid var(--accent);border-top:none;border-radius:0 0 9px 9px;z-index:30;max-height:200px;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.search-result-item{padding:10px 13px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);}
+.search-result-item:last-child{border-bottom:none;}
+.search-result-item:hover{background:var(--bg);}
+.readonly-banner{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--purple-l);border:1px solid var(--purple-b);border-radius:10px;font-size:12.5px;color:#5b21b6;margin-bottom:20px;}
+.info-box{padding:14px 16px;background:var(--accent-l);border:1px solid #bfdbfe;border-radius:10px;font-size:12.5px;color:#1e3a8a;line-height:1.6;}
+.feed-result-ok{color:var(--green);font-size:12px;font-weight:500;}
+.feed-result-err{color:var(--red);font-size:12px;font-weight:500;}
+.feed-result-loading{color:var(--soft);font-size:12px;}
+.empty{padding:48px 20px;text-align:center;color:var(--xsoft);}
+.empty-icon{font-size:36px;margin-bottom:10px;}
+.empty-text{font-size:14px;}
+#auth-screen{position:fixed;inset:0;background:var(--sidebar);display:flex;align-items:center;justify-content:center;z-index:100;}
+.auth-box{background:white;border-radius:18px;padding:36px;width:100%;max-width:380px;box-shadow:var(--shadow-lg);}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:24px;}
+.auth-logo-icon{width:40px;height:40px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.auth-logo-text{font-size:18px;font-weight:700;letter-spacing:-.4px;}
+.auth-logo-sub{font-size:12px;color:var(--soft);}
+.auth-error{padding:10px 14px;border-radius:8px;font-size:12.5px;margin-bottom:12px;display:none;background:#fee2e2;color:#dc2626;}
+.auth-error.show{display:block;}
+.auth-btn{width:100%;padding:11px;border-radius:9px;background:var(--accent);color:white;border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;}
+.auth-btn:hover{background:#0044cc;}
+.auth-btn:disabled{opacity:.6;cursor:not-allowed;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:white;border-radius:16px;width:100%;max-width:480px;box-shadow:var(--shadow-lg);overflow:hidden;max-height:90vh;display:flex;flex-direction:column;}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:16px;font-weight:700;}
+.modal-close{background:none;border:none;font-size:20px;color:var(--xsoft);cursor:pointer;padding:2px 6px;border-radius:5px;line-height:1;}
+.modal-close:hover{background:var(--bg);color:var(--text);}
+.modal-body{padding:20px 24px;overflow-y:auto;flex:1;}
+.modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.copy-field{display:flex;gap:8px;align-items:center;}
+.copy-field code{flex:1;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-family:'DM Mono',monospace;font-size:11.5px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#toast{position:fixed;bottom:24px;right:24px;background:#111827;color:white;padding:12px 20px;border-radius:10px;font-size:13.5px;font-weight:500;z-index:200;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;}
+#toast.show{opacity:1;transform:translateY(0);}
+@media(max-width:768px){.sidebar{display:none;}.main{margin-left:0;}.form-row{grid-template-columns:1fr;}.team-grid{grid-template-columns:1fr;}.content{padding:16px;}}
+</style>
+</head>
+<body>
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">&#127939;</div>
+      <div><div class="auth-logo-text">Handball Coaching</div><div class="auth-logo-sub">Mannschaftsverwaltung</div></div>
+    </div>
+    <div id="auth-error" class="auth-error"></div>
+    <label class="form-label">E-Mail</label>
+    <input class="form-input" id="a-email" type="email" placeholder="name@beispiel.de" autocomplete="email" onkeydown="if(event.key==='Enter')login()">
+    <label class="form-label">Passwort</label>
+    <input class="form-input" id="a-pw" type="password" placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    <button class="auth-btn" id="auth-btn" onclick="login()">Anmelden</button>
+  </div>
+</div>
+<div id="app" style="display:none;width:100%;">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">&#127939;</div>
+      <div><div class="logo-text">Handball Coaching</div><div class="logo-sub">Mannschaftsverwaltung</div></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-item active" id="nav-overview" onclick="showOverview()"><span>&#128202;</span> &#220;bersicht</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Meine Teams</div>
+      <div id="sidebar-own"></div>
+      <div class="sidebar-item" onclick="openTeamModal()"><span style="font-size:16px;line-height:1;">+</span> Neue Mannschaft</div>
+    </div>
+    <div class="sidebar-section" id="sidebar-shared-section" style="display:none;">
+      <div class="sidebar-label">Geteilt mit mir</div>
+      <div id="sidebar-shared"></div>
+    </div>
+    <div class="sidebar-bottom">
+      <a class="sidebar-link" href="index.html">&#127968; Trainingsplaner</a>
+      <a class="sidebar-link" href="handball-bank-statistik.html">&#128202; Bank-Statistik</a>
+      <a class="sidebar-link" href="nutzerverwaltung.html">&#128101; Nutzerverwaltung</a>
+      <div class="sidebar-link" onclick="logout()" style="margin-top:4px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px;">&#8947; Abmelden</div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title">&#127939; <span>Mannschaftsverwaltung</span></div>
+      <div class="topbar-user" id="topbar-user">&#8211;</div>
+    </div>
+    <div class="content">
+      <div id="view-overview">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Mannschaften</div>
+            <div class="page-subtitle">Eigene Teams verwalten und gezielt mit anderen Trainern teilen</div>
+          </div>
+          <button class="btn btn-primary" onclick="openTeamModal()">+ Neue Mannschaft</button>
+        </div>
+        <div class="stats-row">
+          <div class="stat-card blue"><div class="stat-num" id="stat-own">&#8211;</div><div class="stat-label">Meine Teams</div></div>
+          <div class="stat-card purple"><div class="stat-num" id="stat-shared">&#8211;</div><div class="stat-label">Geteilt mit mir</div></div>
+          <div class="stat-card green"><div class="stat-num" id="stat-spieler">&#8211;</div><div class="stat-label">Spieler gesamt</div></div>
+          <div class="stat-card yellow"><div class="stat-num" id="stat-feeds">&#8211;</div><div class="stat-label">Aktive Feeds</div></div>
+        </div>
+        <div class="team-grid" id="team-grid">
+          <div class="empty" style="grid-column:1/-1;"><div style="font-size:28px;margin-bottom:8px;">&#8987;</div><div class="empty-text">Wird geladen&#8230;</div></div>
+        </div>
+      </div>
+      <div id="view-detail" style="display:none;">
+        <div class="page-header">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button class="btn btn-ghost btn-sm" onclick="showOverview()">&#8592; &#220;bersicht</button>
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="page-title" id="detail-title">&#8211;</div>
+                <span id="detail-ownership-badge"></span>
+              </div>
+              <div class="page-subtitle" id="detail-subtitle">&#8211;</div>
+            </div>
+          </div>
+          <div id="detail-actions" style="display:flex;gap:8px;"></div>
+        </div>
+        <div id="detail-readonly-banner" style="display:none;">
+          <div class="readonly-banner">&#128274; <span>Du hast <strong>Lesezugriff</strong> auf diese Mannschaft. Kader und Feeds k&#246;nnen verwendet, aber nicht bearbeitet werden.</span></div>
+        </div>
+        <div class="tabs" id="detail-tabs"></div>
+        <div id="tab-content-kader"     style="display:none;"></div>
+        <div id="tab-content-feeds"     style="display:none;"></div>
+        <div id="tab-content-info"      style="display:none;"></div>
+        <div id="tab-content-freigaben" style="display:none;"></div>
+      </div>
+    </div>
+  </main>
+</div>
+<!-- MODAL Team -->
+<div class="modal-overlay" id="team-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="team-modal-title">Neue Mannschaft</div><button class="modal-close" onclick="closeTeamModal()">&#215;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="tm-id">
+      <div class="form-group"><label class="form-label">Mannschaftsname *</label><input class="form-input" id="tm-name" placeholder="z.B. Damen 1" onkeydown="if(event.key==='Enter')saveTeam()"></div>
+      <div class="form-group"><label class="form-label">Verein</label><input class="form-input" id="tm-verein" placeholder="z.B. Barmstedter MTV"></div>
+      <div class="form-row" style="margin-top:4px;">
+        <div class="form-group"><label class="form-label">Farbe &#8211; geplante Einheit</label><div style="display:flex;gap:10px;align-items:center;"><input type="color" class="color-input" id="tm-farbe-geplant" value="#0057ff"><span class="form-hint">Trainingsplaner</span></div></div>
+        <div class="form-group"><label class="form-label">Farbe &#8211; ungeplante Einheit</label><div style="display:flex;gap:10px;align-items:center;"><input type="color" class="color-input" id="tm-farbe-ungeplant" value="#94a3b8"><span class="form-hint">Ohne Inhalt</span></div></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeTeamModal()">Abbrechen</button><button class="btn btn-primary" onclick="saveTeam()">Speichern</button></div>
+  </div>
+</div>
+<!-- MODAL Spieler -->
+<div class="modal-overlay" id="player-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="player-modal-title">Spieler hinzuf&#252;gen</div><button class="modal-close" onclick="closePlayerModal()">&#215;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="pm-id">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">R&#252;ckennummer</label><input class="form-input" id="pm-nummer" type="number" min="1" max="99" placeholder="7"></div>
+        <div class="form-group"><label class="form-label">Position</label><select class="form-select" id="pm-pos"><option value="FL">&#9650; Feldspieler</option><option value="TH">&#9679; Torhüter</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="pm-name" placeholder="Vorname Nachname" onkeydown="if(event.key==='Enter')savePlayer()"></div>
+      <div class="form-group"><div class="toggle-row"><div><div class="toggle-label">Aktiv</div><div class="toggle-sub">Erscheint in Anwesenheitslisten und Bank-Statistik</div></div><label class="toggle"><input type="checkbox" id="pm-aktiv" checked><span class="slider"></span></label></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closePlayerModal()">Abbrechen</button><button class="btn btn-primary" onclick="savePlayer()">Speichern</button></div>
+  </div>
+</div>
+<!-- MODAL L&#246;schen -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header"><div class="modal-title" id="delete-modal-title">L&#246;schen best&#228;tigen</div><button class="modal-close" onclick="closeDeleteModal()">&#215;</button></div>
+    <div class="modal-body"><p id="delete-modal-text" style="font-size:14px;color:var(--soft);line-height:1.6;"></p></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeDeleteModal()">Abbrechen</button><button class="btn btn-danger" id="delete-confirm-btn" onclick="executeDelete()">&#128465;&#65039; Endg&#252;ltig l&#246;schen</button></div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+const SUPA_URL='https://dlofjsmnkwltuutpxoer.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
+const supa=supabase.createClient(SUPA_URL,SUPA_KEY);
+const ICAL_PROXY_URL=SUPA_URL+'/functions/v1/ical-proxy';
+const CORS_FALLBACKS=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
+
+let currentUser=null,allTeams=[],ownerProfiles={},currentTeamId=null,currentPlayers=[],currentFreigaben=[],activeTab='kader',deleteTarget=null,searchTimeout=null;
+
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const isOwner=t=>t&&t.user_id===currentUser?.id;
+const initials=n=>(n||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+
+// AUTH
+async function login(){
+  const email=document.getElementById('a-email').value.trim(),pw=document.getElementById('a-pw').value,btn=document.getElementById('auth-btn');
+  if(!email||!pw){showAuthErr('Bitte E-Mail und Passwort eingeben.');return;}
+  btn.textContent='...';btn.disabled=true;
+  const{data,error}=await supa.auth.signInWithPassword({email,password:pw});
+  btn.disabled=false;btn.textContent='Anmelden';
+  if(error){showAuthErr(error.message);return;}
+  onAuth(data.user);
+}
+function showAuthErr(msg){const el=document.getElementById('auth-error');el.textContent=msg;el.classList.add('show');}
+async function onAuth(user){
+  currentUser=user;
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('topbar-user').textContent=user.email||'';
+  await loadTeams();showOverview();
+}
+async function logout(){await supa.auth.signOut();location.reload();}
+
+// DATA
+async function loadTeams(){
+  const{data,error}=await supa.from('mannschaften').select('*').order('sort_order',{ascending:true}).order('created_at',{ascending:true});
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  allTeams=data||[];
+  const foreignIds=[...new Set(allTeams.filter(t=>!isOwner(t)&&t.user_id).map(t=>t.user_id))];
+  if(foreignIds.length){
+    const{data:profs}=await supa.from('profiles').select('id,full_name,email').in('id',foreignIds);
+    (profs||[]).forEach(p=>{ownerProfiles[p.id]={full_name:p.full_name,email:p.email};});
+  }
+}
+function ownerName(team){if(!team.user_id)return'Unbekannt';const p=ownerProfiles[team.user_id];return p?(p.full_name||p.email):'Unbekannt';}
+
+async function loadPlayers(tid){
+  const{data}=await supa.from('mannschaft_spieler').select('*').eq('mannschaft_id',tid).order('pos',{ascending:true}).order('nummer',{ascending:true,nullsFirst:false});
+  currentPlayers=data||[];
+}
+async function loadFreigaben(tid){
+  const{data}=await supa.from('mannschaft_freigaben').select('*').eq('mannschaft_id',tid).order('created_at',{ascending:true});
+  currentFreigaben=data||[];
+  const ids=currentFreigaben.map(f=>f.user_id).filter(Boolean);
+  if(ids.length){
+    const{data:profs}=await supa.from('profiles').select('id,full_name,email').in('id',ids);
+    (profs||[]).forEach(p=>{ownerProfiles[p.id]={full_name:p.full_name,email:p.email};});
+  }
+}
+
+// NAV
+function showOverview(){
+  currentTeamId=null;
+  document.getElementById('view-overview').style.display='';
+  document.getElementById('view-detail').style.display='none';
+  document.getElementById('nav-overview').classList.add('active');
+  renderSidebarTeams();renderOverviewStats();renderTeamGrid();
+}
+async function showTeamDetail(tid){
+  currentTeamId=tid;
+  const team=allTeams.find(t=>t.id===tid);if(!team)return;
+  const owned=isOwner(team);
+  document.getElementById('view-overview').style.display='none';
+  document.getElementById('view-detail').style.display='';
+  document.getElementById('nav-overview').classList.remove('active');
+  document.getElementById('detail-title').textContent=team.name;
+  document.getElementById('detail-subtitle').textContent=team.verein||(owned?'Kein Verein':'Geteilt von '+ownerName(team));
+  document.getElementById('detail-ownership-badge').innerHTML=owned
+    ?'<span class="badge-owner">Eigentümer</span>'
+    :'<span class="badge-shared">Geteilt</span>';
+  document.getElementById('detail-readonly-banner').style.display=owned?'none':'';
+  document.getElementById('detail-actions').innerHTML=owned
+    ?`<button class="btn btn-ghost" onclick="openTeamModal('${tid}')">Bearbeiten</button><button class="btn btn-danger" onclick="confirmDeleteTeam('${tid}')">&#128465;</button>`
+    :'';
+  const tabs=owned?[['kader','Kader'],['feeds','Feeds'],['info','Info'],['freigaben','Freigaben']]:[['kader','Kader'],['feeds','Feeds']];
+  if(!owned&&(activeTab==='info'||activeTab==='freigaben'))activeTab='kader';
+  document.getElementById('detail-tabs').innerHTML=tabs.map(([id,label],i)=>
+    `<button class="tab-btn ${id===activeTab||(i===0&&!tabs.find(t=>t[0]===activeTab))?'active':''}" id="tab-${id}" onclick="setTab('${id}')">${label}</button>`
+  ).join('');
+  renderSidebarTeams();
+  await loadPlayers(tid);
+  if(owned)await loadFreigaben(tid);
+  setTab(activeTab);
+}
+
+// SIDEBAR
+function renderSidebarTeams(){
+  const own=allTeams.filter(t=>isOwner(t)),shared=allTeams.filter(t=>!isOwner(t));
+  const item=(t,sq)=>`<div class="sidebar-item ${t.id===currentTeamId?'active':''}" onclick="showTeamDetail('${t.id}')" title="${esc(t.name)}"><span class="team-dot" style="background:${t.farbe_geplant||'#0057ff'};${sq?'border-radius:2px;':''}"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.name)}</span></div>`;
+  document.getElementById('sidebar-own').innerHTML=own.length?own.map(t=>item(t,false)).join(''):'<div style="padding:4px 10px;font-size:11.5px;color:rgba(255,255,255,.2);font-style:italic;">Noch keine Teams</div>';
+  const ss=document.getElementById('sidebar-shared-section');
+  ss.style.display=shared.length?'':'none';
+  document.getElementById('sidebar-shared').innerHTML=shared.map(t=>item(t,true)).join('');
+}
+
+// OVERVIEW RENDER
+function renderOverviewStats(){
+  const own=allTeams.filter(t=>isOwner(t)),shared=allTeams.filter(t=>!isOwner(t));
+  document.getElementById('stat-own').textContent=own.length;
+  document.getElementById('stat-shared').textContent=shared.length;
+  document.getElementById('stat-feeds').textContent=allTeams.filter(t=>t.ical_training||t.ical_spiele).length;
+  document.getElementById('stat-spieler').textContent='...';
+  supa.from('mannschaft_spieler').select('*',{count:'exact',head:true}).then(({count})=>{const el=document.getElementById('stat-spieler');if(el)el.textContent=count??0;});
+}
+function renderTeamGrid(){
+  const grid=document.getElementById('team-grid');
+  if(!allTeams.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">&#127939;</div><div class="empty-text">Noch keine Mannschaften.</div><button class="btn btn-primary" style="margin-top:14px;" onclick="openTeamModal()">+ Erste Mannschaft</button></div>';return;}
+  const own=allTeams.filter(t=>isOwner(t)),shared=allTeams.filter(t=>!isOwner(t));
+  const card=t=>`<div class="team-card-outer ${isOwner(t)?'':'shared'}" onclick="showTeamDetail('${t.id}')">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <div class="team-color-dot" style="background:${t.farbe_geplant||'#0057ff'};">${esc((t.name||'?')[0].toUpperCase())}</div>
+      <div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.name)}</div>${t.verein?`<div style="font-size:12px;color:var(--soft);">${esc(t.verein)}</div>`:''}</div>
+      ${isOwner(t)?'<span class="badge-owner">Ich</span>':`<span class="badge-shared" title="Geteilt von ${esc(ownerName(t))}">Geteilt</span>`}
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;">
+      <span class="feed-chip ${t.ical_training?'ok':''}">&#127947; ${t.ical_training?'Training-Feed':'Kein Training-Feed'}</span>
+      <span class="feed-chip ${t.ical_spiele?'ok':''}">&#127942; ${t.ical_spiele?'Spiel-Feed':'Kein Spiel-Feed'}</span>
+    </div>
+    ${!isOwner(t)?`<div style="margin-top:10px;font-size:11.5px;color:var(--purple);font-weight:500;">Geteilt von ${esc(ownerName(t))}</div>`:''}
+  </div>`;
+  grid.innerHTML=(own.length?`<div style="grid-column:1/-1;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--xsoft);margin-bottom:-4px;">Meine Teams</div>${own.map(card).join('')}`:'')+
+    (shared.length?`<div style="grid-column:1/-1;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--xsoft);margin-top:8px;margin-bottom:-4px;">Geteilt mit mir</div>${shared.map(card).join('')}`:'');
+}
+
+// TABS
+function setTab(tab){
+  activeTab=tab;
+  ['kader','feeds','info','freigaben'].forEach(t=>{
+    const btn=document.getElementById(`tab-${t}`);if(btn)btn.classList.toggle('active',t===tab);
+    document.getElementById(`tab-content-${t}`).style.display=t===tab?'':'none';
+  });
+  const team=allTeams.find(t=>t.id===currentTeamId);if(!team)return;
+  if(tab==='kader')renderTabKader(team);
+  if(tab==='feeds')renderTabFeeds(team);
+  if(tab==='info')renderTabInfo(team);
+  if(tab==='freigaben')renderTabFreigaben(team);
+}
+
+// TAB KADER
+function renderTabKader(team){
+  const owned=isOwner(team);
+  const sorted=[...currentPlayers].sort((a,b)=>{if(a.pos!==b.pos)return a.pos==='TH'?-1:1;return(a.nummer??99)-(b.nummer??99);});
+  const rows=sorted.length?sorted.map(p=>`<tr>
+    <td><span style="font-family:'DM Mono',monospace;font-weight:600;font-size:13px;">${p.nummer!=null?String(p.nummer).padStart(2,'0'):'&#8211;'}</span></td>
+    <td style="font-weight:500;">${esc(p.name)}</td>
+    <td>${p.pos==='TH'?'<span class="pos-th">&#9679; Torrhüter</span>':'<span class="pos-fl">&#9650; Feldspieler</span>'}</td>
+    <td><span class="${p.aktiv?'badge badge-aktiv':'badge badge-inaktiv'}">${p.aktiv?'Aktiv':'Inaktiv'}</span></td>
+    <td>${owned?`<div style="display:flex;gap:5px;"><button class="btn btn-ghost btn-sm" onclick="openPlayerModal('${p.id}')">&#9999;&#65039;</button><button class="btn btn-danger btn-sm" onclick="confirmDeletePlayer('${p.id}')">&#128465;&#65039;</button></div>`:'&#8211;'}</td>
+  </tr>`).join(''):`<tr><td colspan="5"><div class="empty"><div class="empty-icon">&#128101;</div><div class="empty-text">Noch keine Spieler.</div></div></td></tr>`;
+  document.getElementById('tab-content-kader').innerHTML=`
+    ${owned?`<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;"><button class="btn btn-ghost" onclick="openPlayerModal(null,'FL')">+ &#9650; Feldspieler</button><button class="btn btn-ghost" onclick="openPlayerModal(null,'TH')">+ &#9679; Torrhüter</button></div>`:''}
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Name</th><th>Position</th><th>Status</th><th>Aktionen</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></div>
+    <div style="margin-top:10px;font-size:12px;color:var(--xsoft);">${currentPlayers.filter(p=>p.pos==='TH').length} Torrhüter &middot; ${currentPlayers.filter(p=>p.pos==='FL').length} Feldspieler &middot; ${currentPlayers.length} gesamt</div>`;
+}
+
+// TAB FEEDS
+function renderTabFeeds(team){
+  const owned=isOwner(team);
+  const fld=(id,val,ph)=>owned
+    ?`<input class="form-input" id="${id}" value="${esc(val||'')}" placeholder="${ph}" style="flex:1;min-width:200px;margin:0;">`
+    :`<code style="flex:1;padding:8px 11px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-family:'DM Mono',monospace;font-size:12px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(val||'(kein Feed)')}</code>`;
+  document.getElementById('tab-content-feeds').innerHTML=`
+    <div class="card" style="padding:24px;margin-bottom:16px;">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px;">&#127947; Training-Feed</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${fld('feed-training',team.ical_training,'https://sportsmember.com/ical/...')}
+        <button class="btn btn-ghost" onclick="testFeed('feed-training','s-training')">Testen</button>
+        ${owned?'<button class="btn btn-primary" onclick="saveFeed('training')">Speichern</button>':''}
+      </div>
+      <div id="s-training" style="margin-top:7px;min-height:18px;"></div>
+    </div>
+    <div class="card" style="padding:24px;margin-bottom:16px;">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px;">&#127942; Spiel-Feed</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${fld('feed-spiele',team.ical_spiele,'webcal://handball.net/ical/...')}
+        <button class="btn btn-ghost" onclick="testFeed('feed-spiele','s-spiele')">Testen</button>
+        ${owned?'<button class="btn btn-primary" onclick="saveFeed('spiele')">Speichern</button>':''}
+      </div>
+      <div id="s-spiele" style="margin-top:7px;min-height:18px;"></div>
+    </div>
+    <div class="info-box">&#128161; iCal-URLs findest du auf <strong>handball.net</strong> unter <em>Kalender &rarr; Abonnieren</em>. Sportsmember-URLs erhältst du von deinem Verein.</div>`;
+}
+async function saveFeed(type){
+  const field=type==='training'?'ical_training':'ical_spiele';
+  const input=document.getElementById(`feed-${type}`);
+  if(!input)return;
+  const{error}=await supa.from('mannschaften').update({[field]:input.value.trim()}).eq('id',currentTeamId);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast('Feed gespeichert','success');
+  const team=allTeams.find(t=>t.id===currentTeamId);if(team)team[field]=input.value.trim();
+}
+
+// TAB INFO
+function renderTabInfo(team){
+  document.getElementById('tab-content-info').innerHTML=`
+    <div class="card" style="padding:24px;margin-bottom:16px;">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px;">&#128203; Grunddaten</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Mannschaftsname *</label><input class="form-input" id="info-name" value="${esc(team.name||'')}"></div>
+        <div class="form-group"><label class="form-label">Verein</label><input class="form-input" id="info-verein" value="${esc(team.verein||'')}" placeholder="z.B. Barmstedter MTV"></div>
+      </div>
+      <div style="font-size:14px;font-weight:600;margin:20px 0 12px;">&#127912; Kalenderfarben</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Geplante Einheit</label><div style="display:flex;gap:10px;align-items:center;"><input type="color" class="color-input" id="info-farbe-geplant" value="${team.farbe_geplant||'#0057ff'}"><span class="form-hint">Mit Inhalt</span></div></div>
+        <div class="form-group"><label class="form-label">Ungeplante Einheit</label><div style="display:flex;gap:10px;align-items:center;"><input type="color" class="color-input" id="info-farbe-ungeplant" value="${team.farbe_ungeplant||'#94a3b8'}"><span class="form-hint">Ohne Inhalt</span></div></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button class="btn btn-primary" onclick="saveTeamInfo()">Speichern</button></div>
+    </div>
+    <div class="card" style="padding:20px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--soft);">&#128273; Mannschafts-ID</div>
+      <div class="copy-field"><code>${team.id}</code><button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText('${team.id}').then(()=>showToast('ID kopiert','success'))">Kopieren</button></div>
+    </div>`;
+}
+async function saveTeamInfo(){
+  const name=document.getElementById('info-name').value.trim();
+  if(!name){showToast('Name ist Pflichtfeld.','error');return;}
+  const updates={name,verein:document.getElementById('info-verein').value.trim(),farbe_geplant:document.getElementById('info-farbe-geplant').value,farbe_ungeplant:document.getElementById('info-farbe-ungeplant').value};
+  const{error}=await supa.from('mannschaften').update(updates).eq('id',currentTeamId);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast('Gespeichert','success');await loadTeams();
+  document.getElementById('detail-title').textContent=name;
+  document.getElementById('detail-subtitle').textContent=updates.verein||'Kein Verein angegeben';
+}
+
+// TAB FREIGABEN
+function renderTabFreigaben(team){
+  const rows=currentFreigaben.length?currentFreigaben.map(f=>{
+    const p=ownerProfiles[f.user_id];
+    const name=p?(p.full_name||p.email):'Unbekannt';
+    const sub=p&&p.full_name?p.email:'';
+    return `<div class="trainer-row">
+      <div class="trainer-avatar">${initials(name)}</div>
+      <div class="trainer-name"><div class="trainer-name-text">${esc(name)}</div>${sub?`<div class="trainer-name-sub">${esc(sub)}</div>`:''}</div>
+      <span class="badge-shared" style="margin-right:4px;">Lesezugriff</span>
+      <button class="btn btn-danger btn-sm" onclick="revokeFreigabe('${f.id}','${esc(name)}')">Entziehen</button>
+    </div>`;
+  }).join(''):'<div style="padding:16px 0;color:var(--xsoft);font-size:13px;">Noch keine Trainer freigegeben.</div>';
+
+  document.getElementById('tab-content-freigaben').innerHTML=`
+    <div class="card" style="padding:24px;margin-bottom:16px;">
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px;">&#128279; Trainer freigeben</div>
+      <div style="font-size:12.5px;color:var(--soft);margin-bottom:16px;line-height:1.5;">Freigegebene Trainer sehen Kader und Feeds, können aber nichts bearbeiten.</div>
+      <div style="font-size:12px;font-weight:600;color:var(--soft);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Trainer suchen &amp; hinzufügen</div>
+      <div class="search-wrap-rel" style="margin-bottom:20px;">
+        <input class="form-input" id="freigabe-search" placeholder="Name oder E-Mail eingeben..." autocomplete="off" oninput="onFreigabeSearch()" style="margin:0;">
+        <div id="freigabe-results" style="display:none;" class="search-results"></div>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:var(--soft);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em;">Aktueller Zugriff (${currentFreigaben.length})</div>
+      <div id="freigabe-list">${rows}</div>
+    </div>
+    <div class="info-box">&#128161; Freigegebene Trainer können die Mannschaft in allen Tools verwenden. Das Bearbeiten, Löschen und Freigaben-Verwalten bleibt dem Eigentümer vorbehalten.</div>`;
+}
+async function onFreigabeSearch(){
+  clearTimeout(searchTimeout);
+  const q=document.getElementById('freigabe-search')?.value.trim();
+  const res=document.getElementById('freigabe-results');
+  if(!q||q.length<2){if(res)res.style.display='none';return;}
+  searchTimeout=setTimeout(async()=>{
+    const{data}=await supa.from('profiles').select('id,full_name,email').or(`full_name.ilike.%${q}%,email.ilike.%${q}%`).neq('id',currentUser.id).limit(8);
+    const already=new Set(currentFreigaben.map(f=>f.user_id));
+    const filtered=(data||[]).filter(p=>!already.has(p.id));
+    if(!filtered.length){res.innerHTML='<div class="search-result-item" style="color:var(--xsoft);">Keine Trainer gefunden</div>';res.style.display='';return;}
+    res.innerHTML=filtered.map(p=>`<div class="search-result-item" onclick="addFreigabe('${p.id}','${esc(p.full_name||p.email)}')"><span style="font-weight:500;">${esc(p.full_name||'(kein Name)')}</span><span style="font-size:11.5px;color:var(--xsoft);margin-left:6px;">${esc(p.email)}</span></div>`).join('');
+    res.style.display='';
+  },300);
+}
+async function addFreigabe(userId,name){
+  document.getElementById('freigabe-results').style.display='none';
+  document.getElementById('freigabe-search').value='';
+  const{error}=await supa.from('mannschaft_freigaben').insert({mannschaft_id:currentTeamId,user_id:userId,granted_by:currentUser.id});
+  if(error){if(error.code==='23505'){showToast('Trainer hat bereits Zugriff.','info');return;}showToast('Fehler: '+error.message,'error');return;}
+  showToast(name+' hat jetzt Zugriff','success');
+  await loadFreigaben(currentTeamId);
+  renderTabFreigaben(allTeams.find(t=>t.id===currentTeamId));
+}
+async function revokeFreigabe(fid,name){
+  const{error}=await supa.from('mannschaft_freigaben').delete().eq('id',fid);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast('Zugriff für '+name+' entzogen','success');
+  await loadFreigaben(currentTeamId);
+  renderTabFreigaben(allTeams.find(t=>t.id===currentTeamId));
+}
+
+// TEAM MODAL
+function openTeamModal(tid=null){
+  const team=tid?allTeams.find(t=>t.id===tid):null;
+  if(team&&!isOwner(team)){showToast('Nur der Eigentümer kann bearbeiten.','error');return;}
+  document.getElementById('team-modal-title').textContent=team?'Mannschaft bearbeiten':'Neue Mannschaft';
+  document.getElementById('tm-id').value=tid||'';
+  document.getElementById('tm-name').value=team?team.name:'';
+  document.getElementById('tm-verein').value=team?team.verein||'':'';
+  document.getElementById('tm-farbe-geplant').value=team?team.farbe_geplant||'#0057ff':'#0057ff';
+  document.getElementById('tm-farbe-ungeplant').value=team?team.farbe_ungeplant||'#94a3b8':'#94a3b8';
+  document.getElementById('team-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('tm-name').focus(),100);
+}
+function closeTeamModal(){document.getElementById('team-modal').classList.remove('open');}
+async function saveTeam(){
+  const id=document.getElementById('tm-id').value,name=document.getElementById('tm-name').value.trim();
+  if(!name){showToast('Name ist Pflichtfeld.','error');return;}
+  const data={name,verein:document.getElementById('tm-verein').value.trim(),farbe_geplant:document.getElementById('tm-farbe-geplant').value,farbe_ungeplant:document.getElementById('tm-farbe-ungeplant').value};
+  let error;
+  if(id){({error}=await supa.from('mannschaften').update(data).eq('id',id));}
+  else{({error}=await supa.from('mannschaften').insert({...data,user_id:currentUser.id}));}
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast(id?'Mannschaft aktualisiert':'Mannschaft angelegt','success');
+  closeTeamModal();await loadTeams();
+  currentTeamId?showTeamDetail(currentTeamId):showOverview();
+}
+
+// PLAYER MODAL
+function openPlayerModal(pid=null,defaultPos='FL'){
+  const p=pid?currentPlayers.find(x=>x.id===pid):null;
+  document.getElementById('player-modal-title').textContent=p?'Spieler bearbeiten':'Spieler hinzufügen';
+  document.getElementById('pm-id').value=pid||'';
+  document.getElementById('pm-nummer').value=p?(p.nummer??''):'';
+  document.getElementById('pm-name').value=p?p.name:'';
+  document.getElementById('pm-pos').value=p?p.pos:defaultPos;
+  document.getElementById('pm-aktiv').checked=p?!!p.aktiv:true;
+  document.getElementById('player-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('pm-name').focus(),100);
+}
+function closePlayerModal(){document.getElementById('player-modal').classList.remove('open');}
+async function savePlayer(){
+  const id=document.getElementById('pm-id').value,name=document.getElementById('pm-name').value.trim();
+  if(!name){showToast('Name ist Pflichtfeld.','error');return;}
+  const nr=document.getElementById('pm-nummer').value;
+  const data={mannschaft_id:currentTeamId,name,nummer:nr!==''?parseInt(nr,10):null,pos:document.getElementById('pm-pos').value,aktiv:document.getElementById('pm-aktiv').checked};
+  let error;
+  if(id){({error}=await supa.from('mannschaft_spieler').update(data).eq('id',id));}
+  else{({error}=await supa.from('mannschaft_spieler').insert(data));}
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast(id?'Spieler aktualisiert':'Spieler hinzugefügt','success');
+  closePlayerModal();await loadPlayers(currentTeamId);
+  renderTabKader(allTeams.find(t=>t.id===currentTeamId));
+}
+
+// DELETE
+function confirmDeleteTeam(tid){
+  const team=allTeams.find(t=>t.id===tid);
+  if(!team||!isOwner(team)){showToast('Nur Eigentümer können löschen.','error');return;}
+  deleteTarget={type:'team',id:tid};
+  document.getElementById('delete-modal-title').textContent='Mannschaft löschen';
+  document.getElementById('delete-modal-text').textContent=`„${team.name}“ und alle Spieler werden dauerhaft gelöscht. Alle Freigaben werden ebenfalls entfernt.`;
+  document.getElementById('delete-modal').classList.add('open');
+}
+function confirmDeletePlayer(pid){
+  const p=currentPlayers.find(x=>x.id===pid);if(!p)return;
+  deleteTarget={type:'player',id:pid};
+  document.getElementById('delete-modal-title').textContent='Spieler entfernen';
+  document.getElementById('delete-modal-text').textContent=`„${p.name}“ wird dauerhaft aus dem Kader gelöscht.`;
+  document.getElementById('delete-modal').classList.add('open');
+}
+function closeDeleteModal(){document.getElementById('delete-modal').classList.remove('open');deleteTarget=null;}
+async function executeDelete(){
+  if(!deleteTarget)return;
+  const btn=document.getElementById('delete-confirm-btn');btn.textContent='...';btn.disabled=true;
+  try{
+    if(deleteTarget.type==='team'){
+      const{error}=await supa.from('mannschaften').delete().eq('id',deleteTarget.id);
+      if(error)throw error;
+      showToast('Mannschaft gelöscht','success');closeDeleteModal();currentTeamId=null;await loadTeams();showOverview();
+    } else {
+      const{error}=await supa.from('mannschaft_spieler').delete().eq('id',deleteTarget.id);
+      if(error)throw error;
+      showToast('Spieler entfernt','success');closeDeleteModal();
+      await loadPlayers(currentTeamId);renderTabKader(allTeams.find(t=>t.id===currentTeamId));
+    }
+  }catch(err){showToast('Fehler: '+(err.message||'Unbekannt'),'error');}
+  finally{btn.textContent='Endgültig löschen';btn.disabled=false;}
+}
+
+// iCAL
+async function testFeed(inputId,statusId){
+  const input=document.getElementById(inputId),s=document.getElementById(statusId);
+  const url=input?input.value.trim():'';
+  if(!url){s.innerHTML='<span class="feed-result-err">Bitte URL eingeben.</span>';return;}
+  s.innerHTML='<span class="feed-result-loading">Wird getestet...</span>';
+  try{const evs=await fetchICalFeed(url);s.innerHTML=`<span class="feed-result-ok">${evs.length} Termine</span>`;}
+  catch(e){s.innerHTML=`<span class="feed-result-err">${e.message||'Nicht erreichbar'}</span>`;}
+}
+async function fetchICalFeed(url){
+  url=url.replace(/^webcal:\/\//i,'https://');
+  try{
+    const{data:{session}}=await supa.auth.getSession();
+    if(session?.access_token){
+      const res=await fetch(ICAL_PROXY_URL+'?url='+encodeURIComponent(url),{headers:{'Authorization':'Bearer '+session.access_token},signal:AbortSignal.timeout(12000)});
+      if(res.ok){const t=await res.text();if(t.includes('BEGIN:VCALENDAR'))return parseICal(t);}
+    }
+  }catch(e){if(e.message?.includes('Nicht')||e.message?.includes('erlaubt'))throw e;}
+  let lastErr;
+  for(const proxy of CORS_FALLBACKS){
+    try{const res=await fetch(proxy+encodeURIComponent(url),{signal:AbortSignal.timeout(8000)});if(!res.ok)throw new Error('HTTP '+res.status);const t=await res.text();if(!t.includes('BEGIN:VCALENDAR'))throw new Error('Kein gültiger iCal-Feed');return parseICal(t);}
+    catch(e){lastErr=e;}
+  }
+  throw lastErr||new Error('Feed nicht abrufbar');
+}
+function parseICal(text){
+  const u=text.replace(/
+[ 	]/g,'').replace(/
+/g,'
+').replace(//g,'
+'),events=[],blocks=u.split('BEGIN:VEVENT');
+  for(let i=1;i<blocks.length;i++){
+    const block=blocks[i].split('END:VEVENT')[0],ev={};
+    block.split('
+').forEach(line=>{const sep=line.indexOf(':');if(sep<0)return;const key=line.slice(0,sep).split(';')[0].trim().toUpperCase(),val=line.slice(sep+1).trim();
+      if(key==='SUMMARY')ev.summary=val.replace(/\n/g,' ').replace(/\,/g,',');
+      if(key==='DTSTART')ev.dtstart=parseICalDate(val);
+      if(key==='DTEND')ev.dtend=parseICalDate(val);
+    });
+    if(ev.dtstart)events.push(ev);
+  }
+  return events;
+}
+function parseICalDate(s){s=s.replace('Z','');if(s.includes('T'))return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(9,11)}:${s.slice(11,13)}:00`);return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);}
+
+// UTILS
+let toastTimer;
+function showToast(msg,type='success'){
+  const el=document.getElementById('toast');el.textContent=msg;
+  el.style.background=type==='error'?'#7f1d1d':type==='info'?'#1e3a8a':'#111827';
+  el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3500);
+}
+document.addEventListener('click',e=>{const r=document.getElementById('freigabe-results');if(r&&!e.target.closest('.search-wrap-rel'))r.style.display='none';});
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;['team-modal','player-modal','delete-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));const r=document.getElementById('freigabe-results');if(r)r.style.display='none';});
+
+supa.auth.getSession().then(({data:{session}})=>{if(session)onAuth(session.user);});
+supa.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'&&session&&!currentUser)onAuth(session.user);if(event==='SIGNED_OUT')location.reload();});
+<\/script>
+</body>
+</html>

@@ -211,8 +211,8 @@ input:checked+.toggle-slider:before{transform:translateX(20px);}
     <div class="sidebar-bottom">
       <a class="sidebar-link" href="index.html"><span>📅</span> Trainingsplaner</a>
       <a class="sidebar-link" href="handball-bank-statistik.html"><span>📊</span> Bank-Statistik</a>
+      <a class="sidebar-link" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
       <div class="sidebar-link" onclick="signOut()" style="color:rgba(255,100,100,.6);margin-top:4px;"><span>↩</span> Abmelden</div>
-      <div id="version-label" style="padding:8px 18px 4px;font-size:9.5px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;"></div><script>!function(){var d=new Date(document.lastModified);var pad=function(n){return String(n).padStart(2,'0');};var v='v1.260503.1055'; document.getElementById('version-label').textContent=v+' · Handball Coaching Tools';}();</script>
     </div>
   </aside>
 
@@ -297,29 +297,15 @@ input:checked+.toggle-slider:before{transform:translateX(20px);}
 <div class="modal-overlay" id="edit-modal" onclick="if(event.target.id==='edit-modal')closeEditModal()">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title" id="edit-modal-title">✏️ Nutzer bearbeiten</div>
+      <div class="modal-title">✏️ Nutzer bearbeiten</div>
       <button class="modal-close" onclick="closeEditModal()">✕</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="edit-id">
-      <!-- Hinweis eigenes Konto -->
-      <div id="edit-self-hint" style="display:none;background:var(--accent-l);border:1px solid #93c5fd;border-radius:9px;padding:10px 14px;font-size:12.5px;color:#1d4ed8;margin-bottom:16px;">
-        👤 Du bearbeitest dein eigenes Konto. Rolle und Aktivierungsstatus können nicht geändert werden.
-      </div>
-      <!-- E-Mail (editierbar) -->
       <div class="form-group">
-        <label class="form-label" id="edit-email-label">E-Mail</label>
-        <input class="form-input" id="edit-email" type="email" placeholder="email@beispiel.de">
-        <div id="edit-email-hint" style="font-size:11px;color:var(--soft);margin-top:4px;display:none;">
-          ⚠️ Bei E-Mail-Änderung erhält der Nutzer eine Bestätigungs-E-Mail an die neue Adresse.
-        </div>
+        <label class="form-label">E-Mail (nicht änderbar)</label>
+        <input class="form-input" id="edit-email" type="email" disabled style="background:#f8f9fb;color:var(--soft);cursor:not-allowed;">
       </div>
-      <!-- Neues Passwort (optional) -->
-      <div class="form-group">
-        <label class="form-label">Neues Passwort <span style="font-weight:400;color:var(--xsoft);">(leer lassen = nicht ändern)</span></label>
-        <input class="form-input" id="edit-password" type="password" placeholder="Mindestens 6 Zeichen" autocomplete="new-password">
-      </div>
-      <!-- Name -->
       <div class="form-group">
         <label class="form-label">Name</label>
         <input class="form-input" id="edit-name" type="text" placeholder="Vollständiger Name">
@@ -334,8 +320,7 @@ input:checked+.toggle-slider:before{transform:translateX(20px);}
           <input class="form-input" id="edit-mannschaft" type="text" placeholder="z.B. Damen 1">
         </div>
       </div>
-      <!-- Rolle (gesperrt bei eigenem Konto) -->
-      <div class="form-group" id="edit-role-group">
+      <div class="form-group">
         <label class="form-label">Rolle</label>
         <select class="form-select" id="edit-role">
           <option value="trainer">🏋 Trainer</option>
@@ -343,8 +328,7 @@ input:checked+.toggle-slider:before{transform:translateX(20px);}
           <option value="admin">👑 Admin</option>
         </select>
       </div>
-      <!-- Aktiv-Toggle (gesperrt bei eigenem Konto) -->
-      <div class="form-group" id="edit-aktiv-group">
+      <div class="form-group">
         <div class="toggle-row">
           <div>
             <div class="toggle-label">Konto aktiv</div>
@@ -359,7 +343,7 @@ input:checked+.toggle-slider:before{transform:translateX(20px);}
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeEditModal()">Abbrechen</button>
-      <button class="btn btn-primary" id="edit-save-btn" onclick="saveUser()">💾 Speichern</button>
+      <button class="btn btn-primary" onclick="saveUser()">💾 Speichern</button>
     </div>
   </div>
 </div>
@@ -550,117 +534,36 @@ async function quickToggleAktiv(userId, aktiv) {
 }
 
 // ── EDIT MODAL ──
-let editingUserId = null;
-let editingIsSelf = false;
-let editingOriginalEmail = '';
-
 function openEditModal(userId) {
   const u = allUsers.find(x => x.id === userId);
   if (!u) return;
-  editingUserId = userId;
-  editingIsSelf = (userId === currentUser?.id);
-  editingOriginalEmail = u.email || '';
-
-  // Felder befüllen
   document.getElementById('edit-id').value = u.id;
   document.getElementById('edit-email').value = u.email || '';
-  document.getElementById('edit-password').value = '';
   document.getElementById('edit-name').value = u.full_name || '';
   document.getElementById('edit-verein').value = u.verein || '';
   document.getElementById('edit-mannschaft').value = u.mannschaft || '';
   document.getElementById('edit-role').value = u.role || 'trainer';
   document.getElementById('edit-aktiv').checked = !!u.aktiv;
-
-  // Eigenes Konto: Rolle + Aktiv sperren
-  const isSelf = editingIsSelf;
-  document.getElementById('edit-self-hint').style.display = isSelf ? '' : 'none';
-  document.getElementById('edit-modal-title').textContent = isSelf ? '✏️ Mein Konto' : '✏️ Nutzer bearbeiten';
-  document.getElementById('edit-role').disabled = isSelf;
-  document.getElementById('edit-aktiv').disabled = isSelf;
-  document.getElementById('edit-role-group').style.opacity = isSelf ? '.4' : '1';
-  document.getElementById('edit-aktiv-group').style.opacity = isSelf ? '.4' : '1';
-
-  // E-Mail-Hinweis beim Tippen zeigen
-  document.getElementById('edit-email').oninput = function() {
-    const changed = this.value.trim() !== editingOriginalEmail;
-    document.getElementById('edit-email-hint').style.display = changed ? '' : 'none';
-  };
-
   document.getElementById('edit-modal').classList.add('open');
 }
-
 function closeEditModal() {
   document.getElementById('edit-modal').classList.remove('open');
-  editingUserId = null;
 }
 
 async function saveUser() {
-  const id = editingUserId;
-  if (!id) return;
-
-  const saveBtn = document.getElementById('edit-save-btn');
-  saveBtn.textContent = '⏳ Speichern…'; saveBtn.disabled = true;
-
-  try {
-    const newEmail    = document.getElementById('edit-email').value.trim();
-    const newPassword = document.getElementById('edit-password').value;
-    const emailChanged = newEmail && newEmail !== editingOriginalEmail;
-    const passwordChanged = newPassword.length >= 6;
-
-    // 1. Profil-Daten immer via profiles-Tabelle speichern
-    const profileUpdates = {
-      full_name:  document.getElementById('edit-name').value.trim(),
-      verein:     document.getElementById('edit-verein').value.trim(),
-      mannschaft: document.getElementById('edit-mannschaft').value.trim(),
-    };
-    // Rolle + Aktiv nur bei fremden Konten
-    if (!editingIsSelf) {
-      profileUpdates.role  = document.getElementById('edit-role').value;
-      profileUpdates.aktiv = document.getElementById('edit-aktiv').checked;
-    }
-    const { error: profileErr } = await supa.from('profiles').update(profileUpdates).eq('id', id);
-    if (profileErr) throw new Error('Profil: ' + profileErr.message);
-
-    // 2. E-Mail / Passwort ändern
-    if (emailChanged || passwordChanged) {
-      if (editingIsSelf) {
-        // Eigenes Konto: direkt über Supabase Auth
-        const authUpdates = {};
-        if (emailChanged)    authUpdates.email    = newEmail;
-        if (passwordChanged) authUpdates.password = newPassword;
-        const { error: authErr } = await supa.auth.updateUser(authUpdates);
-        if (authErr) throw new Error('Auth: ' + authErr.message);
-      } else {
-        // Fremdes Konto: via Edge Function (braucht Service-Role-Key)
-        const { data: { session } } = await supa.auth.getSession();
-        const payload = { action: 'update', userId: id };
-        if (emailChanged)    payload.email    = newEmail;
-        if (passwordChanged) payload.password = newPassword;
-        const res = await fetch(ADMIN_OPS_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type':  'application/json',
-            'Authorization': 'Bearer ' + session.access_token,
-            'apikey':        SUPA_KEY,
-          },
-          body: JSON.stringify(payload),
-        });
-        const result = await res.json();
-        if (!res.ok || result.error) throw new Error(result.message || 'Edge Function Fehler');
-      }
-    }
-
-    let successMsg = '✅ Gespeichert';
-    if (emailChanged && editingIsSelf) successMsg += ' — Bestätigungs-E-Mail wurde gesendet';
-    showToast(successMsg, 'success');
-    closeEditModal();
-    await loadUsers();
-
-  } catch (err) {
-    showToast('❌ ' + (err.message || 'Fehler beim Speichern'), 'error');
-  } finally {
-    saveBtn.textContent = '💾 Speichern'; saveBtn.disabled = false;
-  }
+  const id = document.getElementById('edit-id').value;
+  const updates = {
+    full_name: document.getElementById('edit-name').value.trim(),
+    verein: document.getElementById('edit-verein').value.trim(),
+    mannschaft: document.getElementById('edit-mannschaft').value.trim(),
+    role: document.getElementById('edit-role').value,
+    aktiv: document.getElementById('edit-aktiv').checked,
+  };
+  const { error } = await supa.from('profiles').update(updates).eq('id', id);
+  if (error) { showToast('❌ Speichern fehlgeschlagen: ' + error.message, 'error'); return; }
+  showToast('✅ Nutzer gespeichert', 'success');
+  closeEditModal();
+  await loadUsers();
 }
 
 // ── DELETE MODAL ──
