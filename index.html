@@ -405,12 +405,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     z-index: 100;
     overflow: hidden;
   }
-  .sidebar-logo { display: none !important; }
-  .sidebar > div:last-child { display: none !important; }
-  .sidebar-footer { display: none !important; }
-  .sidebar-section { display: contents; }
+  /* Alles ausblenden außer den 4 Bottom-Nav-Buttons */
+  .sidebar-logo,
+  .sidebar-footer,
+  .sidebar-actions,
+  .sidebar-section,
   .sidebar-label { display: none !important; }
-  .sidebar-item {
+
+  /* Die 4 Bottom-Nav-Buttons sichtbar machen */
+  #nav-kalender-m,
+  #nav-planer-m,
+  #nav-uebungen-m,
+  #nav-mehr {
+    display: flex !important;
     flex: 1;
     flex-direction: column;
     align-items: center;
@@ -422,25 +429,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     font-weight: 600;
     color: rgba(255,255,255,0.5);
     text-align: center;
-    min-width: 0;
+    cursor: pointer;
     transition: all .15s;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: clip;
   }
-  .sidebar-item span:first-child { font-size: 19px; line-height: 1.2; }
-  .sidebar-item.active {
+  #nav-kalender-m span:first-child,
+  #nav-planer-m span:first-child,
+  #nav-uebungen-m span:first-child,
+  #nav-mehr span:first-child { font-size: 19px; line-height: 1.2; }
+
+  #nav-kalender-m.active,
+  #nav-planer-m.active,
+  #nav-uebungen-m.active {
     color: white;
     background: rgba(0,87,255,0.25);
     border-top: 2px solid #0057ff;
   }
-  /* Mobile: only show 4 nav items + Mehr */
-  #nav-geteilt,#nav-taktik,#nav-board { display: none !important; }
-  #admin-nav { display: none !important; }
-
-  /* Mehr-Menü */
-  #nav-mehr { display: flex !important; }
-  #mehr-menu.open { display: block; }
+  #nav-mehr { color: rgba(255,255,255,0.5); }
+  #nav-mehr:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.05); }
 
   /* Main */
   .main {
@@ -449,16 +455,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   }
 
   /* Topbar – auf Mobile sichtbar */
-  .topbar { display:flex; padding: 0 12px; height: 50px; gap: 4px; }
-  .sidebar-footer, .sidebar-actions, .sidebar-save-btn, .sidebar-add-btn { display: none !important; }
+  .topbar { display: flex; padding: 0 12px; height: 50px; gap: 4px; }
   .topbar-title { font-size: 12.5px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .topbar-actions { gap: 4px; }
   .topbar-actions .btn { padding: 6px 9px; font-size: 11px; }
-  .topbar-actions .btn-ghost:not(#admin-btn) { display: none; }
+  .hide-mobile { display: none !important; }
+  .show-mobile { display: flex !important; }
   #topbar-user { display: none; }
-  #admin-btn { display: flex !important; font-size: 11px; padding: 5px 8px; }
 
   /* Content */
+  .content { padding: 14px; }
+  .form-row { grid-template-columns: 1fr; }
+  .modal-sm, .modal-lg { max-width: 96vw; }
+  .db-panel { width: 340px; }
+  .session-title { font-size: 21px; }
+  #admin-nav { display: none !important; }
+}  /* Content */
   .content { padding: 10px; }
   .content-inner { max-width: 100%; }
 
@@ -597,7 +609,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     border-radius: 14px;
     box-shadow: 0 -4px 30px rgba(0,0,0,0.5);
     z-index: 102;
-    min-width: 210px;
+    min-width: 220px;
     overflow: hidden;
     display: none;
   }
@@ -606,7 +618,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 14px 18px;
+    padding: 13px 18px;
     color: rgba(255,255,255,0.8);
     font-size: 14px;
     cursor: pointer;
@@ -616,6 +628,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .mehr-item:hover { background: var(--sidebar-hover); }
   .mehr-item:last-child { border-bottom: none; }
   .mehr-item span { font-size: 17px; }
+  .mehr-sep { height: 1px; background: rgba(255,255,255,0.12); margin: 2px 0; }
+  .mehr-danger { color: rgba(255,100,100,0.85) !important; }
+  .mehr-danger:hover { background: rgba(220,38,38,0.15) !important; }
 }
 
 
@@ -728,9 +743,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="sidebar-item" id="nav-taktik"><span>♟</span> Taktikdatenbank</div>
     <div class="sidebar-item" id="nav-board"><span>🖊</span> Taktikboard</div>
   </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Spiel</div>
+    <a class="sidebar-item" href="handball-bank-statistik.html" style="text-decoration:none;color:inherit;">
+      <span>📊</span> Bank-Statistik
+    </a>
+  </div>
   <div class="sidebar-section" id="admin-nav" style="display:none">
     <div class="sidebar-label">Administration</div>
-    <div class="sidebar-item" onclick="openAdmin('nutzer')"><span>👥</span> Nutzerverwaltung</div>
+    <a class="sidebar-item" href="nutzerverwaltung.html" style="text-decoration:none;color:inherit;"><span>👤</span> Nutzerverwaltung</a>
     <div class="sidebar-item" onclick="openAdmin('freigabe')"><span>✅</span> Freigaben <span id="pending-count"></span></div>
     <div class="sidebar-item" onclick="openAdmin('kategorien')"><span>🏷</span> Kategorien</div>
   </div>
@@ -746,10 +767,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;" onclick="resetSession()"><span>↺</span> Reset</div>
       <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;color:rgba(255,100,100,.7);" onclick="signOut()"><span>⏻</span></div>
     </div>
+    <div id="version-label" style="padding:8px 18px 4px;font-size:9.5px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;"></div><script>!function(){var d=new Date(document.lastModified);var pad=function(n){return String(n).padStart(2,'0');};var v='v1.260503.1055'; document.getElementById('version-label').textContent=v+' · Handball Coaching Tools';}();</script>
   </div>
 
-  <!-- Mobile: Mehr Button -->
-  <div id="nav-mehr" style="display:none;" onclick="toggleMehrMenu()">
+  <!-- Mobile: Bottom-Nav Buttons (Kalender, Planer, Übungen, Mehr) -->
+  <div id="nav-kalender-m" class="sidebar-item" onclick="showView('kalender')">
+    <span>📅</span><span>Kalender</span>
+  </div>
+  <div id="nav-planer-m" class="sidebar-item active" onclick="showView('planer')">
+    <span>📋</span><span>Planer</span>
+  </div>
+  <div id="nav-uebungen-m" class="sidebar-item" onclick="openDB()">
+    <span>🗂</span><span>Übungen</span>
+  </div>
+  <div id="nav-mehr" onclick="toggleMehrMenu()">
     <span>☰</span>
     <span>Mehr</span>
   </div>
@@ -758,11 +789,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 <!-- Mehr-Menü (mobile only) -->
 <div id="mehr-menu" onclick="event.stopPropagation()">
+  <div class="mehr-item" onclick="closeMehrMenu();openMannschaftenModal()"><span>👥</span> Mannschaften</div>
   <div class="mehr-item" onclick="closeMehrMenu();openDB('geteilt')"><span>🌐</span> Geteilte DB</div>
-  <div class="mehr-item" id="mehr-admin" style="display:none" onclick="closeMehrMenu();openAdmin('nutzer')"><span>⚙️</span> Admin-Panel</div>
+  <div class="mehr-item" onclick="closeMehrMenu();window.location.href='handball-bank-statistik.html'"><span>📊</span> Bank-Statistik</div>
+  <div class="mehr-item" id="mehr-nutzerverwaltung" style="display:none" onclick="closeMehrMenu();window.location.href='nutzerverwaltung.html'"><span>👤</span> Nutzerverwaltung</div>
+  <div class="mehr-item" id="mehr-admin" style="display:none" onclick="closeMehrMenu();openAdmin('freigabe')"><span>✅</span> Admin-Panel</div>
+  <div class="mehr-sep"></div>
   <div class="mehr-item" onclick="closeMehrMenu();window.print()"><span>🖨</span> Drucken</div>
   <div class="mehr-item" onclick="closeMehrMenu();resetSession()"><span>↺</span> Zurücksetzen</div>
-  <div class="mehr-item" onclick="closeMehrMenu();signOut()" style="border-top:1px solid rgba(255,255,255,0.1);color:rgba(255,100,100,0.8)"><span>⏻</span> Abmelden</div>
+  <div class="mehr-item mehr-danger" onclick="closeMehrMenu();signOut()"><span>⏻</span> Abmelden</div>
 </div>
 <div id="mehr-overlay" onclick="closeMehrMenu()" style="position:fixed;inset:0;z-index:100;display:none;background:rgba(0,0,0,0.3);"></div>
 
@@ -775,11 +810,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="btn btn-ghost hide-mobile" onclick="openDB()">🗂 Übungen</button>
       <button class="btn btn-ghost hide-mobile" onclick="window.print()">🖨 Drucken</button>
       <button class="btn btn-ghost hide-mobile" onclick="resetSession()">↺ Zurücksetzen</button>
-      <button class="btn btn-ghost hide-mobile" id="admin-btn" onclick="openAdmin('nutzer')" style="display:none;">⚙️ Admin</button>
+      <button class="btn btn-ghost hide-mobile" id="admin-btn" onclick="openAdmin('freigabe')" style="display:none;">⚙️ Admin</button>
       <button class="btn btn-primary hide-mobile" onclick="openAddModal(-1)">+ Übung hinzufügen</button>
       <button class="btn btn-save" id="save-btn" onclick="saveAll()">💾</button>
-      <button class="btn btn-ghost" id="admin-btn-mobile" onclick="openAdmin('nutzer')" style="display:none;" title="Admin">⚙️</button>
-      <button class="btn btn-ghost" id="logout-btn" onclick="signOut()" title="Abmelden" style="display:flex!important;">⏻</button>
+      <button class="btn btn-ghost show-mobile" onclick="signOut()" title="Abmelden" style="color:rgba(255,100,100,.8);">⏻</button>
     </div>
   </div>
 
@@ -1264,8 +1298,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="modal-close" onclick="closeAdmin()">✕</button>
     </div>
     <div class="admin-tabs">
-      <div class="admin-tab active" id="atab-nutzer" onclick="switchAdminTab('nutzer')">👥 Nutzer</div>
-      <div class="admin-tab" id="atab-freigabe" onclick="switchAdminTab('freigabe')">✅ Freigaben <span id="admin-pending-badge"></span></div>
+      <a class="admin-tab" href="nutzerverwaltung.html" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:5px;">👥 Nutzerverwaltung ↗</a>
+      <div class="admin-tab active" id="atab-freigabe" onclick="switchAdminTab('freigabe')">✅ Freigaben <span id="admin-pending-badge"></span></div>
       <div class="admin-tab" id="atab-kategorien" onclick="switchAdminTab('kategorien')">🏷 Kategorien</div>
       <div class="admin-tab" id="atab-einladung" onclick="switchAdminTab('einladung')">✉️ Einladen</div>
     </div>
@@ -1428,12 +1462,15 @@ async function authSubmit(){
     if(!verein||!mannschaft){showAuthError('Verein und Mannschaft sind Pflichtfelder.');btn.disabled=false;btn.textContent='Registrieren';return;}
     const {data,error}=await supa.auth.signUp({
       email,password:pw,
-      options:{data:{full_name:name,verein,mannschaft}}
+      options:{
+        data:{full_name:name,verein,mannschaft},
+        emailRedirectTo: window.location.origin+window.location.pathname
+      }
     });
     btn.disabled=false; btn.textContent='Registrieren';
     if(error){showAuthError(error.message);return;}
     if(!data.session){
-      showAuthError('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen und dann anmelden.',false);
+      showAuthError('✅ Registrierung erfolgreich! Bitte bestätige deine E-Mail-Adresse. Nach der Bestätigung wird dein Konto noch durch einen Administrator freigeschaltet – du erhältst dann Zugang zur App.',false);
       return;
     }
     await onAuthSuccess(data.session.user);
@@ -1441,7 +1478,15 @@ async function authSubmit(){
     console.log('1b. Sende Login-Anfrage an Supabase…');
     const {data,error}=await supa.auth.signInWithPassword({email,password:pw});
     btn.disabled=false; btn.textContent='Anmelden';
-    if(error){log('❌ Login-Fehler: '+error.message);showAuthError(error.message);return;}
+    if(error){
+      log('❌ Login-Fehler: '+error.message);
+      if(error.message.toLowerCase().includes('email not confirmed')||error.message.toLowerCase().includes('email_not_confirmed')){
+        showAuthError('📧 E-Mail-Adresse noch nicht bestätigt. Bitte prüfe dein Postfach (auch Spam-Ordner) und klicke auf den Bestätigungslink.');
+      } else {
+        showAuthError(error.message);
+      }
+      return;
+    }
     console.log('✅ Supabase Auth OK');
     await onAuthSuccess(data.user);
   }
@@ -1499,7 +1544,13 @@ async function onAuthSuccess(user){
   // Aktivierungs-Check
   if(profile && !profile.aktiv){
     console.log('Konto NICHT aktiviert – Abbruch');
-    showAuthError('Dein Konto ist noch nicht aktiviert. Bitte wende dich an den Administrator.',true);
+    const isFromEmailConfirm = window.location.hash.includes('access_token');
+    if(isFromEmailConfirm){
+      history.replaceState(null,'',window.location.pathname);
+      showAuthError('✅ E-Mail-Adresse erfolgreich bestätigt! Dein Konto wird noch durch einen Administrator freigeschaltet. Du wirst informiert, sobald dein Zugang aktiviert ist.',false);
+    } else {
+      showAuthError('⏳ Konto noch nicht aktiviert. Bitte wende dich an den Administrator.',true);
+    }
     await supa.auth.signOut();
     currentUser=null;
     document.getElementById('auth-btn').disabled=false;
@@ -1518,11 +1569,11 @@ async function onAuthSuccess(user){
     if(nav) nav.style.display='';
     const btn=document.getElementById('admin-btn');
     if(btn) btn.style.display='';
-    // Show admin in mehr-menu
+    // Mehr-Menü: Admin + Nutzerverwaltung einblenden
     const ma=document.getElementById('mehr-admin');
     if(ma) ma.style.display='';
-    const mb=document.getElementById('admin-btn-mobile');
-    if(mb) mb.style.display='';
+    const mn=document.getElementById('mehr-nutzerverwaltung');
+    if(mn) mn.style.display='';
   }
 
   console.log('Lade Kategorien…');
@@ -2578,18 +2629,17 @@ function importClaudeJSON(event){
 // ADMIN PANEL
 // ══════════════════════════════════════════
 let adminActiveTab='nutzer';
-function openAdmin(tab='nutzer'){
+function openAdmin(tab='freigabe'){
   document.getElementById('admin-overlay').style.display='flex';
   switchAdminTab(tab);
 }
 function closeAdmin(){document.getElementById('admin-overlay').style.display='none';}
 function switchAdminTab(tab){
   adminActiveTab=tab;
-  ['nutzer','freigabe','kategorien','einladung'].forEach(t=>{
+  ['freigabe','kategorien','einladung'].forEach(t=>{
     document.getElementById('atab-'+t)?.classList.toggle('active',t===tab);
   });
-  if(tab==='nutzer') renderAdminNutzer();
-  else if(tab==='freigabe') renderAdminFreigabe();
+  if(tab==='freigabe') renderAdminFreigabe();
   else if(tab==='kategorien') renderAdminKategorien();
   else if(tab==='einladung') renderAdminEinladung();
 }
@@ -3311,9 +3361,14 @@ function showView(view) {
   document.getElementById('kalender-view').style.display = view==='kalender' ? '' : 'none';
   const sh = document.querySelector('.session-header');
   if(sh) sh.style.display = view==='planer' ? '' : 'none';
+  // Desktop sidebar active states
   document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
   if(view==='kalender' && document.getElementById('nav-kalender')) document.getElementById('nav-kalender').classList.add('active');
   if(view==='planer' && document.getElementById('nav-planer')) document.getElementById('nav-planer').classList.add('active');
+  // Mobile bottom nav active states
+  document.getElementById('nav-kalender-m')?.classList.toggle('active', view==='kalender');
+  document.getElementById('nav-planer-m')?.classList.toggle('active', view==='planer');
+  document.getElementById('nav-uebungen-m')?.classList.remove('active');
   if(view==='kalender') renderKalender();
   closeMehrMenu();
 }
@@ -3874,7 +3929,11 @@ setupMobile();
 supa.auth.getSession().then(({data:{session}})=>{
   if(session) onAuthSuccess(session.user);
 });
-supa.auth.onAuthStateChange((event)=>{
+supa.auth.onAuthStateChange((event,session)=>{
+  // Wird ausgelöst wenn User nach E-Mail-Bestätigung auf die App zurückgeleitet wird
+  if(event==='SIGNED_IN'&&session&&!currentUser){
+    onAuthSuccess(session.user);
+  }
   if(event==='SIGNED_OUT'){/* handled by signOut() */}
 });
 </script>
