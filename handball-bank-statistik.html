@@ -1162,15 +1162,31 @@ async function authSubmit(){
     const verein=document.getElementById('a-verein').value.trim();
     const mann=document.getElementById('a-mannschaft').value.trim();
     if(!verein||!mann){showAuthErr('Verein und Mannschaft sind Pflichtfelder.');btn.disabled=false;btn.textContent='Registrieren';return;}
-    const{data,error}=await supa.auth.signUp({email,password:pw,options:{data:{full_name:name,verein,mannschaft:mann}}});
+    const{data,error}=await supa.auth.signUp({
+      email,password:pw,
+      options:{
+        data:{full_name:name,verein,mannschaft:mann},
+        emailRedirectTo: window.location.origin+window.location.pathname
+      }
+    });
     btn.disabled=false;btn.textContent='Registrieren';
     if(error){showAuthErr(error.message);return;}
-    if(!data.session){showAuthErr('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen.',false);return;}
+    if(!data.session){
+      showAuthErr('✅ Registrierung erfolgreich! Bitte bestätige deine E-Mail-Adresse. Nach der Bestätigung wird dein Konto noch durch einen Administrator freigeschaltet – du erhältst dann Zugang zur App.',false);
+      return;
+    }
     await onAuth(data.session.user);
   } else {
     const{data,error}=await supa.auth.signInWithPassword({email,password:pw});
     btn.disabled=false;btn.textContent='Anmelden';
-    if(error){showAuthErr(error.message);return;}
+    if(error){
+      if(error.message.toLowerCase().includes('email not confirmed')||error.message.toLowerCase().includes('email_not_confirmed')){
+        showAuthErr('📧 E-Mail-Adresse noch nicht bestätigt. Bitte prüfe dein Postfach (auch Spam-Ordner) und klicke auf den Bestätigungslink.');
+      } else {
+        showAuthErr(error.message);
+      }
+      return;
+    }
     await onAuth(data.user);
   }
 }
@@ -1195,7 +1211,15 @@ async function onAuth(user){
   }
   currentProfile=profile;
   if(profile&&!profile.aktiv){
-    showAuthErr('Konto noch nicht aktiviert. Bitte wende dich an den Administrator.');
+    // Unterscheide: kam via E-Mail-Bestätigung (Hash in URL) oder normaler Login
+    const isFromEmailConfirm = window.location.hash.includes('access_token');
+    if(isFromEmailConfirm){
+      // Hash aus URL entfernen damit kein Loop entsteht
+      history.replaceState(null,'',window.location.pathname);
+      showAuthErr('✅ E-Mail-Adresse erfolgreich bestätigt! Dein Konto wird noch durch einen Administrator freigeschaltet. Du wirst per E-Mail informiert, sobald dein Zugang aktiviert ist.',false);
+    } else {
+      showAuthErr('⏳ Konto noch nicht aktiviert. Bitte wende dich an den Administrator.');
+    }
     await supa.auth.signOut(); currentUser=null; return;
   }
   document.getElementById('auth-screen').style.display='none';
@@ -2512,45 +2536,7 @@ async function confirmGameStart() {
 async function autoImportTickerActions(baseUrl, timerMode='manual') {
   setStatus('saving', 'Importiere Ticker…');
   try {
-    // Ticker laden — für abgelaufene Spiele als Fallback Basis-URL (Spielbericht) versuchen
-    let ticker;
-    try {
-      ticker = await hbnFetch(baseUrl + '/ticker', 'ticker');
-    } catch (tickerErr) {
-      // Fallback: Spielbericht-Seite enthält ebenfalls Ticker-Events
-      setStatus('saving', 'Ticker n/v – lade Spielbericht…');
-      const spielbericht = await hbnFetch(baseUrl, 'match');
-      ticker = {
-        type: 'ticker',
-        score_home: spielbericht.score_home,
-        score_away: spielbericht.score_away,
-        status: spielbericht.status || 'beendet',
-        events: spielbericht.ticker || [],
-        lastMinute: 0,
-      };
-      if (ticker.events.length) {
-        const withMin = ticker.events.filter(e => e.minute > 0);
-        if (withMin.length) ticker.lastMinute = Math.max(...withMin.map(e => e.minute));
-      }
-    }
-
-    // Debug-Output: immer in Konsole, hilft bei Diagnose
-    if (ticker._debug) {
-      console.group('[Ticker Debug]');
-      console.log('parseMethod:', ticker._debug.parseMethod);
-      console.log('scoreSource:', ticker._debug.scoreSource);
-      console.log('score_home:', ticker.score_home, '  score_away:', ticker.score_away);
-      console.log('eventCount:', ticker._debug.eventCount);
-      console.log('propsKeys:', ticker._debug.propsKeys);
-      console.log('matchKeys:', ticker._debug.matchKeys);
-      console.log('rawScore:', ticker._debug.rawScore);
-      console.log('rawMatchScore:', ticker._debug.rawMatchScore);
-      console.log('sampleEventText:', ticker._debug.sampleEventText);
-      console.log('sampleEvent:', ticker._debug.sampleEvent);
-      console.log('lastEvent:', ticker._debug.lastEvent);
-      console.groupEnd();
-      toast(`Debug: ${ticker._debug.eventCount} Events, Score-Quelle: ${ticker._debug.scoreSource}`, 'info');
-    }
+    const ticker = await hbnFetch(baseUrl + '/ticker', 'ticker');
 
     // Score übernehmen
     if (ticker.score_home !== undefined) {
@@ -2632,13 +2618,11 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
     if (sh) sh.textContent = spielMeta.score_home;
     if (sa) sa.textContent = spielMeta.score_away;
     renderLog();
-    if (typeof renderGrid === 'function') renderGrid();
+    renderGrid && typeof renderGrid === 'function' && renderGrid();
 
   } catch(e) {
     setStatus('err', 'Ticker-Fehler');
-    const msg = e?.message || String(e);
-    toast(`Ticker-Import fehlgeschlagen: ${msg}`, 'error');
-    console.error('[Ticker]', e);
+    toast('Ticker-Import fehlgeschlagen: ' + e.message, 'error');
   }
 }
 
@@ -2788,7 +2772,11 @@ function toast(msg,type='info'){
 supa.auth.getSession().then(({data:{session}})=>{
   if(session) onAuth(session.user);
 });
-supa.auth.onAuthStateChange((event)=>{
+supa.auth.onAuthStateChange((event,session)=>{
+  // Wird ausgelöst wenn User nach E-Mail-Bestätigung auf die App zurückgeleitet wird
+  if(event==='SIGNED_IN'&&session&&!currentUser){
+    onAuth(session.user);
+  }
   if(event==='SIGNED_OUT') location.reload();
 });
 </script>
