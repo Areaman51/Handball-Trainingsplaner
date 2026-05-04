@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260503.1600 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -354,6 +353,64 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .player-tile{min-width:90px;flex-shrink:0;flex-direction:column;align-items:flex-start;
     gap:3px;margin-bottom:0;}
 }
+
+/* ── MEIN TEAM WIDGET ── */
+.my-team-widget{
+  margin:12px 10px 4px;
+  background:rgba(0,87,255,.12);
+  border:1px solid rgba(0,87,255,.22);
+  border-radius:10px;
+  padding:10px 12px 10px;
+  cursor:pointer;
+  transition:background .15s;
+}
+.my-team-widget:hover{background:rgba(0,87,255,.18);}
+.mt-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.mt-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(255,255,255,.35);}
+.mt-cfg{font-size:11px;color:rgba(255,255,255,.3);transition:color .15s;}
+.my-team-widget:hover .mt-cfg{color:rgba(255,255,255,.6);}
+.mt-name{font-size:13px;font-weight:600;color:white;margin-bottom:8px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mt-name.empty{color:rgba(255,255,255,.3);font-weight:400;font-style:italic;}
+.mt-modes{display:flex;gap:4px;}
+.mt-mode-btn{flex:1;padding:4px 4px;border:1px solid rgba(255,255,255,.15);border-radius:6px;
+  background:transparent;color:rgba(255,255,255,.4);font-size:10px;font-weight:600;
+  cursor:pointer;transition:all .15s;text-align:center;font-family:inherit;}
+.mt-mode-btn:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);}
+.mt-mode-btn.active{background:var(--accent);border-color:var(--accent);
+  color:white;box-shadow:0 1px 4px rgba(0,87,255,.4);}
+
+/* ── KADER VIEW ── */
+.kader-hdr{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.kader-pos-toggle{display:flex;background:var(--bg);border-radius:8px;padding:3px;gap:3px;border:1px solid var(--border);}
+.kpt-btn{padding:5px 14px;border-radius:6px;border:none;background:transparent;
+  font-size:12px;font-weight:600;color:var(--soft);cursor:pointer;transition:all .15s;font-family:inherit;}
+.kpt-btn.active{background:white;color:var(--text);box-shadow:var(--shadow);}
+.kader-mode-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
+  border-radius:20px;font-size:11px;font-weight:600;}
+.kader-mode-badge.own{background:var(--accent-l);color:var(--accent);}
+.kader-mode-badge.opp{background:#fef3c7;color:#92400e;}
+.kader-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 20px;text-align:center;color:var(--soft);}
+.kader-empty-icon{font-size:36px;margin-bottom:12px;}
+.kader-player-row:hover td{background:var(--accent-l)!important;}
+.kader-rank{display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:50%;font-size:11px;font-weight:700;
+  background:var(--bg);color:var(--xsoft);}
+.kader-no-data{color:var(--xsoft);font-size:12px;text-align:center;padding:4px;}
+
+/* ── MODAL: MEIN TEAM CONFIG ── */
+.mannschaft-option{display:flex;align-items:center;gap:12px;padding:10px 14px;
+  border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;border-radius:0;}
+.mannschaft-option:first-child{border-radius:8px 8px 0 0;}
+.mannschaft-option:last-child{border-radius:0 0 8px 8px;border-bottom:none;}
+.mannschaft-option:hover{background:var(--accent-l);}
+.mannschaft-option.selected{background:var(--accent-l);outline:2px solid var(--accent);
+  outline-offset:-2px;border-radius:8px;}
+.mo-icon{width:34px;height:34px;border-radius:8px;background:var(--accent-l);
+  color:var(--accent);display:flex;align-items:center;justify-content:center;
+  font-size:15px;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -408,7 +465,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">Spielauswertung</div>
+        <div class="logo-sub">v1.260504.1900</div>
+      </div>
+    </div>
+
+    <!-- ── MEIN TEAM WIDGET ── -->
+    <div class="my-team-widget" id="my-team-widget" onclick="onMyTeamWidgetClick()">
+      <div class="mt-top">
+        <div class="mt-label">Mein Team</div>
+        <div class="mt-cfg" title="Konfigurieren" id="mt-cfg-icon">⚙</div>
+      </div>
+      <div class="mt-name empty" id="mt-name">Wird geladen…</div>
+      <div class="mt-modes" onclick="event.stopPropagation()">
+        <button class="mt-mode-btn active" id="mode-btn-own"
+          onclick="setAnalysisMode('own')">🏠 Mein Team</button>
+        <button class="mt-mode-btn" id="mode-btn-opp"
+          onclick="setAnalysisMode('opponent')">🔍 Gegner</button>
       </div>
     </div>
 
@@ -423,6 +495,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="sidebar-item" id="nav-statistik" onclick="showView('statistik')">
         <span class="si-icon">📊</span> Statistik
       </div>
+      <div class="sidebar-item" id="nav-kader" onclick="showView('kader')">
+        <span class="si-icon">📈</span> Langzeitstatistik
+      </div>
     </div>
 
     <div class="sidebar-section">
@@ -432,22 +507,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
     </div>
 
-    <div class="sidebar-section">
-      <div class="sidebar-label">Verwaltung</div>
-      <a class="sidebar-item" href="mannschaftsverwaltung.html" style="text-decoration:none;color:inherit;">
-        <span class="si-icon">🏃</span> Mannschaften
-      </a>
-    </div>
-
     <div class="sidebar-bottom">
       <a class="sidebar-link" href="index.html">
         <span>📅</span> Trainingsplaner
       </a>
+      <a class="sidebar-link" href="mannschaftsverwaltung.html">
+        <span>👥</span> Mannschaftsverwaltung
+      </a>
       <div class="sidebar-link" onclick="signOut()">
         <span>↩</span> Abmelden
       </div>
-    
-      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1600</div>
     </div>
   </aside>
 
@@ -506,51 +575,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <div class="page-title">Spielplan</div>
             <div class="page-subtitle">Spiele aus handball.net importieren</div>
           </div>
-          <a class="btn btn-ghost" href="mannschaftsverwaltung.html" style="font-size:12.5px;">🏃 Mannschaften verwalten</a>
         </div>
 
-        <!-- Team-Selector -->
+        <!-- iCal Import -->
         <div class="card" style="margin-bottom:18px;">
           <div class="card-body">
             <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
-              color:var(--xsoft);margin-bottom:10px;">🏃 Mannschaft</div>
-
-            <div id="sp-team-empty" style="display:none;padding:12px 0;font-size:13px;color:var(--soft);">
-              Noch keine Mannschaften angelegt. →
-              <a href="mannschaftsverwaltung.html" style="color:var(--accent);font-weight:600;">Zur Mannschaftsverwaltung</a>
-            </div>
-
-            <div id="sp-team-row" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-              <select class="form-select" id="sp-team-select" onchange="onTeamSelectChange()"
-                style="flex:1;min-width:180px;">
-                <option value="">– Mannschaft wählen –</option>
-              </select>
-              <button class="btn btn-ghost" onclick="reloadMannschaften()" title="Mannschaftsliste aktualisieren">🔄</button>
-            </div>
-
-            <!-- URL-Vorschau (readonly, aus Mannschaftsverwaltung) -->
-            <div id="sp-feed-preview" style="display:none;margin-bottom:12px;">
-              <div style="font-size:11.5px;color:var(--xsoft);margin-bottom:5px;">iCal-URL (aus Mannschaftsverwaltung):</div>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <code id="sp-feed-url-text" style="flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);
-                  border-radius:7px;font-size:11.5px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></code>
-                <button class="btn btn-ghost btn-sm" onclick="editFeedUrl()" title="URL manuell überschreiben">✏️</button>
-              </div>
-            </div>
-
-            <!-- Manueller URL-Eingang (Fallback / Überschreibung) -->
-            <div id="sp-manual-url" style="margin-bottom:12px;">
-              <div style="font-size:11.5px;color:var(--xsoft);margin-bottom:5px;">
-                iCal-URL manuell eingeben
-                <span id="sp-manual-hint" style="color:var(--accent);">(kein Feed in Mannschaftsverwaltung hinterlegt)</span>:
-              </div>
+              color:var(--xsoft);margin-bottom:10px;">📅 iCal / Spielplan-URL</div>
+            <p style="font-size:13px;color:var(--soft);margin-bottom:12px;line-height:1.6;">
+              Die iCal-URL deines Teams von handball.net einfügen. Du findest sie im Teambereich
+              unter <strong>Kalender-Export</strong> oder <strong>Abonnieren</strong>.
+              Das Format ist <code style="background:var(--bg);padding:1px 5px;border-radius:4px;
+              font-size:12px;">webcal://www.handball.net/…</code>
+            </p>
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
               <input class="form-input" id="sp-ical-main"
                 placeholder="webcal://www.handball.net/de/ical/team/12345"
-                style="margin:0;">
+                style="flex:1;">
+              <button class="btn btn-primary" id="sp-ical-main-btn"
+                onclick="loadIcalMain()">🔄 Laden</button>
             </div>
-
-            <div style="display:flex;gap:8px;">
-              <button class="btn btn-primary" id="sp-ical-main-btn" onclick="loadIcalMain()">🔄 Spielplan laden</button>
+            <div style="font-size:11.5px;color:var(--xsoft);">
+              Die URL wird lokal im Browser gespeichert und beim nächsten Besuch vorausgefüllt.
             </div>
           </div>
         </div>
@@ -559,8 +605,51 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div id="sp-ical-main-result"></div>
       </div>
 
+      <!-- ── KADER / LANGZEITSTATISTIK ── -->
+      <div class="view" id="view-kader">
+        <div class="page-header">
+          <div class="kader-hdr">
+            <div>
+              <div class="page-title">Langzeitstatistik</div>
+              <div class="page-subtitle" id="kader-subtitle">Saisonübersicht aller Spieler</div>
+            </div>
+            <div id="kader-mode-badge" class="kader-mode-badge own">🏠 Mein Team</div>
+            <div class="kader-pos-toggle">
+              <button class="kpt-btn active" id="kpt-fl" onclick="setKaderPos('FL')">▲ Feld</button>
+              <button class="kpt-btn" id="kpt-th" onclick="setKaderPos('TH')">● Tor</button>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="renderKaderView()">🔄</button>
+        </div>
+        <div id="kader-content"></div>
+      </div>
+
     </div><!-- /content -->
   </main>
+</div>
+
+<!-- ════ MODAL: Mein Team konfigurieren ════ -->
+<div class="overlay" id="m-myteam">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div>
+        <div class="modal-title">Mein Team</div>
+        <div class="modal-sub" id="mt-modal-sub">Mannschaft auswählen</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('m-myteam')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mt-mannschaft-list" style="border:1px solid var(--border);border-radius:8px;
+        max-height:300px;overflow-y:auto;margin-bottom:16px;">
+        <div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Lade…</div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;">
+        <a href="mannschaftsverwaltung.html" style="font-size:12px;color:var(--accent);
+          text-decoration:none;">Mannschaftsverwaltung ›</a>
+        <button class="btn btn-primary" onclick="saveMyTeamConfig()">Speichern</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ════ MODAL: Spiel anlegen / bearbeiten ════ -->
@@ -616,11 +705,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
 
       <hr class="form-divider">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;
           letter-spacing:.08em;color:var(--xsoft);">👥 Aufstellung</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn btn-ghost btn-sm" onclick="loadKaderFromDB()" title="Kader aus Mannschaftsverwaltung laden">📋 Kader laden</button>
+        <div style="display:flex;gap:6px;">
           <button class="btn btn-ghost btn-sm" onclick="addRosterRow('FL')">+ ▲ Feldspieler</button>
           <button class="btn btn-ghost btn-sm" onclick="addRosterRow('TH')">+ ● Torhüter</button>
         </div>
@@ -1121,7 +1209,6 @@ function openTimeModal() {
 // STATE
 // ════════════════════════════════════════════════════════════
 let currentUser = null, currentProfile = null;
-let allMannschaften = [];       // Mannschaften aus Supabase (zentral)
 let spiele = [];                // alle Spiele des Users
 let spielId = null;             // aktives Spiel
 let spielMeta = {};             // meta des aktiven Spiels
@@ -1236,51 +1323,10 @@ async function onAuth(user){
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').style.display='';
   document.getElementById('topbar-user').textContent=profile?.full_name||profile?.email||user.email;
-  // Mannschaften zentral laden
-  await reloadMannschaften();
   await loadSpiele();
+  initMyTeam();
   showView('spiele');
 }
-let mannschaftKalender = {};  // mannschaft_id → [{id,name,url,typ,aktiv}]
-
-/** Lädt alle Mannschaften + Kalender aus Supabase */
-async function reloadMannschaften(){
-  const { data, error } = await supa
-    .from('mannschaften')
-    .select('*')
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true });
-  if (error){ console.warn('Mannschaften laden:', error.message); return; }
-  allMannschaften = data || [];
-
-  if(allMannschaften.length){
-    const ids = allMannschaften.map(t=>t.id);
-    const { data: kal } = await supa
-      .from('mannschaft_kalender')
-      .select('*')
-      .in('mannschaft_id', ids)
-      .eq('aktiv', true)
-      .order('typ').order('sort_order').order('created_at');
-    mannschaftKalender = {};
-    (kal||[]).forEach(k=>{
-      if(!mannschaftKalender[k.mannschaft_id]) mannschaftKalender[k.mannschaft_id]=[];
-      mannschaftKalender[k.mannschaft_id].push(k);
-    });
-  }
-  renderSpielpanTeamSelector();
-}
-
-/** Aktualisiert den Team-Picker im Spielplan-View */
-function renderSpielpanTeamSelector(){
-  const sel = document.getElementById('sp-team-select');
-  if (!sel) return;
-  const current = sel.value;
-  sel.innerHTML = '<option value="">– Mannschaft wählen –</option>' +
-    allMannschaften.map(t =>
-      `<option value="${t.id}" ${t.id === current ? 'selected' : ''}>${t.name}${t.verein ? ' ('+t.verein+')' : ''}</option>`
-    ).join('');
-}
-
 async function signOut(){
   if(!confirm('Abmelden?')) return;
   await supa.auth.signOut();
@@ -1343,65 +1389,6 @@ async function openSpielModal(spId=null){
   }
   renderRosterTable();
   openModal('m-spiel');
-}
-
-/** Öffnet einen Mini-Dialog zur Kader-Auswahl aus der Mannschaftsverwaltung */
-async function loadKaderFromDB(){
-  if(!allMannschaften.length){
-    toast('Keine Mannschaften in der Mannschaftsverwaltung gefunden. Bitte zuerst anlegen.','error');
-    return;
-  }
-
-  // Inline-Picker bauen
-  const rw = document.getElementById('roster-wrap');
-  if(document.getElementById('kader-picker')) return; // schon offen
-
-  const opts = allMannschaften.map(t=>
-    `<option value="${t.id}">${t.name}${t.verein?' ('+t.verein+')':''}</option>`
-  ).join('');
-
-  const picker = document.createElement('div');
-  picker.id = 'kader-picker';
-  picker.style.cssText = 'margin-bottom:12px;padding:12px 14px;background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:9px;';
-  picker.innerHTML = `
-    <div style="font-size:12px;font-weight:600;color:#1e3a8a;margin-bottom:8px;">📋 Kader aus Mannschaftsverwaltung laden</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <select id="kader-picker-sel" style="flex:1;min-width:160px;padding:7px 10px;border:1.5px solid #bfdbfe;
-        border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;background:white;color:var(--text);outline:none;">
-        ${opts}
-      </select>
-      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--soft);cursor:pointer;">
-        <input type="checkbox" id="kader-picker-aktiv" checked> Nur aktive Spieler
-      </label>
-      <button class="btn btn-primary btn-sm" onclick="applyKaderFromDB()">Übernehmen</button>
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('kader-picker').remove()">×</button>
-    </div>`;
-  rw.insertAdjacentElement('beforebegin', picker);
-}
-
-async function applyKaderFromDB(){
-  const teamId = document.getElementById('kader-picker-sel')?.value;
-  const nurAktiv = document.getElementById('kader-picker-aktiv')?.checked ?? true;
-  if(!teamId) return;
-
-  let query = supa.from('mannschaft_spieler').select('*').eq('mannschaft_id', teamId).order('pos').order('nummer');
-  if(nurAktiv) query = query.eq('aktiv', true);
-  const { data, error } = await query;
-
-  if(error){ toast('Kader laden fehlgeschlagen: ' + error.message, 'error'); return; }
-  if(!data?.length){ toast('Keine Spieler für diese Mannschaft gefunden.', 'error'); return; }
-
-  // Aktuellen Kader ersetzen
-  editRoster = data.map(p => ({ id: null, num: p.nummer ?? '', name: p.name, pos: p.pos }));
-  renderRosterTable();
-
-  // Team-Name in "Meine Mannschaft" übertragen falls leer
-  const team = allMannschaften.find(t => t.id === teamId);
-  const heimInput = document.getElementById('sp-heim');
-  if(team && heimInput && !heimInput.value) heimInput.value = team.name;
-
-  document.getElementById('kader-picker')?.remove();
-  toast(`✅ ${data.length} Spieler übernommen`, 'success');
 }
 
 function addRosterRow(pos){
@@ -1541,16 +1528,23 @@ async function openLive(spId, skipWizard=false){
 
     // Wizard zeigen wenn:
     // a) nicht übersprungen UND
-    // b) hbn_url gesetzt UND
-    // c) noch kein Lineup ODER Spieler hat kein team-Flag (→ vor letzter Session angelegt)
-    const baseUrl = getBaseUrl(spielMeta.hbn_url);
-    // Wizard: nur beim allerersten Öffnen (kein Lineup) — nicht bei jedem Wiedereintritt
-    // skipWizard=true → immer direkt rein
-    // showWizard=true (explizit via Button) → immer Wizard
+    // b) noch kein Lineup
     const needsWizard = !skipWizard && lineup.length === 0;
-    console.log('[openLive] baseUrl:', baseUrl, '| lineup:', lineup.length, '| needsWizard:', needsWizard);
 
     if (needsWizard) {
+      // Auto-Link: hbn_url aus iCal-Spielplan ermitteln falls nicht vorhanden
+      let baseUrl = getBaseUrl(spielMeta.hbn_url);
+      if (!baseUrl) {
+        setStatus('saving', 'Suche Spiel in Spielplan…');
+        const linked = await autoLinkHbnUrl(spielMeta);
+        if (linked) {
+          baseUrl = getBaseUrl(linked);
+          toast('Spiel automatisch verknüpft ✓', 'success');
+        }
+        setStatus('ok', '');
+      } else {
+        baseUrl = getBaseUrl(spielMeta.hbn_url);
+      }
       showGameStartWizard(baseUrl);
       return;
     }
@@ -2166,11 +2160,566 @@ function setStatus(type,msg){
 }
 
 // ════════════════════════════════════════════════════════════
+// MEIN TEAM — Konfiguration & Analyse-Modus
+// ════════════════════════════════════════════════════════════
+
+let _myTeamName = '';
+let _myTeamId   = '';      // mannschaft_id
+let _myTeamIcal = '';      // gespeicherte iCal-URL
+let _analysisMode = 'own'; // 'own' | 'opponent'
+let _kaderPos = 'FL';      // 'FL' | 'TH' — aktive Position in Kader-View
+
+function initMyTeam() {
+  _myTeamName   = localStorage.getItem('hbs_my_team')          || '';
+  _myTeamId     = localStorage.getItem('hbs_my_mannschaft_id') || '';
+  _myTeamIcal   = localStorage.getItem('hbs_ical_url')         || '';
+  _analysisMode = localStorage.getItem('hbs_analysis_mode')    || 'own';
+  renderMyTeamWidget();
+  // Immer frisch aus Supabase abgleichen (async, blockiert nicht)
+  autoDetectTeam();
+}
+
+async function autoDetectTeam() {
+  if (!currentUser) return;
+  const { data, error } = await supa
+    .from('mannschaften')
+    .select('id,name,spielklasse,verein')
+    .eq('user_id', currentUser.id)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error || !data?.length) return;
+
+  if (data.length === 1) {
+    // Nur eine Mannschaft → automatisch setzen
+    _myTeamId   = data[0].id;
+    _myTeamName = data[0].name;
+    localStorage.setItem('hbs_my_team',          _myTeamName);
+    localStorage.setItem('hbs_my_mannschaft_id', _myTeamId);
+    renderMyTeamWidget();
+  } else if (!_myTeamId) {
+    // Mehrere Mannschaften, noch keine gewählt → Picker anbieten
+    // (Widget zeigt "Team auswählen…" und öffnet bei Klick den Picker)
+    window._availableMannschaften = data;
+    renderMyTeamWidget();
+  } else {
+    // Bereits gewählt — prüfen ob noch gültig, ggf. Namen aktualisieren
+    const current = data.find(m => m.id === _myTeamId);
+    if (current && current.name !== _myTeamName) {
+      _myTeamName = current.name;
+      localStorage.setItem('hbs_my_team', _myTeamName);
+      renderMyTeamWidget();
+    }
+    window._availableMannschaften = data;
+  }
+}
+
+function renderMyTeamWidget() {
+  const nameEl  = document.getElementById('mt-name');
+  const cfgIcon = document.getElementById('mt-cfg-icon');
+  const ownBtn  = document.getElementById('mode-btn-own');
+  const oppBtn  = document.getElementById('mode-btn-opp');
+  if (!nameEl) return;
+
+  const teams = window._availableMannschaften;
+  const multiTeam = teams && teams.length > 1;
+
+  if (_myTeamName) {
+    nameEl.textContent = _myTeamName;
+    nameEl.classList.remove('empty');
+    // ⚙ nur bei mehreren Mannschaften sichtbar
+    if (cfgIcon) cfgIcon.style.opacity = multiTeam ? '1' : '0.2';
+  } else {
+    nameEl.textContent = teams === undefined ? 'Wird geladen…' : 'Team auswählen…';
+    nameEl.classList.add('empty');
+    if (cfgIcon) cfgIcon.style.opacity = '1';
+  }
+
+  if (ownBtn && oppBtn) {
+    ownBtn.classList.toggle('active', _analysisMode === 'own');
+    oppBtn.classList.toggle('active', _analysisMode === 'opponent');
+  }
+}
+
+function onMyTeamWidgetClick() {
+  const teams = window._availableMannschaften;
+  // Nur öffnen wenn mehrere Mannschaften vorhanden oder noch keine gesetzt
+  if (!_myTeamId || (teams && teams.length > 1)) {
+    openMyTeamConfig();
+  }
+  // Bei genau einer Mannschaft und schon gesetzt: kein Klick-Action nötig
+}
+
+function setAnalysisMode(mode) {
+  _analysisMode = mode;
+  localStorage.setItem('hbs_analysis_mode', mode);
+  renderMyTeamWidget();
+  // Kader-Badge aktualisieren wenn View aktiv
+  const badge = document.getElementById('kader-mode-badge');
+  if (badge) {
+    badge.className = 'kader-mode-badge ' + (mode === 'own' ? 'own' : 'opp');
+    badge.textContent = mode === 'own' ? '🏠 Mein Team' : '🔍 Gegner';
+  }
+}
+
+function setKaderPos(pos) {
+  _kaderPos = pos;
+  document.getElementById('kpt-fl').classList.toggle('active', pos === 'FL');
+  document.getElementById('kpt-th').classList.toggle('active', pos === 'TH');
+  renderKaderView();
+}
+
+async function openMyTeamConfig() {
+  const sub = document.getElementById('mt-modal-sub');
+  const teams = window._availableMannschaften;
+  if (teams?.length === 1) {
+    if (sub) sub.textContent = 'Automatisch erkannt aus Mannschaftsverwaltung';
+  } else {
+    if (sub) sub.textContent = 'Mannschaft auswählen';
+  }
+  openModal('m-myteam');
+  await loadMannschaftenForConfig();
+}
+
+async function loadMannschaftenForConfig() {
+  const list = document.getElementById('mt-mannschaft-list');
+  // Gecachte Daten verwenden, sonst neu laden
+  let teams = window._availableMannschaften;
+  if (!teams) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Lade…</div>';
+    const { data, error } = await supa
+      .from('mannschaften')
+      .select('id,name,spielklasse,verein')
+      .eq('user_id', currentUser.id)
+      .order('sort_order', {ascending:true})
+      .order('created_at', {ascending:true});
+    teams = data || [];
+    window._availableMannschaften = teams;
+  }
+
+  if (!teams.length) {
+    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--soft);font-size:13px;">
+      Noch keine Mannschaften angelegt.<br>
+      <a href="mannschaftsverwaltung.html" style="color:var(--accent);text-decoration:none;margin-top:8px;display:inline-block;">Jetzt in Mannschaftsverwaltung anlegen ›</a>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = teams.map(m => `
+    <div class="mannschaft-option ${m.id === _myTeamId ? 'selected' : ''}"
+      onclick="selectMannschaftOption('${m.id}','${m.name.replace(/'/g,"\\'")}',this)">
+      <div class="mo-icon">🤾</div>
+      <div style="flex:1;">
+        <div style="font-size:13.5px;font-weight:600;">${m.name}</div>
+        ${m.verein||m.spielklasse ? `<div style="font-size:11.5px;color:var(--soft);">${[m.verein,m.spielklasse].filter(Boolean).join(' · ')}</div>` : ''}
+      </div>
+      ${m.id === _myTeamId ? '<div style="color:var(--accent);font-size:14px;">✓</div>' : ''}
+    </div>`).join('');
+}
+
+let _pendingTeamId = '';
+let _pendingTeamName = '';
+
+function selectMannschaftOption(id, name, el) {
+  _pendingTeamId   = id;
+  _pendingTeamName = name;
+  document.querySelectorAll('.mannschaft-option').forEach(o => {
+    o.classList.remove('selected');
+    const check = o.querySelector('[style*="accent"]');
+    if (check) check.remove();
+  });
+  el.classList.add('selected');
+  const chk = document.createElement('div');
+  chk.style.cssText = 'margin-left:auto;color:var(--accent);font-size:14px;';
+  chk.textContent = '✓';
+  el.appendChild(chk);
+}
+
+function saveMyTeamConfig() {
+  if (_pendingTeamId) {
+    _myTeamId   = _pendingTeamId;
+    _myTeamName = _pendingTeamName;
+    _pendingTeamId   = '';
+    _pendingTeamName = '';
+    localStorage.setItem('hbs_my_team',          _myTeamName);
+    localStorage.setItem('hbs_my_mannschaft_id', _myTeamId);
+  }
+  renderMyTeamWidget();
+  closeModal('m-myteam');
+  toast('Mein Team gespeichert ✓', 'success');
+}
+
+// ════════════════════════════════════════════════════════════
+// AUTO-LINK: iCal → hbn_url Matching
+// ════════════════════════════════════════════════════════════
+
+// Versucht, für ein Spiel ohne hbn_url die handball.net-URL aus
+// dem iCal-Spielplan automatisch zu ermitteln.
+// Gibt die baseUrl zurück (String) oder null.
+async function autoLinkHbnUrl(meta) {
+  if (!meta || !meta.datum) return null;
+  const icalUrl = _myTeamIcal || localStorage.getItem('hbs_ical_url');
+  if (!icalUrl) return null;
+
+  // Zuerst gecachten Spielplan prüfen
+  let games = window._icalGamesMain;
+
+  // Falls nicht geladen → jetzt laden (ohne UI-Update)
+  if (!games || !games.length) {
+    try {
+      const data = await hbnFetch(icalUrl, 'ical');
+      games = data.games || [];
+      window._icalGamesMain = games;
+    } catch (e) {
+      console.warn('[autoLink] iCal-Fetch fehlgeschlagen:', e.message);
+      return null;
+    }
+  }
+
+  // Match: Datum + (heim oder gast enthält meinen Team-Namen)
+  const teamLow = (_myTeamName || '').toLowerCase().trim();
+  const match = games.find(g => {
+    if (!g.datum || g.datum !== meta.datum) return false;
+    if (!teamLow) return true; // kein Teamname → nur Datum
+    const heimLow = (g.heim || '').toLowerCase();
+    const gastLow = (g.gast || '').toLowerCase();
+    return heimLow.includes(teamLow) || gastLow.includes(teamLow) ||
+           teamLow.includes(heimLow) || teamLow.includes(gastLow);
+  });
+
+  if (!match) return null;
+
+  const baseUrl = match.baseUrl ||
+    (match.url || '').replace(/\/(info|aufstellung|ticker|spielbericht|tabelle|halle)\/?$/, '').trim();
+  if (!baseUrl) return null;
+
+  // Persistieren
+  if (meta.id) {
+    await supa.from('spiele').update({ hbn_url: baseUrl, updated_at: new Date().toISOString() }).eq('id', meta.id);
+    spielMeta.hbn_url = baseUrl;
+    console.log('[autoLink] hbn_url gesetzt:', baseUrl);
+  }
+  return baseUrl;
+}
+
+// Wizard-Auto-Select: welche Seite ist mein Team?
+function guessMyTeamSide(heimName, gastName) {
+  if (!_myTeamName) return null;
+  const tl = _myTeamName.toLowerCase();
+  const hl = (heimName || '').toLowerCase();
+  const gl = (gastName || '').toLowerCase();
+  if (hl.includes(tl) || tl.includes(hl)) return 'home';
+  if (gl.includes(tl) || tl.includes(gl)) return 'away';
+  return null;
+}
+
+// ════════════════════════════════════════════════════════════
+// KADER & LANGZEITSTATISTIK VIEW
+// ════════════════════════════════════════════════════════════
+
+let _kaderCache = null; // { spieler, spieleMap, aktionenByPlayer }
+
+async function renderKaderView() {
+  const content = document.getElementById('kader-content');
+  const badge   = document.getElementById('kader-mode-badge');
+  if (!content) return;
+
+  // Mode-Badge aktualisieren
+  if (badge) {
+    badge.className = 'kader-mode-badge ' + (_analysisMode === 'own' ? 'own' : 'opp');
+    badge.textContent = _analysisMode === 'own' ? '🏠 Mein Team' : '🔍 Gegner';
+  }
+
+  // Kein Team konfiguriert
+  if (_analysisMode === 'own' && !_myTeamId) {
+    content.innerHTML = `<div class="kader-empty">
+      <div class="kader-empty-icon">👥</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:8px;">Noch kein Team konfiguriert</div>
+      <div style="font-size:13px;margin-bottom:16px;">Wähle zuerst deine Mannschaft aus,<br>um die Langzeitstatistik zu nutzen.</div>
+      <button class="btn btn-primary" onclick="openMyTeamConfig()">⚙ Mein Team konfigurieren</button>
+    </div>`;
+    return;
+  }
+
+  content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--xsoft);">⏳ Lade Daten…</div>';
+
+  try {
+    // ── 1. Kader aus Mannschaftsverwaltung ──
+    let kaderSpieler = [];
+    if (_analysisMode === 'own' && _myTeamId) {
+      const { data: ks } = await supa
+        .from('mannschaft_spieler')
+        .select('id,name,nummer,pos')
+        .eq('mannschaft_id', _myTeamId)
+        .order('pos', {ascending:true})
+        .order('nummer', {ascending:true,nullsFirst:false});
+      kaderSpieler = ks || [];
+    }
+
+    // ── 2. Alle Spiele des Users ──
+    const { data: spiele } = await supa
+      .from('spiele')
+      .select('id,heim,gast,datum,spielart,status,score_home,score_away')
+      .eq('user_id', currentUser.id);
+    const spieleMap = {};
+    (spiele || []).forEach(s => spieleMap[s.id] = s);
+
+    // ── 3. Alle Aktionen mit Lineup-Join ──
+    const { data: rawAkt } = await supa
+      .from('spielaktionen')
+      .select('id,type,polarity,spiel_id,spieler_id,spieler_lineup(name,nummer,pos,team)')
+      .eq('user_id', currentUser.id);
+
+    if (!rawAkt?.length) {
+      content.innerHTML = `<div class="kader-empty">
+        <div class="kader-empty-icon">📊</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:8px;">Noch keine Daten</div>
+        <div style="font-size:13px;">Erfasse zuerst Spiele mit Live-Erfassung.</div>
+      </div>`;
+      return;
+    }
+
+    // ── 4. Aktionen filtern: Mein Team vs. Gegner ──
+    // "Mein Team" = Lineup-Team entspricht der gespielten Spielart
+    // spielart 'heim'/'auswaerts' → team 'home'/'away'
+    const isMyTeamAktion = (akt) => {
+      const sp = spieleMap[akt.spiel_id];
+      if (!sp) return true;
+      const lineupTeam = akt.spieler_lineup?.team;
+      if (!lineupTeam) return true; // Altdaten ohne team-Feld → immer mein Team
+      const myLineupSide = sp.spielart === 'auswaerts' ? 'away' : 'home';
+      return _analysisMode === 'own'
+        ? lineupTeam === myLineupSide
+        : lineupTeam !== myLineupSide;
+    };
+
+    const filteredAkt = rawAkt.filter(isMyTeamAktion);
+
+    // ── 5. Nach Spieler gruppieren ──
+    const byPlayer = {}; // key = name|nummer
+
+    filteredAkt.forEach(a => {
+      const lu = a.spieler_lineup;
+      if (!lu) return;
+      const key = `${(lu.name||'').toLowerCase().trim()}|${lu.nummer||''}`;
+      if (!byPlayer[key]) {
+        byPlayer[key] = {
+          name: lu.name || '–',
+          nummer: lu.nummer || '',
+          pos: lu.pos || 'FL',
+          spiele: new Set(),
+          aktionen: [],
+          s: {}
+        };
+      }
+      byPlayer[key].spiele.add(a.spiel_id);
+      byPlayer[key].aktionen.push(a);
+      byPlayer[key].s[a.type] = (byPlayer[key].s[a.type] || 0) + 1;
+    });
+
+    // ── 6. Bei "Mein Team"-Modus: auf Kader-Spieler begrenzen / matchen ──
+    let playerList = [];
+
+    if (_analysisMode === 'own' && kaderSpieler.length) {
+      // Kader-Spieler mit gematchten Stats anreichern
+      playerList = kaderSpieler.map(ks => {
+        const nameLow = (ks.name || '').toLowerCase().trim();
+        // Match: Name UND/ODER Nummer
+        const entry = Object.values(byPlayer).find(p =>
+          p.name.toLowerCase().trim() === nameLow ||
+          (ks.nummer && p.nummer && String(p.nummer) === String(ks.nummer))
+        );
+        return {
+          name: ks.name,
+          nummer: ks.nummer || '',
+          pos: ks.pos || 'FL',
+          spiele: entry?.spiele?.size || 0,
+          s: entry?.s || {},
+          aktionen: entry?.aktionen || []
+        };
+      }).filter(p => _kaderPos === 'all' || p.pos === _kaderPos);
+    } else {
+      // Gegner-Modus oder kein Kader: alle gefilterten Spieler
+      playerList = Object.values(byPlayer)
+        .filter(p => _kaderPos === 'all' || p.pos === _kaderPos)
+        .map(p => ({ ...p, spiele: p.spiele.size }))
+        .sort((a,b) => {
+          // Nach Toren absteigend
+          const ta = (a.s.tor||0)+(a.s.tor_7m||0);
+          const tb = (b.s.tor||0)+(b.s.tor_7m||0);
+          return tb - ta;
+        });
+    }
+
+    if (!playerList.length) {
+      content.innerHTML = `<div class="kader-empty">
+        <div class="kader-empty-icon">🤷</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:8px;">Keine Daten für diese Auswahl</div>
+        <div style="font-size:13px;">Wechsle den Positionsfilter oder erfasse mehr Spiele.</div>
+      </div>`;
+      return;
+    }
+
+    // ── 7. Render ──
+    const seasonSpiele = new Set(filteredAkt.map(a => a.spiel_id)).size;
+    document.getElementById('kader-subtitle').textContent =
+      `${seasonSpiele} Spiel${seasonSpiele!==1?'e':''} · ${playerList.length} Spieler`;
+
+    if (_kaderPos === 'FL') {
+      content.innerHTML = renderKaderTableFL(playerList);
+    } else {
+      content.innerHTML = renderKaderTableTH(playerList);
+    }
+
+  } catch(e) {
+    console.error('[kader]', e);
+    content.innerHTML = `<div style="padding:20px;color:var(--red);">Fehler: ${e.message}</div>`;
+  }
+}
+
+function renderKaderTableFL(players) {
+  // Spieler ohne jegliche Daten ans Ende
+  const sorted = [...players].sort((a,b) => {
+    const totA = Object.values(a.s).reduce((s,v)=>s+v,0);
+    const totB = Object.values(b.s).reduce((s,v)=>s+v,0);
+    if (!totA && !totB) return 0;
+    if (!totA) return 1;
+    if (!totB) return -1;
+    // Nach HE% dann Tore
+    const tA=(a.s.tor||0)+(a.s.tor_7m||0), wA=tA+(a.s.fw||0)+(a.s.fw_7m||0);
+    const tB=(b.s.tor||0)+(b.s.tor_7m||0), wB=tB+(b.s.fw||0)+(b.s.fw_7m||0);
+    const heA=totA>0?(Object.entries(a.s).filter(([k])=>POL[k]>0).reduce((s,[,v])=>s+v,0)/totA):0;
+    const heB=totB>0?(Object.entries(b.s).filter(([k])=>POL[k]>0).reduce((s,[,v])=>s+v,0)/totB):0;
+    return heB-heA || tB-tA;
+  });
+
+  const rows = sorted.map((p,i) => {
+    const total = Object.values(p.s).reduce((s,v)=>s+v,0);
+    const plus = Object.entries(p.s).filter(([k])=>POL[k]>0).reduce((s,[,v])=>s+v,0);
+    const minus = Object.entries(p.s).filter(([k])=>POL[k]<0).reduce((s,[,v])=>s+v,0);
+    const tore = (p.s.tor||0)+(p.s.tor_7m||0);
+    const wuerfe = tore+(p.s.fw||0)+(p.s.fw_7m||0);
+    const he = total>0?Math.round(plus/total*100):null;
+    const wq = wuerfe>0?Math.round(tore/wuerfe*100):null;
+    const w = plus-minus;
+    const hasData = total > 0;
+    const bg = i%2===0?'':'background:rgba(0,0,0,.02);';
+    return `<tr class="kader-player-row" style="${bg}${!hasData?'opacity:.4;':''}">
+      <td><span class="kader-rank">${i+1}</span></td>
+      <td style="font-weight:600;white-space:nowrap;">
+        ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">#${p.nummer}</span>`:''}${p.name}
+      </td>
+      <td style="text-align:center;">${p.spiele||0}</td>
+      <td class="ve">${he!==null?he+'%':'—'}</td>
+      <td class="ve">${wq!==null?wq+'%':'—'}</td>
+      <td class="vp">${tore}</td>
+      <td>${p.s.tor_7m||0}</td>
+      <td>${p.s.assist||0}</td>
+      <td>${p.s['7m_g']||0}</td>
+      <td>${p.s['2min_p']||0}</td>
+      <td class="vp">+${plus}</td>
+      <td>${p.s.turnover||0}</td>
+      <td>${p.s.fw||0}</td>
+      <td>${p.s.fw_7m||0}</td>
+      <td>${p.s.tf||0}</td>
+      <td>${p.s.fp||0}</td>
+      <td>${p.s['1zu1']||0}</td>
+      <td>${p.s['7m_v']||0}</td>
+      <td>${p.s.rot||0}</td>
+      <td class="vn">-${minus}</td>
+      <td class="${w>=0?'vp':'vn'}">${w>0?'+':''}${w}</td>
+      <td style="color:var(--xsoft);">${total}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="stat-card">
+    <div class="tbl-wrap"><table class="stbl">
+      <thead><tr>
+        <th style="width:28px;">#</th>
+        <th class="ncol" style="min-width:140px;">Spieler</th>
+        <th title="Spiele">Sp</th>
+        <th title="Handlungseffektivität">HE%</th>
+        <th title="Wurfquote">WQ%</th>
+        <th>Tore</th><th>7m⚽</th><th>Asst</th><th>7m↑</th><th>2m↑</th>
+        <th class="vp">+</th>
+        <th>TO</th><th>FW</th><th>FW7</th><th>TF</th><th>FP</th><th>1:1</th><th>7m↓</th><th>2m↓</th>
+        <th class="vn">−</th><th>±</th><th>Akt</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function renderKaderTableTH(players) {
+  const sorted = [...players].sort((a,b) => {
+    const gA=(a.s.geh||0)+(a.s.geh_7m||0), kA=(a.s.kass||0)+(a.s.kass_7m||0);
+    const gB=(b.s.geh||0)+(b.s.kass_7m||0);  // intentional for sort
+    const shA=gA+kA, shB=(b.s.geh||0)+(b.s.geh_7m||0)+(b.s.kass||0)+(b.s.kass_7m||0);
+    const aqA=shA>0?gA/shA:0, aqB=shB>0?((b.s.geh||0)+(b.s.geh_7m||0))/shB:0;
+    return aqB-aqA;
+  });
+
+  const rows = sorted.map((p,i) => {
+    const total = Object.values(p.s).reduce((s,v)=>s+v,0);
+    const plus = Object.entries(p.s).filter(([k])=>POL[k]>0).reduce((s,[,v])=>s+v,0);
+    const minus = Object.entries(p.s).filter(([k])=>POL[k]<0).reduce((s,[,v])=>s+v,0);
+    const geh = (p.s.geh||0)+(p.s.geh_7m||0);
+    const kass = (p.s.kass||0)+(p.s.kass_7m||0);
+    const sh = geh+kass;
+    const aq = sh>0?Math.round(geh/sh*100):null;
+    const he = total>0?Math.round(plus/total*100):null;
+    const w = plus-minus;
+    const hasData = total > 0;
+    const bg = i%2===0?'':'background:rgba(0,0,0,.02);';
+    return `<tr class="kader-player-row" style="${bg}${!hasData?'opacity:.4;':''}">
+      <td><span class="kader-rank">${i+1}</span></td>
+      <td style="font-weight:600;white-space:nowrap;">
+        ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">●${p.nummer}</span>`:''}${p.name}
+      </td>
+      <td style="text-align:center;">${p.spiele||0}</td>
+      <td class="ve">${he!==null?he+'%':'—'}</td>
+      <td class="ve">${aq!==null?aq+'%':'—'}</td>
+      <td class="vp">${geh}</td>
+      <td>${p.s.geh_7m||0}</td>
+      <td class="vn">${kass}</td>
+      <td>${p.s.kass_7m||0}</td>
+      <td>${p.s.assist||0}</td>
+      <td>${p.s['2min_p']||0}</td>
+      <td class="vp">+${plus}</td>
+      <td>${p.s.turnover||0}</td>
+      <td>${p.s.tf||0}</td>
+      <td>${p.s.fp||0}</td>
+      <td>${p.s['7m_v']||0}</td>
+      <td>${p.s.rot||0}</td>
+      <td class="vn">-${minus}</td>
+      <td class="${w>=0?'vp':'vn'}">${w>0?'+':''}${w}</td>
+      <td style="color:var(--xsoft);">${total}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="stat-card">
+    <div class="tbl-wrap"><table class="stbl">
+      <thead><tr>
+        <th style="width:28px;">#</th>
+        <th class="ncol" style="min-width:140px;">Torhüter</th>
+        <th title="Spiele">Sp</th>
+        <th>HE%</th><th title="Abwehrquote">AQ%</th>
+        <th>Geh.</th><th>7m🧤</th><th>Kass.</th><th>7m💥</th><th>Asst</th><th>2m↑</th>
+        <th class="vp">+</th>
+        <th>TO</th><th>TF</th><th>FP</th><th>7m↓</th><th>2m↓</th>
+        <th class="vn">−</th><th>±</th><th>Akt</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════════════════
 const VIEW_TITLES={
   spiele:'Meine Spiele',live:'Live-Erfassung',
-  statistik:'Statistik',spielplan:'Spielplan – handball.net'
+  statistik:'Statistik',spielplan:'Spielplan – handball.net',
+  kader:'Langzeitstatistik'
 };
 function showView(id){
   // Ticker stoppen wenn Live-View verlassen wird
@@ -2182,89 +2731,17 @@ function showView(id){
   if(navEl) navEl.classList.add('active');
   document.getElementById('topbar-title-text').textContent=VIEW_TITLES[id]||'';
   if(id==='statistik') renderStatistik();
+  if(id==='kader') renderKaderView();
   if(id==='spielplan'){
-    // Team-Selector befüllen und passenden Feed vorab laden
-    renderSpielpanTeamSelector();
-    const teamCount = allMannschaften.length;
-    document.getElementById('sp-team-empty').style.display = teamCount ? 'none' : '';
-    document.getElementById('sp-team-row').style.display   = teamCount ? '' : 'none';
-    // Manuelles Feld: zeige wenn kein Team ausgewählt oder kein Feed vorhanden
-    onTeamSelectChange(true);
+    // URL aus localStorage vorausfüllen
+    const saved=localStorage.getItem('hbs_ical_url');
+    if(saved) document.getElementById('sp-ical-main').value=saved;
   }
 }
 
 // ════════════════════════════════════════════════════════════
 // SPIELPLAN VIEW — iCal Hauptlader
 // ════════════════════════════════════════════════════════════
-
-/** Reagiert auf Auswahl im Team-Picker */
-function onTeamSelectChange(silent = false){
-  const sel    = document.getElementById('sp-team-select');
-  const teamId = sel ? sel.value : '';
-  const team   = allMannschaften.find(t => t.id === teamId);
-
-  // Kalender des Teams filtern: spiele + pokal (nicht training)
-  const spielKalender = (mannschaftKalender[teamId]||[])
-    .filter(k=>k.typ==='spiele'||k.typ==='pokal');
-
-  // Legacy-Fallback: ical_spiele direkt aus Mannschaft
-  const legacyUrl = team?.ical_spiele||'';
-
-  const previewEl = document.getElementById('sp-feed-preview');
-  const manualEl  = document.getElementById('sp-manual-url');
-  const hintEl    = document.getElementById('sp-manual-hint');
-  const input     = document.getElementById('sp-ical-main');
-  const urlText   = document.getElementById('sp-feed-url-text');
-
-  if (spielKalender.length > 0) {
-    // Kalender aus Mannschaftsverwaltung → Dropdown anzeigen wenn mehrere
-    if (spielKalender.length === 1) {
-      if(urlText) urlText.textContent = spielKalender[0].url;
-      if(previewEl) previewEl.style.display = '';
-      if(manualEl)  manualEl.style.display  = 'none';
-      if(input)     input.value             = spielKalender[0].url;
-    } else {
-      // Mehrere Kalender → Picker rendern
-      if(previewEl) previewEl.style.display = 'none';
-      if(manualEl) {
-        manualEl.style.display = '';
-        manualEl.innerHTML = `
-          <div style="font-size:11.5px;color:var(--xsoft);margin-bottom:5px;">Kalender aus Mannschaftsverwaltung:</div>
-          <select class="form-select" id="sp-kal-select" onchange="document.getElementById('sp-ical-main').value=this.value" style="margin-bottom:0;">
-            ${spielKalender.map(k=>`<option value="${k.url}">${k.name} (${k.typ})</option>`).join('')}
-          </select>`;
-        if(input) input.value = spielKalender[0].url;
-        // Verstecke altes manuelles Eingabefeld
-        const inputEl = document.getElementById('sp-ical-main');
-        if(inputEl) inputEl.style.display = 'none';
-      }
-    }
-  } else if(legacyUrl) {
-    if(urlText) urlText.textContent = legacyUrl;
-    if(previewEl) previewEl.style.display = '';
-    if(manualEl)  manualEl.style.display  = 'none';
-    if(input)     input.value             = legacyUrl;
-  } else {
-    if(previewEl) previewEl.style.display = 'none';
-    if(manualEl)  manualEl.style.display  = '';
-    if(hintEl)    hintEl.style.display    = teamId ? '' : 'none';
-    if(!silent && input && !input.value){
-      const saved = localStorage.getItem('hbs_ical_url');
-      if(saved) input.value = saved;
-    }
-  }
-}
-
-/** Ermöglicht manuelle URL-Überschreibung wenn Feed-Vorschau angezeigt wird */
-function editFeedUrl(){
-  const previewEl = document.getElementById('sp-feed-preview');
-  const manualEl  = document.getElementById('sp-manual-url');
-  const hintEl    = document.getElementById('sp-manual-hint');
-  if (previewEl) previewEl.style.display = 'none';
-  if (manualEl)  manualEl.style.display  = '';
-  if (hintEl)    hintEl.style.display    = 'none';
-}
-
 async function loadIcalMain(){
   const url=document.getElementById('sp-ical-main').value.trim();
   if(!url){toast('Bitte iCal-URL eingeben','error');return;}
@@ -2447,8 +2924,23 @@ async function showGameStartWizard(baseUrl) {
     if (bodyEl) bodyEl.innerHTML = renderWizardBody(data, hCount, gCount);
     if (footerEl) footerEl.style.display = '';
 
+    // Auto-Select: Mein Team erkennen und vorauswählen
+    const autoSide = guessMyTeamSide(data.heim || spielMeta.heim, data.gast || spielMeta.gast);
+    if (autoSide) {
+      selectWizardTeam(autoSide);
+      // Visuelles Badge auf der auto-gewählten Karte
+      const cardEl = document.getElementById('wc-' + autoSide);
+      if (cardEl) {
+        const badge = document.createElement('div');
+        badge.style.cssText = 'display:inline-block;margin-bottom:6px;padding:2px 8px;' +
+          'border-radius:12px;background:var(--accent);color:white;font-size:10px;font-weight:700;';
+        badge.textContent = '★ Mein Team';
+        cardEl.insertBefore(badge, cardEl.firstChild);
+      }
+    }
+
     const confirmBtn = document.getElementById('gs-confirm');
-    if (confirmBtn) confirmBtn.disabled = true;
+    if (confirmBtn) confirmBtn.disabled = !autoSide; // freigeben wenn auto-erkannt
 
   } catch(e) {
     console.error('[wizard] Fehler beim Laden:', e);
