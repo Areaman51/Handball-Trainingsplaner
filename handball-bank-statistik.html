@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260503.1400 -->
+<!-- Handball Coaching Tools v1.260503.1600 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -447,7 +447,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
     
-      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1400</div>
+      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1600</div>
     </div>
   </aside>
 
@@ -1241,7 +1241,9 @@ async function onAuth(user){
   await loadSpiele();
   showView('spiele');
 }
-/** Lädt alle Mannschaften aus Supabase (zentraler Cache) */
+let mannschaftKalender = {};  // mannschaft_id → [{id,name,url,typ,aktiv}]
+
+/** Lädt alle Mannschaften + Kalender aus Supabase */
 async function reloadMannschaften(){
   const { data, error } = await supa
     .from('mannschaften')
@@ -1250,6 +1252,21 @@ async function reloadMannschaften(){
     .order('created_at', { ascending: true });
   if (error){ console.warn('Mannschaften laden:', error.message); return; }
   allMannschaften = data || [];
+
+  if(allMannschaften.length){
+    const ids = allMannschaften.map(t=>t.id);
+    const { data: kal } = await supa
+      .from('mannschaft_kalender')
+      .select('*')
+      .in('mannschaft_id', ids)
+      .eq('aktiv', true)
+      .order('typ').order('sort_order').order('created_at');
+    mannschaftKalender = {};
+    (kal||[]).forEach(k=>{
+      if(!mannschaftKalender[k.mannschaft_id]) mannschaftKalender[k.mannschaft_id]=[];
+      mannschaftKalender[k.mannschaft_id].push(k);
+    });
+  }
   renderSpielpanTeamSelector();
 }
 
@@ -2182,32 +2199,58 @@ function showView(id){
 
 /** Reagiert auf Auswahl im Team-Picker */
 function onTeamSelectChange(silent = false){
-  const sel  = document.getElementById('sp-team-select');
+  const sel    = document.getElementById('sp-team-select');
   const teamId = sel ? sel.value : '';
   const team   = allMannschaften.find(t => t.id === teamId);
-  const feedUrl = team?.ical_spiele || '';
 
-  const previewEl   = document.getElementById('sp-feed-preview');
-  const manualEl    = document.getElementById('sp-manual-url');
-  const hintEl      = document.getElementById('sp-manual-hint');
-  const urlText     = document.getElementById('sp-feed-url-text');
-  const input       = document.getElementById('sp-ical-main');
+  // Kalender des Teams filtern: spiele + pokal (nicht training)
+  const spielKalender = (mannschaftKalender[teamId]||[])
+    .filter(k=>k.typ==='spiele'||k.typ==='pokal');
 
-  if (feedUrl) {
-    // Team hat Feed hinterlegt → Vorschau zeigen, Manuell ausblenden
-    urlText.textContent = feedUrl;
-    if (previewEl) previewEl.style.display = '';
-    if (manualEl)  manualEl.style.display  = 'none';
-    if (input)     input.value             = feedUrl;
+  // Legacy-Fallback: ical_spiele direkt aus Mannschaft
+  const legacyUrl = team?.ical_spiele||'';
+
+  const previewEl = document.getElementById('sp-feed-preview');
+  const manualEl  = document.getElementById('sp-manual-url');
+  const hintEl    = document.getElementById('sp-manual-hint');
+  const input     = document.getElementById('sp-ical-main');
+  const urlText   = document.getElementById('sp-feed-url-text');
+
+  if (spielKalender.length > 0) {
+    // Kalender aus Mannschaftsverwaltung → Dropdown anzeigen wenn mehrere
+    if (spielKalender.length === 1) {
+      if(urlText) urlText.textContent = spielKalender[0].url;
+      if(previewEl) previewEl.style.display = '';
+      if(manualEl)  manualEl.style.display  = 'none';
+      if(input)     input.value             = spielKalender[0].url;
+    } else {
+      // Mehrere Kalender → Picker rendern
+      if(previewEl) previewEl.style.display = 'none';
+      if(manualEl) {
+        manualEl.style.display = '';
+        manualEl.innerHTML = `
+          <div style="font-size:11.5px;color:var(--xsoft);margin-bottom:5px;">Kalender aus Mannschaftsverwaltung:</div>
+          <select class="form-select" id="sp-kal-select" onchange="document.getElementById('sp-ical-main').value=this.value" style="margin-bottom:0;">
+            ${spielKalender.map(k=>`<option value="${k.url}">${k.name} (${k.typ})</option>`).join('')}
+          </select>`;
+        if(input) input.value = spielKalender[0].url;
+        // Verstecke altes manuelles Eingabefeld
+        const inputEl = document.getElementById('sp-ical-main');
+        if(inputEl) inputEl.style.display = 'none';
+      }
+    }
+  } else if(legacyUrl) {
+    if(urlText) urlText.textContent = legacyUrl;
+    if(previewEl) previewEl.style.display = '';
+    if(manualEl)  manualEl.style.display  = 'none';
+    if(input)     input.value             = legacyUrl;
   } else {
-    // Kein Feed → manuelles Eingabefeld
-    if (previewEl) previewEl.style.display = 'none';
-    if (manualEl)  manualEl.style.display  = '';
-    if (hintEl)    hintEl.style.display    = teamId ? '' : 'none';
-    // Fallback: gespeicherte URL aus localStorage
-    if (!silent && input && !input.value) {
+    if(previewEl) previewEl.style.display = 'none';
+    if(manualEl)  manualEl.style.display  = '';
+    if(hintEl)    hintEl.style.display    = teamId ? '' : 'none';
+    if(!silent && input && !input.value){
       const saved = localStorage.getItem('hbs_ical_url');
-      if (saved) input.value = saved;
+      if(saved) input.value = saved;
     }
   }
 }

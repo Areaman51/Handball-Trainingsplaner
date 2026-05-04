@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260503.1400 -->
+<!-- Handball Coaching Tools v1.260503.1600 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -753,7 +753,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;" onclick="resetSession()"><span>↺</span> Reset</div>
       <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;color:rgba(255,100,100,.7);" onclick="signOut()"><span>⏻</span></div>
     </div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1400</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1600</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -3619,7 +3619,9 @@ let allMannschaften   = [];   // in-memory cache, befüllt nach Login
 /** Synchroner Accessor – gibt den aktuellen Cache zurück */
 function loadMannschaften(){ return allMannschaften; }
 
-/** Lädt alle Mannschaften aus Supabase und füllt den Cache */
+let mannschaftKalender = {};  // mannschaft_id → [{id,name,url,typ,aktiv}]
+
+/** Lädt alle Mannschaften + zugehörige Kalender aus Supabase */
 async function reloadMannschaften(){
   const { data, error } = await supa
     .from('mannschaften')
@@ -3628,6 +3630,22 @@ async function reloadMannschaften(){
     .order('created_at', { ascending: true });
   if (error){ console.warn('Mannschaften laden:', error.message); return; }
   allMannschaften = data || [];
+
+  // Kalender aller sichtbaren Mannschaften laden
+  if(allMannschaften.length){
+    const ids = allMannschaften.map(t=>t.id);
+    const { data: kal } = await supa
+      .from('mannschaft_kalender')
+      .select('*')
+      .in('mannschaft_id', ids)
+      .eq('aktiv', true)
+      .order('sort_order').order('created_at');
+    mannschaftKalender = {};
+    (kal||[]).forEach(k=>{
+      if(!mannschaftKalender[k.mannschaft_id]) mannschaftKalender[k.mannschaft_id]=[];
+      mannschaftKalender[k.mannschaft_id].push(k);
+    });
+  }
 }
 
 // ── Modal: Mannschaften (Lesemodus + Link zur Verwaltung) ──────────
@@ -3688,47 +3706,16 @@ const CORS_FALLBACKS = [
 ];
 
 async function fetchICalFeed(url){
-  // webcal:// → https:// normalisieren (handball.net liefert webcal-Links)
+  // webcal:// → https:// normalisieren
   url = url.replace(/^webcal:\/\//i, 'https://');
-
-  // Erst Supabase Edge Function versuchen
-  try {
-    const {data:{session}} = await supa.auth.getSession();
-    if(session?.access_token){
-      const res = await fetch(ICAL_PROXY_URL+'?url='+encodeURIComponent(url),{
-        headers:{'Authorization':'Bearer '+session.access_token},
-        signal:AbortSignal.timeout(12000)
-      });
-      if(res.ok){
-        const text = await res.text();
-        if(text.includes('BEGIN:VCALENDAR')) return parseICal(text);
-      }
-      // Edge Function gibt Fehler zurück — Meldung ausgeben statt lautlos fallback
-      if(res.status===404){
-        console.warn('Edge Function nicht gefunden – falle auf CORS-Proxies zurück. Bitte ical-proxy deployen.');
-      } else {
-        let msg='HTTP '+res.status;
-        try{const j=await res.json();msg=j.error||msg;}catch(_){}
-        // Bei klarem Fehler (Auth, Domain, etc.) sofort werfen, kein Fallback
-        if(res.status===401||res.status===403||res.status===422) throw new Error(msg);
-        console.warn('Edge Function Fehler: '+msg+' – versuche Fallback');
-      }
-    }
-  } catch(e){
-    if(e.message&&(e.message.includes('Nicht')||e.message.includes('erlaubt')||e.message.includes('gültig')))
-      throw e; // Echte Fehler direkt weiterwerfen
-    console.warn('Edge Function nicht erreichbar: '+e.message);
-  }
-
-  // Fallback: öffentliche CORS-Proxies (funktioniert ohne Edge Function)
+  // Direkt CORS-Proxies (Edge Function ical-proxy noch nicht deployed)
   let lastErr;
   for(const proxy of CORS_FALLBACKS){
     try{
-      const res = await fetch(proxy+encodeURIComponent(url),{signal:AbortSignal.timeout(8000)});
+      const res = await fetch(proxy+encodeURIComponent(url),{signal:AbortSignal.timeout(10000)});
       if(!res.ok) throw new Error('HTTP '+res.status);
       const text = await res.text();
       if(!text.includes('BEGIN:VCALENDAR')) throw new Error('Kein gültiger iCal-Feed');
-      console.info('iCal via Fallback-Proxy geladen: '+proxy);
       return parseICal(text);
     }catch(e){lastErr=e;}
   }
@@ -3779,19 +3766,26 @@ async function refreshAllFeeds(){
   const newEvents=[];
   let ok=0,fail=0;
   for(const t of teams){
-    if(t.ical_training){
+    const kalender=(mannschaftKalender[t.id]||[]);
+    // Fallback: ical_training/ical_spiele direkt aus Mannschaft (Legacy)
+    const feeds=kalender.length ? kalender : [
+      ...(t.ical_training?[{url:t.ical_training,typ:'training',name:'Training'}]:[]),
+      ...(t.ical_spiele  ?[{url:t.ical_spiele,  typ:'spiele',  name:'Spielplan'}]:[]),
+    ];
+    for(const k of feeds){
       try{
-        const evs=await fetchICalFeed(t.ical_training);
-        evs.forEach(e=>newEvents.push({...e,mannschaftId:t.id,mannschaftName:t.name,typ:'training',farbe_geplant:t.farbe_geplant,farbe_ungeplant:t.farbe_ungeplant}));
+        const evs=await fetchICalFeed(k.url);
+        evs.forEach(e=>newEvents.push({
+          ...e,
+          mannschaftId:t.id,
+          mannschaftName:t.name,
+          kalenderName:k.name,
+          typ:k.typ==='training'?'training':'spiel',
+          farbe_geplant:t.farbe_geplant,
+          farbe_ungeplant:t.farbe_ungeplant
+        }));
         ok++;
-      }catch(e){fail++;console.warn('Feed Training '+t.name+': '+e.message);}
-    }
-    if(t.ical_spiele){
-      try{
-        const evs=await fetchICalFeed(t.ical_spiele);
-        evs.forEach(e=>newEvents.push({...e,mannschaftId:t.id,mannschaftName:t.name,typ:'spiel',farbe_geplant:t.farbe_geplant,farbe_ungeplant:t.farbe_ungeplant}));
-        ok++;
-      }catch(e){fail++;console.warn('Feed Spiele '+t.name+': '+e.message);}
+      }catch(e){fail++;console.warn(`Feed ${k.name} (${t.name}): ${e.message}`);}
     }
   }
   icalEvents=newEvents;
