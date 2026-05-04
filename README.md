@@ -1,7 +1,7 @@
 # 🤾 Handball Trainingsmanager
 
 > Browserbasiertes Coaching-Tool für Handball-Trainer nach DHB-Standard.
-> Entwickelt als vollständiger Ersatz für kommerzielle Software wie XPS Sideline –
+> Entwickelt als vollständiger Ersatz für kommerzielle Software –
 > kostenlos, ohne Installation, läuft direkt im Browser.
 
 ---
