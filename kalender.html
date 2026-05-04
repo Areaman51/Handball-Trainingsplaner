@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>📅 Kalender</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f2f4f8;--white:#fff;--sidebar:#141820;--sidebar-h:#1e2535;
+  --accent:#0057ff;--accent-l:#e6eeff;
+  --text:#111827;--soft:#6b7280;--xsoft:#9ca3af;--border:#e5e7eb;
+  --shadow:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.14);--radius:12px;
+  --green:#15803d;--green-l:#f0fdf4;
+  --red:#dc2626;--red-l:#fee2e2;
+  --orange:#ea580c;--yellow:#d97706;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{overflow-x:hidden;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── AUTH ── */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);}
+.auth-card{background:var(--white);border-radius:16px;padding:36px 32px;width:360px;
+  box-shadow:var(--shadow-lg);}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:24px;}
+.auth-logo-icon{width:36px;height:36px;background:var(--accent);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;color:white;}
+.auth-logo-text{font-size:16px;font-weight:700;}
+.auth-tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);}
+.auth-tab{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:600;
+  color:var(--soft);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;}
+.auth-tab.active{color:var(--accent);border-color:var(--accent);}
+.form-label{font-size:12px;font-weight:600;color:var(--soft);display:block;margin-bottom:4px;}
+.form-input{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+  font-size:13.5px;font-family:'DM Sans',sans-serif;transition:border-color .15s;outline:none;}
+.form-input:focus{border-color:var(--accent);}
+.form-group{margin-bottom:14px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;
+  font-size:13.5px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;
+  border:none;transition:all .15s;}
+.btn-primary{background:var(--accent);color:white;}
+.btn-primary:hover{background:#0045cc;}
+.btn-ghost{background:transparent;color:var(--text);border:1.5px solid var(--border);}
+.btn-ghost:hover{background:var(--bg);}
+.btn-sm{padding:6px 12px;font-size:12.5px;}
+.auth-error{color:var(--red);font-size:12.5px;margin-top:8px;display:none;}
+.auth-error.show{display:block;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;min-height:100vh;background:var(--sidebar);display:flex;
+  flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;}
+.sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06);
+  display:flex;align-items:center;gap:10px;}
+.logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:white;flex-shrink:0;}
+.logo-text{color:white;font-size:14px;font-weight:600;}
+.logo-sub{color:rgba(255,255,255,.35);font-size:10px;margin-top:1px;}
+.sidebar-section{padding:14px 10px 4px;}
+.sidebar-label{font-size:9.5px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.25);
+  text-transform:uppercase;padding:0 8px;margin-bottom:4px;}
+.sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;
+  color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;transition:all .15s;text-decoration:none;}
+.sidebar-item:hover{background:var(--sidebar-h);color:rgba(255,255,255,.8);}
+.sidebar-item.active{background:rgba(0,87,255,.18);color:white;font-weight:500;}
+.sidebar-item .si-icon{font-size:15px;flex-shrink:0;}
+.sidebar-bottom{margin-top:auto;padding:12px 10px;border-top:1px solid rgba(255,255,255,.06);}
+.sidebar-link{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;
+  color:rgba(255,255,255,.35);font-size:12px;cursor:pointer;transition:all .15s;text-decoration:none;}
+.sidebar-link:hover{color:rgba(255,255,255,.6);background:var(--sidebar-h);}
+.sync-btn{display:flex;align-items:center;gap:7px;padding:9px 10px;border-radius:7px;
+  color:rgba(255,255,255,.55);font-size:12.5px;cursor:pointer;transition:all .15s;
+  border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);margin:8px 10px;}
+.sync-btn:hover{background:rgba(255,255,255,.08);color:white;}
+.sync-btn.spinning .sync-icon{animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.sync-icon{font-size:14px;display:inline-block;}
+
+/* ── MAIN ── */
+.main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;}
+.topbar{height:52px;background:var(--white);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 24px;gap:16px;position:sticky;top:0;z-index:10;}
+.topbar-title{font-size:14px;font-weight:600;flex:1;}
+.topbar-user{font-size:12px;color:var(--soft);}
+.content{padding:24px;flex:1;}
+
+/* ── KALENDER HEADER ── */
+.kal-nav{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+.kal-monat{font-size:20px;font-weight:700;flex:1;}
+.kal-nav-btn{width:32px;height:32px;border-radius:8px;border:1.5px solid var(--border);
+  background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:16px;transition:all .15s;}
+.kal-nav-btn:hover{background:var(--accent-l);border-color:var(--accent);}
+.kal-today-btn{padding:6px 14px;border-radius:8px;border:1.5px solid var(--border);
+  background:var(--white);cursor:pointer;font-size:12.5px;font-weight:600;
+  color:var(--soft);font-family:'DM Sans',sans-serif;transition:all .15s;}
+.kal-today-btn:hover{background:var(--accent-l);border-color:var(--accent);color:var(--accent);}
+
+/* ── GRID ── */
+.kal-wrap{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);
+  overflow:hidden;margin-bottom:24px;}
+.kal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);
+  border-bottom:1px solid var(--border);}
+.kal-wday{padding:8px 4px;text-align:center;font-size:11px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--xsoft);}
+.kal-wday:last-child{color:#ef4444;}
+.kal-grid{display:grid;grid-template-columns:repeat(7,1fr);}
+.kal-cell{min-height:88px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+  padding:5px 4px;cursor:pointer;transition:background .1s;position:relative;overflow:hidden;}
+.kal-cell:nth-child(7n){border-right:none;}
+.kal-cell:hover{background:#f8faff;}
+.kal-cell.today{background:#eff6ff;}
+.kal-cell.sunday .kal-day-num{color:#ef4444;}
+.kal-cell.empty{background:#fafafa;cursor:default;}
+.kal-cell.empty:hover{background:#fafafa;}
+.kal-day-num{width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;font-size:12px;font-weight:500;margin-bottom:2px;}
+.kal-cell.today .kal-day-num{background:var(--accent);color:white;font-weight:700;}
+.kal-event{display:block;margin-top:2px;padding:1px 5px;border-radius:3px;font-size:9px;
+  font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;
+  color:white;transition:opacity .1s;}
+.kal-event:hover{opacity:.85;}
+.kal-event.spiel{border-left:2px solid rgba(0,0,0,.2);}
+.kal-more{font-size:9px;color:var(--xsoft);padding:1px 4px;margin-top:1px;}
+
+/* ── EVENT LIST ── */
+.kal-list-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);
+  overflow:hidden;margin-bottom:24px;}
+.kal-list-hdr{display:flex;align-items:center;gap:12px;padding:14px 18px;
+  border-bottom:1px solid var(--border);}
+.kal-list-title{font-size:13px;font-weight:700;flex:1;}
+.kal-list-item{display:flex;align-items:center;gap:12px;padding:11px 18px;
+  border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
+.kal-list-item:last-child{border-bottom:none;}
+.kal-list-item:hover{background:var(--accent-l);}
+.kal-list-item.no-action{cursor:default;}
+.kal-list-item.no-action:hover{background:transparent;}
+.kli-bar{width:4px;border-radius:2px;align-self:stretch;flex-shrink:0;min-height:36px;}
+.kli-date{width:36px;text-align:center;flex-shrink:0;}
+.kli-day{font-size:16px;font-weight:700;line-height:1;}
+.kli-wd{font-size:10px;color:var(--xsoft);font-weight:500;}
+.kli-info{flex:1;min-width:0;}
+.kli-name{font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kli-sub{font-size:11.5px;color:var(--soft);margin-top:1px;}
+.kli-arrow{color:var(--xsoft);font-size:13px;flex-shrink:0;}
+.kli-badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;
+  font-weight:700;margin-left:6px;}
+.badge-planned{background:var(--green-l);color:var(--green);}
+.badge-open{background:var(--bg);color:var(--xsoft);}
+.badge-live{background:#fef3c7;color:#92400e;}
+.badge-done{background:var(--green-l);color:var(--green);}
+.badge-game{background:#fef3c7;color:#92400e;}
+
+/* ── LEGEND ── */
+.kal-legend{display:flex;flex-wrap:wrap;gap:10px 18px;padding:12px 18px;
+  background:var(--white);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:24px;}
+.kal-leg-item{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--soft);}
+.kal-leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+
+/* ── EMPTY ── */
+.kal-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 20px;text-align:center;color:var(--soft);}
+.kal-empty-icon{font-size:40px;margin-bottom:14px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;
+  transition:transform .25s,opacity .25s;opacity:0;pointer-events:none;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.toast.success{background:var(--green);color:white;}
+.toast.error{background:var(--red);color:white;}
+.toast.info{background:#1e2535;color:white;}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;
+  display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.overlay.open{opacity:1;pointer-events:all;}
+.modal{background:white;border-radius:16px;width:420px;max-width:92vw;
+  box-shadow:var(--shadow-lg);overflow:hidden;}
+.modal-hdr{padding:20px 22px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;justify-content:space-between;}
+.modal-title{font-size:16px;font-weight:700;}
+.modal-sub{font-size:12.5px;color:var(--soft);margin-top:2px;}
+.modal-close{width:28px;height:28px;border-radius:6px;border:none;background:var(--bg);
+  cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.modal-body{padding:20px 22px;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+
+@media(max-width:640px){
+  .sidebar{display:none;}
+  .main{margin-left:0;}
+  .content{padding:14px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ AUTH ═══ -->
+<div id="auth-screen">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">📅</div>
+        <div style="font-weight:700;font-size:15px;">Kalender</div>
+      </div>
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tab-login" onclick="switchAuth('login')">Anmelden</div>
+        <div class="auth-tab" id="tab-register" onclick="switchAuth('register')">Registrieren</div>
+      </div>
+      <div id="auth-extra" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Vollständiger Name</label>
+          <input class="form-input" id="a-name" placeholder="Max Mustermann">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Verein</label>
+          <input class="form-input" id="a-verein" placeholder="HT Norderstedt">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mannschaft</label>
+          <input class="form-input" id="a-mannschaft" placeholder="Frauen Oberliga">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">E-Mail</label>
+        <input class="form-input" id="a-email" type="email" placeholder="trainer@verein.de">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Passwort</label>
+        <input class="form-input" id="a-pw" type="password" placeholder="••••••••">
+      </div>
+      <div class="auth-error" id="auth-error"></div>
+      <button class="btn btn-primary" id="auth-btn" onclick="authSubmit()"
+        style="width:100%;justify-content:center;margin-top:4px;">Anmelden</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app" style="display:none">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">📅</div>
+      <div>
+        <div class="logo-text">Kalender</div>
+        <div class="logo-sub">v1.260504.1900</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Navigation</div>
+      <div class="sidebar-item active" id="nav-kalender">
+        <span class="si-icon">📅</span> Kalender
+      </div>
+      <a class="sidebar-item" href="index.html">
+        <span class="si-icon">🏋</span> Trainingsplaner
+      </a>
+      <a class="sidebar-item" href="handball-bank-statistik.html">
+        <span class="si-icon">📊</span> Bank-Statistik
+      </a>
+      <a class="sidebar-item" href="mannschaftsverwaltung.html">
+        <span class="si-icon">👥</span> Mannschaftsverwaltung
+      </a>
+    </div>
+
+    <button class="sync-btn" onclick="syncFeeds()" id="sync-btn" title="iCal-Feeds aktualisieren">
+      <span class="sync-icon" id="sync-icon">🔄</span>
+      <span>Feeds synchronisieren</span>
+    </button>
+
+    <div class="sidebar-bottom">
+      <div class="sidebar-link" onclick="signOut()">
+        <span>↩</span> Abmelden
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title">Kalender</div>
+      <div class="topbar-user" id="topbar-user"></div>
+    </div>
+    <div class="content">
+
+      <!-- NAVIGATION -->
+      <div class="kal-nav">
+        <button class="kal-nav-btn" onclick="kalNav(-1)">‹</button>
+        <div class="kal-monat" id="kal-monat">…</div>
+        <button class="kal-today-btn" onclick="goToday()">Heute</button>
+        <button class="kal-nav-btn" onclick="kalNav(1)">›</button>
+      </div>
+
+      <!-- GRID -->
+      <div class="kal-wrap">
+        <div class="kal-weekdays">
+          <div class="kal-wday">Mo</div><div class="kal-wday">Di</div>
+          <div class="kal-wday">Mi</div><div class="kal-wday">Do</div>
+          <div class="kal-wday">Fr</div><div class="kal-wday">Sa</div>
+          <div class="kal-wday" style="color:#ef4444;">So</div>
+        </div>
+        <div class="kal-grid" id="kal-grid"></div>
+      </div>
+
+      <!-- LEGEND -->
+      <div class="kal-legend" id="kal-legend" style="display:none;"></div>
+
+      <!-- LIST -->
+      <div class="kal-list-card">
+        <div class="kal-list-hdr">
+          <div class="kal-list-title">📋 Monatsübersicht</div>
+        </div>
+        <div id="kal-list"></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ═══ MODAL: Spiel-Statistik anlegen ═══ -->
+<div class="overlay" id="m-spiel">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div>
+        <div class="modal-title" id="ms-title">Spiel</div>
+        <div class="modal-sub" id="ms-sub">–</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('m-spiel')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--accent-l);border:1px solid #c7d2fe;border-radius:10px;
+        padding:14px 16px;font-size:13.5px;line-height:1.6;color:#1e40af;">
+        Für dieses Spiel wurde noch keine Statistik angelegt.<br>
+        Soll jetzt eine Statistik in der Bank-Statistik erstellt werden?
+      </div>
+      <div id="ms-meta" style="margin-top:14px;font-size:12.5px;color:var(--soft);line-height:1.8;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('m-spiel')">Abbrechen</button>
+      <button class="btn btn-primary" id="ms-open-btn">📊 Statistik anlegen</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════════════════════════════
+const SUPA_URL = 'https://dlofjsmnkwltuutpxoer.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let currentUser = null;
+let kalDate     = new Date();
+let allMannschaften = [];
+let mannschaftKalender = {};   // mannschaft_id → [{url,typ,name}]
+let icalEvents  = [];           // geparste iCal-Events (gecacht)
+let icalLoaded  = false;
+
+const WOCHENTAGE = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+const MONATE = ['Januar','Februar','März','April','Mai','Juni',
+                'Juli','August','September','Oktober','November','Dezember'];
+
+// ════════════════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════════════════
+let authMode = 'login';
+function switchAuth(m){
+  authMode = m;
+  document.getElementById('tab-login').classList.toggle('active', m==='login');
+  document.getElementById('tab-register').classList.toggle('active', m==='register');
+  document.getElementById('auth-btn').textContent = m==='login' ? 'Anmelden' : 'Registrieren';
+  document.getElementById('auth-extra').style.display = m==='register' ? '' : 'none';
+  document.getElementById('auth-error').classList.remove('show');
+}
+function showAuthErr(msg){
+  const el=document.getElementById('auth-error');
+  el.textContent=msg; el.classList.add('show');
+}
+async function authSubmit(){
+  const email=document.getElementById('a-email').value.trim();
+  const pw=document.getElementById('a-pw').value;
+  const btn=document.getElementById('auth-btn');
+  if(!email||!pw){showAuthErr('Bitte E-Mail und Passwort eingeben.');return;}
+  btn.textContent='⏳…'; btn.disabled=true;
+  let error;
+  if(authMode==='register'){
+    const name=document.getElementById('a-name').value.trim();
+    const verein=document.getElementById('a-verein').value.trim();
+    const mann=document.getElementById('a-mannschaft').value.trim();
+    ({error}=await supa.auth.signUp({email,password:pw,options:{data:{full_name:name,verein,mannschaft:mann}}}));
+  } else {
+    ({error}=await supa.auth.signInWithPassword({email,password:pw}));
+  }
+  btn.disabled=false; btn.textContent=authMode==='login'?'Anmelden':'Registrieren';
+  if(error){showAuthErr(error.message);return;}
+  if(authMode==='register') showAuthErr('Bestätigungs-E-Mail wurde gesendet.');
+}
+async function signOut(){
+  if(!confirm('Abmelden?')) return;
+  await supa.auth.signOut(); location.reload();
+}
+
+async function onAuth(user){
+  currentUser = user;
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  // Profil-Name laden
+  const {data:p} = await supa.from('profiles').select('full_name,email').eq('id',user.id).maybeSingle();
+  document.getElementById('topbar-user').textContent = p?.full_name || p?.email || user.email;
+  // Mannschaften + iCal laden
+  await loadMannschaften();
+  await syncFeeds();
+  renderKalender();
+}
+
+// ════════════════════════════════════════════════════════════
+// MANNSCHAFTEN & KALENDER-FEEDS
+// ════════════════════════════════════════════════════════════
+async function loadMannschaften(){
+  const {data,error} = await supa.from('mannschaften').select('*')
+    .order('sort_order',{ascending:true}).order('created_at',{ascending:true});
+  if(error){console.warn('Mannschaften:',error.message);return;}
+  allMannschaften = data || [];
+
+  if(allMannschaften.length){
+    const ids = allMannschaften.map(t=>t.id);
+    const {data:kal} = await supa.from('mannschaft_kalender').select('*')
+      .in('mannschaft_id',ids).eq('aktiv',true).order('sort_order').order('created_at');
+    mannschaftKalender = {};
+    (kal||[]).forEach(k=>{
+      if(!mannschaftKalender[k.mannschaft_id]) mannschaftKalender[k.mannschaft_id]=[];
+      mannschaftKalender[k.mannschaft_id].push(k);
+    });
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// iCAL FETCH & PARSE
+// ════════════════════════════════════════════════════════════
+const CORS_PROXIES = [
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/raw?url=',
+];
+
+async function fetchICalFeed(url){
+  url = url.replace(/^webcal:\/\//i, 'https://');
+  for(const proxy of CORS_PROXIES){
+    try{
+      const res = await fetch(proxy+encodeURIComponent(url),{signal:AbortSignal.timeout(10000)});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const text = await res.text();
+      if(!text.includes('BEGIN:VCALENDAR')) throw new Error('Kein iCal');
+      return parseICal(text);
+    }catch(e){console.warn('Proxy fehlgeschlagen:',e.message);}
+  }
+  throw new Error('Feed nicht abrufbar');
+}
+
+function parseICal(text){
+  const unfolded = text.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const events = [];
+  const blocks = unfolded.split('BEGIN:VEVENT');
+  for(let i=1;i<blocks.length;i++){
+    const block = blocks[i].split('END:VEVENT')[0];
+    const ev = {};
+    block.split('\n').forEach(line=>{
+      const sep = line.indexOf(':'); if(sep<0) return;
+      const key = line.slice(0,sep).split(';')[0].trim().toUpperCase();
+      const val = line.slice(sep+1).trim();
+      if(key==='SUMMARY')  ev.summary  = val.replace(/\\n/g,' ').replace(/\\,/g,',');
+      if(key==='DTSTART')  ev.dtstart  = parseICalDate(val);
+      if(key==='DTEND')    ev.dtend    = parseICalDate(val);
+      if(key==='UID')      ev.uid      = val;
+      if(key==='LOCATION') ev.location = val.replace(/\\n/g,', ').replace(/\\,/g,',');
+      if(key==='URL')      ev.url      = val.trim();
+    });
+    if(ev.dtstart) events.push(ev);
+  }
+  return events;
+}
+
+function parseICalDate(s){
+  s = s.replace('Z','');
+  if(s.includes('T')){
+    return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(9,11)}:${s.slice(11,13)}:00`);
+  }
+  return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);
+}
+
+function toDateStr(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function toTimeStr(d){ return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function pad(n){ return String(n).padStart(2,'0'); }
+
+// Heim/Gast aus SUMMARY parsen (handball.net: "Heim - Gast")
+function parseSummary(summary=''){
+  const sep = summary.indexOf(' - ');
+  if(sep>0) return { heim: summary.slice(0,sep).trim(), gast: summary.slice(sep+3).trim() };
+  return { heim: summary, gast: '' };
+}
+
+// Base-URL (ohne /info, /aufstellung etc.)
+function getBaseUrl(url=''){
+  return url.replace(/\/(info|aufstellung|ticker|spielbericht|tabelle|halle)\/?$/,'').trim();
+}
+
+async function syncFeeds(){
+  const btn = document.getElementById('sync-btn');
+  const icon = document.getElementById('sync-icon');
+  if(btn) btn.classList.add('spinning');
+  const newEvents = [];
+  let ok=0, fail=0;
+  for(const t of allMannschaften){
+    const feeds = (mannschaftKalender[t.id]||[]);
+    const legacyFeeds = [
+      ...(t.ical_training ? [{url:t.ical_training,typ:'training',name:'Training'}]:[]),
+      ...(t.ical_spiele   ? [{url:t.ical_spiele,  typ:'spiel',   name:'Spielplan'}]:[]),
+    ];
+    const allFeeds = feeds.length ? feeds : legacyFeeds;
+    for(const f of allFeeds){
+      try{
+        const evs = await fetchICalFeed(f.url);
+        const isSpiel = (f.typ==='spiel'||f.typ==='spiele');
+        evs.forEach(e=>newEvents.push({
+          ...e,
+          mannschaftId:   t.id,
+          mannschaftName: t.name,
+          feedName:       f.name,
+          typ:            isSpiel ? 'spiel' : 'training',
+          farbe_geplant:  t.farbe_geplant  || '#0057ff',
+          farbe_ungeplant:t.farbe_ungeplant || '#94a3b8',
+        }));
+        ok++;
+      }catch(e){fail++;console.warn(`Feed ${f.name}: ${e.message}`);}
+    }
+  }
+  icalEvents = newEvents;
+  icalLoaded = true;
+  if(btn) btn.classList.remove('spinning');
+  const total = newEvents.length;
+  if(allMannschaften.length){
+    toast(fail>0 ? `⚠ ${ok} Feeds geladen, ${fail} Fehler` : `✅ ${total} Termine geladen`, fail>0?'info':'success');
+  }
+  renderKalender();
+}
+
+// ════════════════════════════════════════════════════════════
+// KALENDER RENDER
+// ════════════════════════════════════════════════════════════
+function kalNav(dir){ kalDate.setMonth(kalDate.getMonth()+dir); renderKalender(); }
+function goToday(){ kalDate = new Date(); renderKalender(); }
+
+async function renderKalender(){
+  const year  = kalDate.getFullYear();
+  const month = kalDate.getMonth();
+  document.getElementById('kal-monat').textContent = MONATE[month]+' '+year;
+
+  const from = `${year}-${pad(month+1)}-01`;
+  const daysInMonth = new Date(year,month+1,0).getDate();
+  const to   = `${year}-${pad(month+1)}-${pad(daysInMonth)}`;
+  const today = new Date();
+
+  // ── Supabase-Einheiten ──
+  let einheitenMap = {};
+  if(currentUser){
+    const {data:ein} = await supa.from('einheiten')
+      .select('id,name,date,time,group_name,drills').eq('user_id',currentUser.id)
+      .gte('date',from).lte('date',to);
+    (ein||[]).forEach(e=>{
+      const d = parseInt(e.date?.split('-')[2]||0);
+      if(d){if(!einheitenMap[d])einheitenMap[d]=[];einheitenMap[d].push(e);}
+    });
+  }
+
+  // ── Supabase-Spiele ──
+  let spieleMap = {};
+  let spieleLookup = {};   // datum → [spiel]
+  if(currentUser){
+    const {data:sp} = await supa.from('spiele')
+      .select('id,heim,gast,datum,uhrzeit,spielart,status,hbn_url').eq('user_id',currentUser.id)
+      .gte('datum',from).lte('datum',to);
+    (sp||[]).forEach(s=>{
+      const d = parseInt(s.datum?.split('-')[2]||0);
+      if(d){if(!spieleMap[d])spieleMap[d]=[];spieleMap[d].push(s);}
+      if(!spieleLookup[s.datum]) spieleLookup[s.datum]=[];
+      spieleLookup[s.datum].push(s);
+    });
+  }
+
+  // ── iCal nach Datum gruppieren ──
+  const icalMap = {};
+  icalEvents.forEach(ev=>{
+    if(!ev.dtstart) return;
+    if(ev.dtstart.getFullYear()!==year||ev.dtstart.getMonth()!==month) return;
+    const d = ev.dtstart.getDate();
+    if(!icalMap[d]) icalMap[d]=[];
+    icalMap[d].push(ev);
+  });
+
+  // ── Grid ──
+  const grid = document.getElementById('kal-grid');
+  grid.innerHTML = '';
+  const firstDay = new Date(year,month,1).getDay();
+  const offset   = firstDay===0 ? 6 : firstDay-1;
+  const teams    = allMannschaften;
+
+  for(let i=0;i<offset;i++){
+    const cell=document.createElement('div');
+    cell.className='kal-cell empty';
+    grid.appendChild(cell);
+  }
+
+  for(let day=1;day<=daysInMonth;day++){
+    const cell = document.createElement('div');
+    const dateStr = `${year}-${pad(month+1)}-${pad(day)}`;
+    const isToday = today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===day;
+    const dow = (offset+day-1)%7; // 0=Mo…6=So
+    const isSun = dow===6;
+    cell.className = 'kal-cell'+(isToday?' today':'')+(isSun?' sunday':'');
+
+    // Tagnummer
+    const dayNum = document.createElement('div');
+    dayNum.className='kal-day-num';
+    dayNum.textContent=day;
+    cell.appendChild(dayNum);
+
+    // Klick auf leeren Tag → neue Einheit anlegen
+    cell.onclick=()=>{ window.location.href=`index.html?date=${dateStr}`; };
+
+    const einheiten = einheitenMap[day]||[];
+    const spiele    = spieleMap[day]||[];
+    const icalDay   = icalMap[day]||[];
+
+    // Supabase-Einheiten
+    einheiten.forEach(e=>{
+      const drillsArr = Array.isArray(e.drills)?e.drills:(typeof e.drills==='string'?JSON.parse(e.drills||'[]'):[]);
+      const isPlanned = drillsArr.length>0;
+      const team = teams.find(t=>t.name===e.group_name);
+      const bg = isPlanned?(team?.farbe_geplant||'#0057ff'):(team?.farbe_ungeplant||'#94a3b8');
+      addEventDot(cell,{
+        label:(e.time?e.time.slice(0,5)+' ':'')+( e.name||'Einheit'),
+        title:(isPlanned?'✅':'⬜')+' '+e.name+(e.group_name?' · '+e.group_name:''),
+        bg, cls:'training-supabase',
+        onclick:(ev)=>{ev.stopPropagation();navigateToTraining(e.id);}
+      });
+    });
+
+    // Supabase-Spiele
+    spiele.forEach(s=>{
+      const bg = teams.find(t=>t.name===s.heim||t.name===s.gast)?.farbe_geplant||'#d97706';
+      addEventDot(cell,{
+        label:'🏆 '+(s.uhrzeit?s.uhrzeit.slice(0,5)+' ':'')+s.heim+' – '+s.gast,
+        title:`Spiel: ${s.heim} vs. ${s.gast} · ${statusLabel(s.status)}`,
+        bg, cls:'spiel',
+        onclick:(ev)=>{ev.stopPropagation();navigateToSpiel(s);}
+      });
+    });
+
+    // iCal-Events (nur wenn kein Supabase-Pendant)
+    icalDay.forEach(ev=>{
+      const isSpiel = ev.typ==='spiel';
+      const time = ev.dtstart?toTimeStr(ev.dtstart):'';
+
+      if(!isSpiel){
+        // Trainings-iCal: Supabase-Einheit gleicher Mannschaft vorhanden?
+        const exists = einheiten.find(e=>e.group_name===ev.mannschaftName);
+        if(exists) return;
+        addEventDot(cell,{
+          label:(time?time+' ':'')+ev.summary,
+          title:'🏋 iCal: '+ev.summary+(ev.location?' · '+ev.location:''),
+          bg:ev.farbe_ungeplant, cls:'training-ical',
+          style:'opacity:.75',
+          onclick:(ev2)=>{ev2.stopPropagation();navigateToIcalTraining(ev,dateStr);}
+        });
+      } else {
+        // Spiel-iCal: Supabase-Spiel für dieses Datum + Mannschaft vorhanden?
+        const icalBase = getBaseUrl(ev.url||'');
+        const exists = spieleLookup[dateStr]?.find(s=>
+          (icalBase && s.hbn_url && getBaseUrl(s.hbn_url)===icalBase) ||
+          (s.heim&&ev.summary.includes(s.heim)) ||
+          (s.gast&&ev.summary.includes(s.gast))
+        );
+        if(exists) return;
+        addEventDot(cell,{
+          label:'🏆 '+(time?time+' ':'')+ev.summary,
+          title:'Spiel (noch ohne Statistik): '+ev.summary,
+          bg:'#d97706', cls:'spiel',
+          onclick:(ev2)=>{ev2.stopPropagation();confirmSpielAnlegen(ev,dateStr,time);}
+        });
+      }
+    });
+
+    grid.appendChild(cell);
+  }
+
+  // ── Monatsliste ──
+  renderList(year, month, einheitenMap, spieleMap, icalMap, spieleLookup);
+
+  // ── Legende ──
+  renderLegend(teams);
+}
+
+function addEventDot(cell, {label,title,bg,cls,style='',onclick}){
+  const maxVisible = 3;
+  const existing = cell.querySelectorAll('.kal-event').length;
+  if(existing>=maxVisible){
+    let more = cell.querySelector('.kal-more');
+    if(!more){more=document.createElement('div');more.className='kal-more';cell.appendChild(more);}
+    const count = parseInt(more.dataset.count||0)+1;
+    more.dataset.count=count;
+    more.textContent=`+${count} weitere`;
+    return;
+  }
+  const dot = document.createElement('div');
+  dot.className='kal-event '+(cls||'');
+  dot.style.background=bg;
+  if(style) dot.style.cssText+=style;
+  dot.textContent=label;
+  dot.title=title;
+  dot.onclick=onclick;
+  cell.appendChild(dot);
+}
+
+function statusLabel(status){
+  if(status==='live') return '🔴 Live';
+  if(status==='fertig') return '✅ Fertig';
+  return '📋 Geplant';
+}
+
+function renderList(year,month,einheitenMap,spieleMap,icalMap,spieleLookup){
+  const liste = document.getElementById('kal-list');
+  const teams = allMannschaften;
+  const items = [];
+
+  // Supabase-Einheiten
+  Object.values(einheitenMap).flat().forEach(e=>{
+    const drillsArr=Array.isArray(e.drills)?e.drills:(typeof e.drills==='string'?JSON.parse(e.drills||'[]'):[]);
+    const isPlanned=drillsArr.length>0;
+    const team=teams.find(t=>t.name===e.group_name);
+    const bg=isPlanned?(team?.farbe_geplant||'#0057ff'):(team?.farbe_ungeplant||'#94a3b8');
+    const day=parseInt(e.date?.split('-')[2]||0);
+    items.push({
+      sortKey:e.date+(e.time||''),day,
+      html:listItem({
+        bg,day,wd:WOCHENTAGE[new Date(e.date+'T00:00:00').getDay()],
+        name:e.name||'Einheit',
+        sub:(e.time?e.time.slice(0,5)+' Uhr · ':'')+( e.group_name||''),
+        badge:isPlanned?'<span class="kli-badge badge-planned">✅ geplant</span>':'<span class="kli-badge badge-open">⬜ ungeplant</span>',
+        onclick:`navigateToTraining('${e.id}')`,icon:'🏋'
+      })
+    });
+  });
+
+  // Supabase-Spiele
+  Object.values(spieleMap).flat().forEach(s=>{
+    const day=parseInt(s.datum?.split('-')[2]||0);
+    const teamColor=teams.find(t=>t.name===s.heim||t.name===s.gast)?.farbe_geplant||'#d97706';
+    const statusBadge=s.status==='live'?'<span class="kli-badge badge-live">🔴 Live</span>':
+                       s.status==='fertig'?'<span class="kli-badge badge-done">✅ Fertig</span>':'<span class="kli-badge badge-game">🏆 Spiel</span>';
+    items.push({
+      sortKey:s.datum+(s.uhrzeit||''),day,
+      html:listItem({
+        bg:teamColor,day,wd:WOCHENTAGE[new Date(s.datum+'T00:00:00').getDay()],
+        name:s.heim+' – '+s.gast,
+        sub:(s.uhrzeit?s.uhrzeit.slice(0,5)+' Uhr · ':'')+'Spiel'+statusBadge,
+        badge:'',onclick:`navigateToSpiel(${JSON.stringify(s).replace(/"/g,"'")})`,icon:'🏆'
+      })
+    });
+  });
+
+  // iCal-Events
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  for(let day=1;day<=daysInMonth;day++){
+    const dateStr=`${year}-${pad(month+1)}-${pad(day)}`;
+    (icalMap[day]||[]).forEach(ev=>{
+      const isSpiel=ev.typ==='spiel';
+      const time=ev.dtstart?toTimeStr(ev.dtstart):'';
+      if(!isSpiel){
+        const exists=Object.values(einheitenMap).flat().find(e=>e.group_name===ev.mannschaftName&&e.date===dateStr);
+        if(exists) return;
+        items.push({
+          sortKey:dateStr+(time||''),day,
+          html:listItem({
+            bg:ev.farbe_ungeplant,day,wd:WOCHENTAGE[new Date(dateStr+'T00:00:00').getDay()],
+            name:ev.summary,
+            sub:(time?time+' Uhr · ':'')+ev.mannschaftName+'<span class="kli-badge badge-open">⬜ ungeplant</span>',
+            badge:'',onclick:`navigateToIcalTraining(null,'${dateStr}')`,icon:'🏋',
+            data:`data-ical='${JSON.stringify({summary:ev.summary,mannschaftName:ev.mannschaftName,time}).replace(/'/g,"&#39;")}' onclick="navigateToIcalTrainingInline(this,'${dateStr}')"`
+          })
+        });
+      } else {
+        const icalBase=getBaseUrl(ev.url||'');
+        const exists=spieleLookup[dateStr]?.find(s=>
+          (icalBase&&s.hbn_url&&getBaseUrl(s.hbn_url)===icalBase)||
+          (s.heim&&ev.summary.includes(s.heim))||(s.gast&&ev.summary.includes(s.gast))
+        );
+        if(exists) return;
+        const evJson=JSON.stringify({summary:ev.summary,url:ev.url||'',location:ev.location||'',mannschaftName:ev.mannschaftName}).replace(/'/g,'&#39;');
+        items.push({
+          sortKey:dateStr+(time||''),day,
+          html:`<div class="kal-list-item" onclick="confirmSpielAnlegenFromData('${evJson}','${dateStr}','${time}')">
+            <div class="kli-bar" style="background:#d97706;"></div>
+            <div class="kli-date"><div class="kli-day">${day}</div><div class="kli-wd">${WOCHENTAGE[new Date(dateStr+'T00:00:00').getDay()]}</div></div>
+            <div class="kli-info">
+              <div class="kli-name">🏆 ${ev.summary}</div>
+              <div class="kli-sub">${time?time+' Uhr · ':''}${ev.mannschaftName}${ev.location?' · '+ev.location:''}<span class="kli-badge badge-game">Kein Eintrag</span></div>
+            </div>
+            <div class="kli-arrow">+</div>
+          </div>`
+        });
+      }
+    });
+  }
+
+  if(!items.length){
+    liste.innerHTML='<div class="kal-empty"><div class="kal-empty-icon">📭</div><div>Keine Termine diesen Monat.</div><div style="font-size:12px;margin-top:6px;color:var(--xsoft);">Feeds synchronisieren oder im Trainingsplaner eine Einheit anlegen.</div></div>';
+    return;
+  }
+  items.sort((a,b)=>a.sortKey.localeCompare(b.sortKey));
+  liste.innerHTML=items.map(x=>x.html).join('');
+}
+
+function listItem({bg,day,wd,name,sub,onclick,icon}){
+  return `<div class="kal-list-item" onclick="${onclick}">
+    <div class="kli-bar" style="background:${bg};"></div>
+    <div class="kli-date"><div class="kli-day">${day}</div><div class="kli-wd">${wd}</div></div>
+    <div class="kli-info">
+      <div class="kli-name">${icon} ${name}</div>
+      <div class="kli-sub">${sub}</div>
+    </div>
+    <div class="kli-arrow">›</div>
+  </div>`;
+}
+
+function renderLegend(teams){
+  const leg = document.getElementById('kal-legend');
+  if(!teams.length){leg.style.display='none';return;}
+  leg.style.display='flex';
+  leg.innerHTML=teams.map(t=>`
+    <div class="kal-leg-item"><div class="kal-leg-dot" style="background:${t.farbe_geplant||'#0057ff'};"></div>${t.name} – geplant</div>
+    <div class="kal-leg-item"><div class="kal-leg-dot" style="background:${t.farbe_ungeplant||'#94a3b8'};"></div>${t.name} – ungeplant</div>
+    <div class="kal-leg-item"><div class="kal-leg-dot" style="background:#d97706;"></div>Spiel</div>
+  `).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════════
+function navigateToTraining(id){
+  window.location.href = `index.html?einheit_id=${id}`;
+}
+
+function navigateToIcalTraining(ev, dateStr){
+  if(!ev){window.location.href=`index.html?date=${dateStr}`;return;}
+  const params = new URLSearchParams({date:dateStr});
+  if(ev.mannschaftName) params.set('group',ev.mannschaftName);
+  if(ev.dtstart) params.set('time',toTimeStr(ev.dtstart));
+  if(ev.summary) params.set('name',ev.summary);
+  window.location.href = `index.html?${params}`;
+}
+
+function navigateToIcalTrainingInline(el, dateStr){
+  try{
+    const ev=JSON.parse(el.dataset.ical);
+    const params=new URLSearchParams({date:dateStr});
+    if(ev.mannschaftName) params.set('group',ev.mannschaftName);
+    if(ev.time) params.set('time',ev.time);
+    if(ev.summary) params.set('name',ev.summary);
+    window.location.href=`index.html?${params}`;
+  }catch(e){window.location.href=`index.html?date=${dateStr}`;}
+}
+
+function navigateToSpiel(s){
+  window.location.href = `handball-bank-statistik.html?spiel_id=${s.id}`;
+}
+
+function confirmSpielAnlegen(icalEv, dateStr, time){
+  const {heim,gast} = parseSummary(icalEv.summary||'');
+  const hbn_url = getBaseUrl(icalEv.url||'');
+  showSpielModal({heim,gast,datum:dateStr,uhrzeit:time,hbn_url,location:icalEv.location||''});
+}
+
+function confirmSpielAnlegenFromData(jsonStr, dateStr, time){
+  try{
+    const ev = JSON.parse(jsonStr.replace(/&#39;/g,"'"));
+    confirmSpielAnlegen(ev, dateStr, time);
+  }catch(e){console.warn('Parse error',e);}
+}
+
+function showSpielModal({heim,gast,datum,uhrzeit,hbn_url,location}){
+  document.getElementById('ms-title').textContent = heim && gast ? `${heim} – ${gast}` : 'Spiel';
+  document.getElementById('ms-sub').textContent = datum ? new Date(datum+'T00:00:00').toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}) : '';
+  const meta = document.getElementById('ms-meta');
+  meta.innerHTML = [
+    datum  ? `📅 ${datum}` : '',
+    uhrzeit? `⏰ ${uhrzeit} Uhr` : '',
+    heim   ? `🏠 ${heim}` : '',
+    gast   ? `✈️ ${gast}` : '',
+    location? `📍 ${location}` : '',
+    hbn_url? `🔗 handball.net verknüpft` : '',
+  ].filter(Boolean).map(x=>`<div>${x}</div>`).join('');
+
+  const btn = document.getElementById('ms-open-btn');
+  btn.onclick = ()=>{
+    const params = new URLSearchParams();
+    if(datum)   params.set('datum',datum);
+    if(uhrzeit) params.set('uhrzeit',uhrzeit);
+    if(heim)    params.set('heim',heim);
+    if(gast)    params.set('gast',gast);
+    if(hbn_url) params.set('hbn_url',hbn_url);
+    window.location.href = `handball-bank-statistik.html?${params}`;
+  };
+  openModal('m-spiel');
+}
+
+// ════════════════════════════════════════════════════════════
+// MODALS & TOAST
+// ════════════════════════════════════════════════════════════
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+let _toastTimer;
+function toast(msg,type='info'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast '+type+' show';
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+supa.auth.getSession().then(({data:{session}})=>{
+  if(session) onAuth(session.user);
+});
+supa.auth.onAuthStateChange((event,session)=>{
+  if(event==='SIGNED_IN'&&session&&!currentUser) onAuth(session.user);
+});
+</script>
+</body>
+</html>

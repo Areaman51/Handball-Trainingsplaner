@@ -465,7 +465,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">v1.260504.1900</div>
+        <div class="logo-sub">v1.260504.2000</div>
       </div>
     </div>
 
@@ -508,8 +508,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
+      <a class="sidebar-link" href="kalender.html">
+        <span>📅</span> Kalender
+      </a>
       <a class="sidebar-link" href="index.html">
-        <span>📅</span> Trainingsplaner
+        <span>🏋</span> Trainingsplaner
       </a>
       <a class="sidebar-link" href="mannschaftsverwaltung.html">
         <span>👥</span> Mannschaftsverwaltung
@@ -1325,7 +1328,9 @@ async function onAuth(user){
   document.getElementById('topbar-user').textContent=profile?.full_name||profile?.email||user.email;
   await loadSpiele();
   initMyTeam();
-  showView('spiele');
+
+  // ── URL-Parameter-Handler (Navigation von kalender.html) ──
+  await handleUrlParams();
 }
 async function signOut(){
   if(!confirm('Abmelden?')) return;
@@ -2711,6 +2716,82 @@ function renderKaderTableTH(players) {
       <tbody>${rows}</tbody>
     </table></div>
   </div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// URL-PARAMETER-HANDLER (von kalender.html)
+// ════════════════════════════════════════════════════════════
+async function handleUrlParams(){
+  const p = new URLSearchParams(window.location.search);
+  const spielId_p  = p.get('spiel_id');
+  const datum      = p.get('datum');
+  const heim       = p.get('heim');
+  const gast       = p.get('gast');
+  const hbn_url_p  = p.get('hbn_url');
+  const uhrzeit    = p.get('uhrzeit');
+
+  // URL-Parameter sofort entfernen (saubere History)
+  if(p.toString()) history.replaceState(null,'',window.location.pathname);
+
+  if(spielId_p){
+    // ── Bestehendes Spiel direkt öffnen ──
+    const sp = spiele.find(s=>s.id===spielId_p);
+    if(sp){
+      await openLive(spielId_p);
+    } else {
+      showView('spiele');
+      toast('Spiel nicht gefunden – möglicherweise gehört es einem anderen Account.','error');
+    }
+    return;
+  }
+
+  if(datum && (heim || gast)){
+    // ── Spiel aus Kalender: prüfen ob bereits vorhanden ──
+    const existing = spiele.find(s=>{
+      if(s.datum!==datum) return false;
+      if(hbn_url_p && s.hbn_url && getBaseUrl(s.hbn_url)===getBaseUrl(hbn_url_p)) return true;
+      if(heim && s.heim && s.heim.toLowerCase()===heim.toLowerCase()) return true;
+      if(gast && s.gast && gast && s.gast.toLowerCase()===gast.toLowerCase()) return true;
+      return false;
+    });
+
+    if(existing){
+      // Spiel vorhanden → direkt öffnen
+      toast('Spiel gefunden – wird geöffnet…','info');
+      await openLive(existing.id);
+      return;
+    }
+
+    // Spiel noch nicht vorhanden → Anlegen-Dialog vorausfüllen und öffnen
+    showView('spiele');
+    openSpielModal();
+    // Felder vorausfüllen
+    const heimEl     = document.getElementById('sp-heim');
+    const gastEl     = document.getElementById('sp-gast');
+    const datumEl    = document.getElementById('sp-datum');
+    const uhrzeitEl  = document.getElementById('sp-uhrzeit');
+    const hbnEl      = document.getElementById('sp-hbnurl');
+    if(heimEl && heim)    heimEl.value  = heim;
+    if(gastEl && gast)    gastEl.value  = gast;
+    if(datumEl && datum)  datumEl.value = datum;
+    if(uhrzeitEl&&uhrzeit)uhrzeitEl.value = uhrzeit;
+    if(hbnEl && hbn_url_p)hbnEl.value   = hbn_url_p;
+
+    // Banner im Modal zeigen
+    const modalBody = document.querySelector('#m-spiel .modal-body');
+    if(modalBody){
+      const banner = document.createElement('div');
+      banner.style.cssText='background:var(--accent-l);border:1px solid #c7d2fe;border-radius:10px;'+
+        'padding:12px 14px;font-size:13px;color:#1e40af;margin-bottom:16px;line-height:1.6;';
+      banner.innerHTML='📅 Vom Kalender weitergeleitet – Daten wurden vorausgefüllt.<br>'+
+        '<strong>Bitte überprüfen und Spiel anlegen.</strong>';
+      modalBody.insertBefore(banner, modalBody.firstChild);
+    }
+    return;
+  }
+
+  // Kein Parameter → normale Startansicht
+  showView('spiele');
 }
 
 // ════════════════════════════════════════════════════════════

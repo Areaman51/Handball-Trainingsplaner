@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260503.1600 -->
+<!-- Handball Coaching Tools v1.260504.2000 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -718,7 +718,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Arbeitsbereich</div>
-    <div class="sidebar-item" id="nav-kalender" onclick="showView('kalender')"><span>📅</span> Kalender</div>
+    <a class="sidebar-item" id="nav-kalender" href="kalender.html"><span>📅</span> Kalender</a>
     <div class="sidebar-item active" id="nav-planer" onclick="showView('planer')"><span>📋</span> Trainingsplaner</div>
     <a class="sidebar-item" id="nav-mannschaften" href="mannschaftsverwaltung.html" style="text-decoration:none;color:inherit;"><span>🏃</span> Mannschaften</a>
   </div>
@@ -753,7 +753,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;" onclick="resetSession()"><span>↺</span> Reset</div>
       <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;color:rgba(255,100,100,.7);" onclick="signOut()"><span>⏻</span></div>
     </div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1600</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260504.2000</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1564,6 +1564,29 @@ async function onAuthSuccess(user){
   if(allMannschaften.length > 0) refreshAllFeeds();
   render();
   console.log('App bereit ✅');
+
+  // ── URL-Parameter-Handler (Navigation von kalender.html) ──
+  const urlParams = new URLSearchParams(window.location.search);
+  const einheitId = urlParams.get('einheit_id');
+  const dateParam  = urlParams.get('date');
+  const groupParam = urlParams.get('group');
+  const timeParam  = urlParams.get('time');
+  const nameParam  = urlParams.get('name');
+
+  if(einheitId){
+    // Direkt eine bestehende Einheit öffnen
+    await loadEinheit(einheitId);
+    history.replaceState(null,'',window.location.pathname);
+  } else if(dateParam){
+    // Neues Training mit vorausgefüllten Daten
+    newEinheit(dateParam);
+    if(groupParam){ sessionMeta.group=groupParam; }
+    if(timeParam){  sessionMeta.time=timeParam; }
+    if(nameParam){  sessionMeta.name=nameParam; document.getElementById('s-title').innerText=nameParam; }
+    render();
+    if(groupParam||timeParam) showToast('📋 Datum & Team vorbelegt – jetzt Übungen hinzufügen','info');
+    history.replaceState(null,'',window.location.pathname);
+  }
 }
 async function signOut(){
   if(!confirm('Abmelden?')) return;
