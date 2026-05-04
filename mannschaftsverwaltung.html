@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260503.1600 -->
+<!-- Handball Coaching Tools v1.260503.1700 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -200,7 +200,7 @@ tbody tr:hover{background:#fafbff;}
       <a class="sidebar-link" href="nutzerverwaltung.html">&#128101; Nutzerverwaltung</a>
       <div class="sidebar-link" onclick="logout()" style="margin-top:4px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px;">&#8947; Abmelden</div>
     
-      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1600</div>
+      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1700</div>
     </div>
   </aside>
   <main class="main">
@@ -351,6 +351,7 @@ const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const supa=supabase.createClient(SUPA_URL,SUPA_KEY);
 const ICAL_PROXY_URL=SUPA_URL+'/functions/v1/ical-proxy';
 const CORS_FALLBACKS=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
+const HBN_EDGE_FN=SUPA_URL+'/functions/v1/quick-service';
 
 let currentUser=null,allTeams=[],ownerProfiles={},currentTeamId=null,currentPlayers=[],currentFreigaben=[],currentKalender=[],activeTab='kader',deleteTarget=null,searchTimeout=null,editKalenderId=null;
 
@@ -511,7 +512,26 @@ function renderTabKader(team){
     <td>${owned?`<div style="display:flex;gap:5px;"><button class="btn btn-ghost btn-sm" onclick="openPlayerModal('${p.id}')">&#9999;&#65039;</button><button class="btn btn-danger btn-sm" onclick="confirmDeletePlayer('${p.id}')">&#128465;&#65039;</button></div>`:'&#8211;'}</td>
   </tr>`).join(''):`<tr><td colspan="5"><div class="empty"><div class="empty-icon">&#128101;</div><div class="empty-text">Noch keine Spieler.</div></div></td></tr>`;
   document.getElementById('tab-content-kader').innerHTML=`
-    ${owned?`<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;"><button class="btn btn-ghost" onclick="openPlayerModal(null,'FL')">+ &#9650; Feldspieler</button><button class="btn btn-ghost" onclick="openPlayerModal(null,'TH')">+ &#9679; Torrhüter</button></div>`:''}
+    ${owned?`
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="toggleHbnImport()" title="Kader von handball.net importieren">&#127760; handball.net</button>
+      <button class="btn btn-ghost" onclick="openPlayerModal(null,'FL')">+ &#9650; Feldspieler</button>
+      <button class="btn btn-ghost" onclick="openPlayerModal(null,'TH')">+ &#9679; Torrhüter</button>
+    </div>
+    <div id="hbn-import-panel" style="display:none;background:var(--accent-l);border:1.5px solid #bfdbfe;border-radius:10px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:600;color:#1e3a8a;margin-bottom:8px;">&#127760; Kader von handball.net importieren</div>
+      <div style="font-size:12px;color:#1e3a8a;margin-bottom:12px;line-height:1.5;">
+        handball.net-Spielseite aufrufen &#8594; URL der Aufstellungsseite kopieren und hier einfügen.
+        Neue Spieler werden mit dem bestehenden Kader abgeglichen.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input class="form-input" id="hbn-match-url"
+          placeholder="https://www.handball.net/spiele/.../aufstellung"
+          style="flex:1;min-width:200px;margin:0;" onkeydown="if(event.key==='Enter')hbnLoadRoster()">
+        <button class="btn btn-primary" onclick="hbnLoadRoster()">Laden</button>
+      </div>
+      <div id="hbn-import-result" style="margin-top:12px;"></div>
+    </div>`:''}
     <div class="card"><div class="table-wrap"><table>
       <thead><tr><th>#</th><th>Name</th><th>Position</th><th>Status</th><th>Aktionen</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -828,6 +848,218 @@ function parseICalDate(s){
   return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);
 }
 
+
+
+// ════════════════════════════════════════════════════════════════
+//  handball.net KADER-IMPORT
+// ════════════════════════════════════════════════════════════════
+
+function toggleHbnImport(){
+  const panel=document.getElementById('hbn-import-panel');
+  if(!panel)return;
+  const open=panel.style.display==='none';
+  panel.style.display=open?'':'none';
+  if(open) setTimeout(()=>document.getElementById('hbn-match-url')?.focus(),100);
+}
+
+/** Ruft die handball.net-Seite via Edge Function ab */
+async function hbnFetchMatch(url){
+  const{data:{session}}=await supa.auth.getSession();
+  if(!session?.access_token) throw new Error('Nicht eingeloggt');
+  const res=await fetch(HBN_EDGE_FN,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+    body:JSON.stringify({url,requestType:'roster'}),
+    signal:AbortSignal.timeout(20000)
+  });
+  if(!res.ok){
+    const err=await res.json().catch(()=>({message:'HTTP '+res.status}));
+    throw new Error(err.message||'HTTP '+res.status);
+  }
+  return res.json();
+}
+
+/** Normalisiert einen Namen für den Abgleich */
+function normName(n){
+  return String(n||'')
+    .toLowerCase()
+    .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
+    .replace(/[^a-z0-9]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+/** Gleicht einen Spieler gegen den bestehenden Kader ab */
+function matchPlayer(importedName, existing){
+  const normImp=normName(importedName);
+  // Exakter Treffer
+  const exact=existing.find(p=>normName(p.name)===normImp);
+  if(exact) return{match:'exact',player:exact};
+  // Teilstring-Treffer (Nachname reicht)
+  const partImpParts=normImp.split(' ');
+  const partial=existing.find(p=>{
+    const normEx=normName(p.name);
+    return partImpParts.some(part=>part.length>2&&normEx.includes(part));
+  });
+  if(partial) return{match:'partial',player:partial};
+  return{match:'none',player:null};
+}
+
+/** Lädt Kader von handball.net und zeigt Abgleich-UI */
+async function hbnLoadRoster(){
+  const url=document.getElementById('hbn-match-url')?.value.trim();
+  const res=document.getElementById('hbn-import-result');
+  if(!url){showToast('Bitte URL eingeben.','error');return;}
+  res.innerHTML='<div style="color:var(--soft);font-size:12.5px;">&#8987; Lade Kader von handball.net&#8230;</div>';
+
+  try{
+    const data=await hbnFetchMatch(url);
+    if(!data.heimRoster?.length&&!data.gastRoster?.length){
+      res.innerHTML='<div style="color:var(--red);font-size:12.5px;">Kein Kader in den Spieldaten gefunden.</div>';
+      return;
+    }
+    window._hbnMatchData=data;
+    // Zeige Team-Auswahl wenn beide Kader vorhanden
+    if(data.heimRoster?.length&&data.gastRoster?.length){
+      res.innerHTML=renderHbnTeamChoice(data);
+    } else {
+      const roster=data.heimRoster?.length?data.heimRoster:data.gastRoster;
+      const label=data.heimRoster?.length?data.heim:data.gast;
+      renderHbnDiff(roster,label);
+    }
+  }catch(e){
+    res.innerHTML=`<div style="color:var(--red);font-size:12.5px;padding:10px;background:var(--red-l);
+      border:1px solid var(--red-b);border-radius:8px;">&#10060; ${e.message}<br>
+      <span style="font-size:11px;opacity:.8;display:block;margin-top:4px;">
+        Tipp: Die /aufstellung-URL des Spiels verwenden.</span></div>`;
+  }
+}
+
+function renderHbnTeamChoice(data){
+  const hCount=data.heimRoster?.length||0;
+  const gCount=data.gastRoster?.length||0;
+  return `<div style="font-size:12px;font-weight:600;color:#1e3a8a;margin-bottom:10px;">
+    &#9654; Welche Mannschaft abgleichen?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button class="btn btn-ghost" style="flex-direction:column;align-items:flex-start;padding:10px 12px;"
+        onclick="renderHbnDiff(window._hbnMatchData.heimRoster,'${data.heim.replace(/'/g,"\'")}')">
+        <span style="font-weight:600;">&#127968; ${data.heim}</span>
+        <span style="font-size:11px;color:var(--soft);margin-top:2px;">${hCount} Spieler</span>
+      </button>
+      <button class="btn btn-ghost" style="flex-direction:column;align-items:flex-start;padding:10px 12px;"
+        onclick="renderHbnDiff(window._hbnMatchData.gastRoster,'${data.gast.replace(/'/g,"\'")}')">
+        <span style="font-weight:600;">&#9992;&#65039; ${data.gast}</span>
+        <span style="font-size:11px;color:var(--soft);margin-top:2px;">${gCount} Spieler</span>
+      </button>
+    </div>`;
+}
+
+/** Rendert den Abgleich: vorhanden / ähnlich / neu */
+function renderHbnDiff(roster, teamLabel){
+  const res=document.getElementById('hbn-import-result');
+  if(!res)return;
+
+  const matched   =[];  // exakter Treffer
+  const similar   =[];  // Teilstring-Treffer
+  const newPlayers=[];  // nicht gefunden
+
+  roster.forEach(p=>{
+    const{match,player}=matchPlayer(p.name,currentPlayers);
+    if(match==='exact') matched.push({imported:p,existing:player});
+    else if(match==='partial') similar.push({imported:p,existing:player});
+    else newPlayers.push({imported:p});
+  });
+
+  const posIcon=pos=>pos==='TH'?'&#9679;':'&#9650;';
+
+  const matchedRows=matched.map(({imported,existing})=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;background:var(--green-l);margin-bottom:4px;">
+      <span style="color:var(--green);font-size:13px;">&#10003;</span>
+      <span style="font-size:11.5px;color:var(--green);font-weight:500;flex:1;">${imported.nummer?'#'+imported.nummer+' ':''}${imported.name}</span>
+      <span style="font-size:11px;color:var(--green);">bereits im Kader</span>
+    </div>`).join('');
+
+  const similarRows=similar.map(({imported,existing},i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;background:var(--yellow-l);margin-bottom:4px;border:1px solid var(--yellow-b);">
+      <input type="checkbox" id="sim-${i}" checked style="flex-shrink:0;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11.5px;font-weight:500;">${posIcon(imported.pos)} ${imported.nummer?'#'+imported.nummer+' ':''}${imported.name}</div>
+        <div style="font-size:10.5px;color:var(--yellow);">&#8776; ähnlich wie: ${existing.name} (bestehend)</div>
+      </div>
+      <span style="font-size:10.5px;color:var(--yellow);font-weight:600;">als NEU importieren?</span>
+    </div>`).join('');
+
+  const newRows=newPlayers.map(({imported},i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;background:white;border:1px solid var(--border);margin-bottom:4px;">
+      <input type="checkbox" id="new-${i}" checked style="flex-shrink:0;">
+      <span style="font-size:11.5px;font-weight:500;flex:1;">${posIcon(imported.pos)} ${imported.nummer?'#'+imported.nummer+' ':''}${imported.name}</span>
+      <span style="font-size:10.5px;background:var(--accent-l);color:var(--accent);padding:2px 7px;border-radius:20px;font-weight:600;">Neu</span>
+    </div>`).join('');
+
+  const totalNew=newPlayers.length+similar.length;
+
+  res.innerHTML=`
+    <div style="border-top:1px solid #bfdbfe;padding-top:12px;margin-top:8px;">
+      <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:10px;">
+        Abgleich mit ${teamLabel}: ${matched.length} vorhanden &middot; ${similar.length} ähnlich &middot; ${newPlayers.length} neu
+      </div>
+
+      ${matched.length?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin-bottom:6px;">Bereits im Kader</div>${matchedRows}`:''}
+
+      ${similar.length?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--yellow);margin:10px 0 6px;">Ähnliche Namen (prüfen)</div>${similarRows}`:''}
+
+      ${newPlayers.length?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin:10px 0 6px;">Neue Spieler</div>${newRows}`:''}
+
+      ${totalNew>0?`
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px;"
+        onclick="hbnImportSelected(${JSON.stringify(newPlayers).replace(/"/g,'&quot;')},${JSON.stringify(similar).replace(/"/g,'&quot;')})">
+        &#8595; Ausgewählte importieren
+      </button>`:'<div style="padding:8px 0;font-size:12.5px;color:var(--green);font-weight:500;">&#10003; Alle Spieler bereits im Kader vorhanden.</div>'}
+    </div>`;
+
+  // Store for import function
+  window._hbnNewPlayers=newPlayers;
+  window._hbnSimilarPlayers=similar;
+}
+
+/** Importiert ausgewählte Spieler in den Kader */
+async function hbnImportSelected(newPlayers,similarPlayers){
+  const toInsert=[];
+
+  newPlayers.forEach(({imported},i)=>{
+    const cb=document.getElementById('new-'+i);
+    if(cb?.checked) toInsert.push({
+      mannschaft_id:currentTeamId,
+      name:imported.name,
+      nummer:imported.nummer||null,
+      pos:imported.pos||'FL',
+      aktiv:true
+    });
+  });
+
+  similarPlayers.forEach(({imported},i)=>{
+    const cb=document.getElementById('sim-'+i);
+    if(cb?.checked) toInsert.push({
+      mannschaft_id:currentTeamId,
+      name:imported.name,
+      nummer:imported.nummer||null,
+      pos:imported.pos||'FL',
+      aktiv:true
+    });
+  });
+
+  if(!toInsert.length){showToast('Keine Spieler ausgewählt.','info');return;}
+
+  const{error}=await supa.from('mannschaft_spieler').insert(toInsert);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+
+  showToast(`&#10003; ${toInsert.length} Spieler importiert`,'success');
+  // Panel schliessen, Kader neu laden
+  const panel=document.getElementById('hbn-import-panel');
+  if(panel) panel.style.display='none';
+  await loadPlayers(currentTeamId);
+  renderTabKader(allTeams.find(t=>t.id===currentTeamId));
+}
 
 // ── UTILS ────────────────────────────────────────────────────────
 let toastTimer;
