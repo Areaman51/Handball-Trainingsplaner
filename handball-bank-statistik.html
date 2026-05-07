@@ -145,7 +145,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .pos-badge.TH{background:#f0fdf4;color:#15803d;}
 
 /* ── LIVE VIEW ── */
-#live-wrap{display:flex;gap:0;height:calc(100vh - 54px);overflow:hidden;margin:-26px;}
+#live-wrap{display:flex;flex-direction:column;gap:0;height:calc(100vh - 54px);overflow:hidden;margin:-26px;}
 
 /* Score header */
 .live-score-bar{background:var(--sidebar);padding:12px 22px;display:flex;
@@ -176,33 +176,31 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   font-weight:700;cursor:pointer;white-space:nowrap;}
 .lsb-gegner-btn:hover{background:rgba(239,68,68,.25);}
 
-/* Players panel (left) */
-.live-players{width:280px;flex-shrink:0;background:white;border-right:1px solid var(--border);
-  display:flex;flex-direction:column;overflow:hidden;}
-.live-players-hdr{padding:10px 14px;font-size:10.5px;font-weight:700;
-  text-transform:uppercase;letter-spacing:.08em;color:var(--xsoft);
-  border-bottom:1px solid var(--border);display:flex;justify-content:space-between;}
-.live-players-list{flex:1;overflow-y:auto;padding:6px;}
+/* Live body: log links + right panel */
+.live-body{display:flex;flex:1;overflow:hidden;}
 
-.player-tile{display:flex;align-items:center;gap:10px;padding:9px 11px;
-  border-radius:9px;border:1.5px solid var(--border);cursor:pointer;
-  transition:all .12s;margin-bottom:4px;background:white;}
-.player-tile:hover{border-color:#c7d2fe;background:#fafbff;}
-.player-tile.active{border-color:var(--accent);background:var(--accent-l);}
-.player-tile .pt-num{font-size:18px;font-weight:800;color:var(--accent);
-  min-width:28px;text-align:center;font-family:'DM Mono',monospace;}
-.player-tile .pt-info{flex:1;min-width:0;}
-.player-tile .pt-name{font-size:13px;font-weight:600;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis;}
-.player-tile .pt-pos{font-size:10px;color:var(--xsoft);}
-.player-tile .pt-stats{display:flex;gap:4px;flex-shrink:0;}
-.stat-chip{font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:4px;}
-.stat-chip.p{background:var(--green-l);color:var(--green);}
-.stat-chip.n{background:var(--red-l);color:var(--red);}
+/* Aktionslog Panel (links) */
+.live-log-panel{width:300px;flex-shrink:0;display:flex;flex-direction:column;
+  background:white;border-right:1px solid var(--border);}
+.log-hdr{display:flex;align-items:center;justify-content:space-between;
+  padding:7px 14px;font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--xsoft);border-bottom:1px solid var(--border);flex-shrink:0;}
+.log-body{flex:1;overflow-y:auto;padding:3px 10px;}
+.log-row{display:flex;align-items:center;gap:8px;padding:5px 4px;
+  border-bottom:1px solid var(--border);font-size:11.5px;}
+.log-min{font-size:10.5px;font-weight:700;color:var(--xsoft);
+  min-width:30px;font-family:'DM Mono',monospace;}
+.log-nr{font-weight:800;color:var(--accent);min-width:26px;font-family:'DM Mono',monospace;}
+.log-name{color:var(--soft);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.log-aktion{font-weight:700;}
+.log-aktion.pos{color:var(--green);}
+.log-aktion.neg{color:var(--red);}
 
-/* Action panel (right) */
-.live-actions{flex:1;display:flex;flex-direction:column;overflow:hidden;}
-.live-sel-bar{background:var(--bg);border-bottom:1px solid var(--border);
+/* Rechtes Panel: Aktion + Spieler-Grid */
+.live-right-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
+
+/* Auswahl- und Aktionsbereich */
+.live-sel-bar{background:white;border-bottom:1px solid var(--border);
   padding:10px 16px;display:flex;align-items:center;gap:12px;
   min-height:52px;flex-shrink:0;}
 .live-sel-bar .sel-num{font-size:26px;font-weight:800;color:var(--accent);
@@ -212,10 +210,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sel-val{text-align:center;}
 .sel-val .sv{font-size:20px;font-weight:800;font-family:'DM Mono',monospace;}
 .sel-val .sl{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--xsoft);}
-.no-sel-hint{flex:1;display:flex;align-items:center;justify-content:center;
-  color:var(--xsoft);font-size:14px;}
+.no-sel-hint{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;color:var(--xsoft);font-size:13px;text-align:center;}
+.hbn-auto-hint{font-size:11px;color:var(--accent);background:var(--accent-l);
+  padding:4px 10px;border-radius:6px;font-weight:600;}
 
-.act-scroll{flex:1;overflow-y:auto;padding:14px 16px;}
+.act-scroll{overflow-y:auto;padding:12px 16px;border-bottom:1px solid var(--border);
+  background:white;max-height:220px;flex-shrink:0;}
 .act-sec-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
   margin-bottom:8px;display:flex;align-items:center;gap:6px;}
 .act-sec-hdr.pos{color:var(--green);}
@@ -230,22 +231,26 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .act-btn .ab-icon{font-size:20px;}
 .act-btn .ab-label{font-size:10.5px;font-weight:700;text-align:center;line-height:1.3;}
 
-/* Action log */
-.live-log{height:170px;flex-shrink:0;border-top:1px solid var(--border);
-  display:flex;flex-direction:column;background:white;}
-.log-hdr{display:flex;align-items:center;justify-content:space-between;
-  padding:7px 14px;font-size:10px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.08em;color:var(--xsoft);border-bottom:1px solid var(--border);}
-.log-body{flex:1;overflow-y:auto;padding:3px 10px;}
-.log-row{display:flex;align-items:center;gap:8px;padding:5px 4px;
-  border-bottom:1px solid var(--border);font-size:11.5px;}
-.log-min{font-size:10.5px;font-weight:700;color:var(--xsoft);
-  min-width:30px;font-family:'DM Mono',monospace;}
-.log-nr{font-weight:800;color:var(--accent);min-width:26px;font-family:'DM Mono',monospace;}
-.log-name{color:var(--soft);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.log-aktion{font-weight:700;}
-.log-aktion.pos{color:var(--green);}
-.log-aktion.neg{color:var(--red);}
+/* Spieler-Kachelansicht */
+.live-player-grid{flex:1;overflow-y:auto;padding:10px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));
+  gap:8px;align-content:start;}
+.player-tile{display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding:10px 8px;border-radius:10px;border:1.5px solid var(--border);cursor:pointer;
+  transition:all .12s;background:white;}
+.player-tile:hover{border-color:#c7d2fe;background:#fafbff;}
+.player-tile.active{border-color:var(--accent);background:var(--accent-l);}
+.player-tile .pt-num{font-size:22px;font-weight:800;color:var(--accent);
+  font-family:'DM Mono',monospace;line-height:1.1;}
+.player-tile .pt-name{font-size:11px;font-weight:600;margin:3px 0 1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.player-tile .pt-pos{font-size:9.5px;color:var(--xsoft);margin-bottom:5px;}
+.player-tile .pt-stats{display:flex;gap:4px;flex-shrink:0;}
+.stat-chip{font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:4px;}
+.stat-chip.p{background:var(--green-l);color:var(--green);}
+.stat-chip.n{background:var(--red-l);color:var(--red);}
+.live-team-sep{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--xsoft);padding:6px 2px 2px;grid-column:1/-1;}
 
 /* ── STATISTIK VIEW ── */
 .stat-card{background:white;border:1px solid var(--border);border-radius:var(--radius);
@@ -352,11 +357,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .act-btn{min-width:72px;font-size:10px;}
 }
 @media (orientation:portrait) and (max-width:1024px){
-  #live-wrap{flex-direction:column;}
-  .live-players{width:100%;height:140px;border-right:none;border-bottom:1px solid var(--border);}
-  .live-players-list{display:flex;flex-direction:row;gap:4px;padding:5px;overflow-x:auto;overflow-y:hidden;}
-  .player-tile{min-width:90px;flex-shrink:0;flex-direction:column;align-items:flex-start;
-    gap:3px;margin-bottom:0;}
+  .live-log-panel{width:220px;}
 }
 
 /* ── MEIN TEAM WIDGET ── */
@@ -470,7 +471,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">v1.260507.2210</div>
+        <div class="logo-sub">v1.260507.2230</div>
       </div>
     </div>
 
@@ -526,7 +527,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.2210</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.2230</div>
     </div>
   </aside>
 
@@ -1749,63 +1750,37 @@ function renderLiveView(){
 
   // ── Body ──
   const body=document.createElement('div');
-  body.style.cssText='display:flex;flex:1;overflow:hidden;';
+  body.className='live-body';
 
-  // ── Players panel ──
-  const pp=document.createElement('div');
-  pp.className='live-players';
+  // ── LINKS: Aktionslog ──
+  const logPanel=document.createElement('div');
+  logPanel.className='live-log-panel';
+  logPanel.innerHTML=`
+    <div class="log-hdr">
+      <span>Aktionslog</span>
+      <button class="btn btn-ghost btn-sm" onclick="undoAction()">↩ Rückgängig</button>
+    </div>
+    <div class="log-body" id="log-body"></div>`;
+  body.appendChild(logPanel);
+
+  // ── RECHTS: Aktion + Spieler-Grid ──
+  const ap=document.createElement('div');
+  ap.className='live-right-panel';
+
   const hasBothTeams = lineup.some(p=>p.team==='home') && lineup.some(p=>p.team==='away');
   const sorted=[...lineup].sort((a,b)=>{
-    // Wenn beide Teams: erst nach Team, dann Pos, dann Nummer
     if(hasBothTeams && (a.team||'home')!==(b.team||'home')) return (a.team||'home')==='home'?-1:1;
     if(a.pos!==b.pos) return a.pos==='TH'?-1:1;
     return (parseInt(a.nummer)||99)-(parseInt(b.nummer)||99);
   });
-  pp.innerHTML=`<div class="live-players-hdr"><span>${hasBothTeams?'Beide Teams':'Aufstellung'}</span><span>${sorted.filter(p=>!p.bench).length}/${sorted.length}</span></div>`;
-  const pl=document.createElement('div');
-  pl.className='live-players-list';
-  pl.id='players-list';
-  let lastTeamLabel='';
-  sorted.forEach(p=>{
-    const st=p.pos==='TH'?getThStats(p.id):getFlStats(p.id);
-    const tile=document.createElement('div');
-    tile.className='player-tile'+(selPlayerId===p.id?' active':'');
-    tile.id='pt-'+p.id;
-    tile.onclick=()=>selectPlayer(p.id);
-    // Team-Trenner bei gemischter Aufstellung
-    if(hasBothTeams){
-      const teamLabel=p.team==='away'?spielMeta.gast:spielMeta.heim;
-      if(teamLabel!==lastTeamLabel){
-        lastTeamLabel=teamLabel;
-        const sep=document.createElement('div');
-        sep.style.cssText='font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.3);padding:8px 4px 4px;';
-        sep.textContent=(p.team==='away'?'✈️ ':'🏠 ')+teamLabel;
-        pl.appendChild(sep);
-      }
-    }
-    tile.innerHTML=`
-      <div class="pt-num">${p.nummer||'?'}</div>
-      <div class="pt-info">
-        <div class="pt-name">${p.name||'—'}</div>
-        <div class="pt-pos">${p.pos==='TH'?'● Torhüter':'▲ Feldspieler'}</div>
-      </div>
-      <div class="pt-stats">
-        <span class="stat-chip p">+${st.plus}</span>
-        <span class="stat-chip n">-${st.minus}</span>
-      </div>`;
-    pl.appendChild(tile);
-  });
-  pp.appendChild(pl);
-  body.appendChild(pp);
 
-  // ── Action panel ──
-  const ap=document.createElement('div');
-  ap.className='live-actions';
-
-  // Selection bar
+  // Auswahl-/Aktionsleiste
   ap.innerHTML=`
     <div class="live-sel-bar" id="live-sel-bar">
-      <div class="no-sel-hint" id="no-sel-hint">← Spieler antippen um Aktionen zu erfassen</div>
+      <div class="no-sel-hint" id="no-sel-hint">
+        <span>Spieler antippen um Aktionen zu erfassen</span>
+        ${spielMeta.hbn_url ? `<span class="hbn-auto-hint">ℹ️ Tore &amp; 2-Min.-Strafen werden automatisch via handball.net erfasst</span>` : ''}
+      </div>
       <div id="sel-detail" style="display:none;flex:1;align-items:center;gap:12px;">
         <div class="sel-num" id="sel-num">#</div>
         <div class="sel-name" id="sel-name">–</div>
@@ -1821,14 +1796,43 @@ function renderLiveView(){
       <div class="act-row" id="act-pos"></div>
       <div class="act-sec-hdr neg">❌ Negative Aktionen</div>
       <div class="act-row" id="act-neg"></div>
-    </div>
-    <div class="live-log">
-      <div class="log-hdr">
-        <span>Aktionslog</span>
-        <button class="btn btn-ghost btn-sm" onclick="undoAction()">↩ Rückgängig</button>
-      </div>
-      <div class="log-body" id="log-body"></div>
     </div>`;
+
+  // Spieler-Kachelansicht
+  const playerGrid=document.createElement('div');
+  playerGrid.className='live-player-grid';
+  playerGrid.id='players-list';
+
+  let lastTeamLabel='';
+  sorted.forEach(p=>{
+    const st=p.pos==='TH'?getThStats(p.id):getFlStats(p.id);
+    // Team-Trenner
+    if(hasBothTeams){
+      const teamLabel=p.team==='away'?spielMeta.gast:spielMeta.heim;
+      if(teamLabel!==lastTeamLabel){
+        lastTeamLabel=teamLabel;
+        const sep=document.createElement('div');
+        sep.className='live-team-sep';
+        sep.textContent=(p.team==='away'?'✈️ ':'🏠 ')+teamLabel;
+        playerGrid.appendChild(sep);
+      }
+    }
+    const tile=document.createElement('div');
+    tile.className='player-tile'+(selPlayerId===p.id?' active':'');
+    tile.id='pt-'+p.id;
+    tile.onclick=()=>selectPlayer(p.id);
+    tile.innerHTML=`
+      <div class="pt-num">${p.nummer||'?'}</div>
+      <div class="pt-name">${p.name||'—'}</div>
+      <div class="pt-pos">${p.pos==='TH'?'● Torhüter':'▲ Feldspieler'}</div>
+      <div class="pt-stats">
+        <span class="stat-chip p">+${st.plus}</span>
+        <span class="stat-chip n">-${st.minus}</span>
+      </div>`;
+    playerGrid.appendChild(tile);
+  });
+
+  ap.appendChild(playerGrid);
   body.appendChild(ap);
   wrap.appendChild(body);
   v.appendChild(wrap);
