@@ -535,7 +535,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1000</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1130</div>
     </div>
   </aside>
 
@@ -1560,8 +1560,10 @@ async function openLive(spId, skipWizard=false){
     aktionen=ak||[];
     enrichGegnerAktionen();
 
-    // Score aus dem Aktionslog neu berechnen (single source of truth)
-    recalcScore(); timerOffset=spielMeta.timer_offset||0; timerStartedAt=null;
+    // Score aus dem Aktionslog neu berechnen und persistieren
+    recalcScore();
+    saveSpielMeta();   // Dashboard-Score aktuell halten
+    timerOffset=spielMeta.timer_offset||0; timerStartedAt=null;
     clearInterval(timerIv);
     setStatus('ok','Spiel geladen');
 
@@ -1659,13 +1661,15 @@ function doTimeSync(){
 // ════════════════════════════════════════════════════════════
 // Berechnet score_home/away aus dem Aktionslog (single source of truth)
 function recalcScore(){
+  // score_home = mein Team wenn Heim, Gegner wenn Auswärts
+  // score_away = mein Team wenn Auswärts, Gegner wenn Heim
   const userGoals   = aktionen.filter(a=>GOAL_TYPES.has(a.type)&&a.spieler_id).length;
   const gegnerGoals = aktionen.filter(a=>a.type===GEGNER_GOAL_TYPE).length;
-  // Bei Auswärtsspiel ist mein Team der Gast (score_away) und Gegner heim (score_home)
-  const isAway = spielMeta.spielart==='auswaerts' || lineup.filter(p=>!p.bench).some(p=>p.team==='away');
+  const isAway = spielMeta.spielart==='auswaerts'
+    || lineup.filter(p=>!p.bench).some(p=>p.team==='away');
+  // Offizielle Reihenfolge: score_home = Heimteam, score_away = Gastteam
   spielMeta.score_home = isAway ? gegnerGoals : userGoals;
   spielMeta.score_away = isAway ? userGoals   : gegnerGoals;
-  // DOM: IDs bleiben immer live-sc-home/away, aber visuelle Position variiert (Score-Bar)
   const elH=document.getElementById('live-sc-home');
   const elA=document.getElementById('live-sc-away');
   if(elH) elH.textContent=spielMeta.score_home;
@@ -1753,16 +1757,12 @@ function renderLiveView(){
   wrap.id='live-wrap';
 
   // ── Score bar ──
-  // Mein Team immer LINKS – bei Auswärtsspiel Display spiegeln
-  // Nur eigene Spieler (bench=false) für Auswärts-Erkennung prüfen
+  // Immer offizielle Reihenfolge: Heim links (score_home), Gast rechts (score_away)
+  // Bei Auswärtsspiel: Gegner-Buttons rechts (Gastteam = mein Team → Heim = Gegner)
   const _myPlayers = lineup.filter(p=>!p.bench);
-  const _sbAway   = spielMeta.spielart==='auswaerts' || _myPlayers.some(p=>p.team==='away');
-  const _myName   = _sbAway ? (spielMeta.gast||'Mein Team') : (spielMeta.heim||'Mein Team');
-  const _oppName  = _sbAway ? (spielMeta.heim||'Gegner')    : (spielMeta.gast||'Gegner');
-  const _myScId   = _sbAway ? 'away' : 'home';
-  const _oppScId  = _sbAway ? 'home' : 'away';
-  const _myScore  = _sbAway ? (spielMeta.score_away||0) : (spielMeta.score_home||0);
-  const _oppScore = _sbAway ? (spielMeta.score_home||0) : (spielMeta.score_away||0);
+  const _isAwaySb  = spielMeta.spielart==='auswaerts' || _myPlayers.some(p=>p.team==='away');
+  // Gegner-Buttons immer auf der Seite des gegnerischen Teams
+  const _oppSide   = _isAwaySb ? 'home' : 'away';   // bei Auswärts: Gegner = Heim
   const _hbnBtns  = spielMeta.hbn_url
     ? '<button class="lsb-hz" style="background:rgba(255,255,255,.12);font-size:10px;" onclick="openTimeModal()" title="Spielzeit sync">⏱</button>'
     + '<button class="lsb-hz" style="background:rgba(34,197,94,.2);border-color:rgba(34,197,94,.4);font-size:10px;" onclick="liveRefreshTicker()" title="Ticker aktualisieren">📡</button>'
@@ -1782,7 +1782,7 @@ function renderLiveView(){
   sb.innerHTML=_tickerBar+`
     <div class="live-score-bar">
       <div style="display:flex;flex-direction:column;gap:3px;">
-        <div class="lsb-team home">${_myName}</div>
+        <div class="lsb-team home">${spielMeta.heim||'Heimteam'}</div>
         <div style="display:flex;gap:5px;margin-top:2px;">
           <div id="live-timer" class="lsb-timer" onclick="timerClick()">${fmtTime(timerSec())}</div>
           <button class="lsb-hz" id="live-hz" onclick="toggleHz()">${spielMeta.hz||1}. HZ</button>
@@ -1791,19 +1791,19 @@ function renderLiveView(){
       </div>
       <div class="lsb-score">
         <div class="lsb-ctrl">
-          <button class="lsb-btn" onclick="chScore('${_myScId}',1)">▲</button>
-          <button class="lsb-btn" onclick="chScore('${_myScId}',-1)">▼</button>
+          <button class="lsb-btn" onclick="chScore('home',1)">▲</button>
+          <button class="lsb-btn" onclick="chScore('home',-1)">▼</button>
         </div>
-        <div class="lsb-num" id="live-sc-${_myScId}">${_myScore}</div>
+        <div class="lsb-num" id="live-sc-home">${spielMeta.score_home||0}</div>
         <div class="lsb-sep">:</div>
-        <div class="lsb-num" id="live-sc-${_oppScId}">${_oppScore}</div>
+        <div class="lsb-num" id="live-sc-away">${spielMeta.score_away||0}</div>
         <div class="lsb-ctrl">
-          <button class="lsb-btn" onclick="chScore('${_oppScId}',1)">▲</button>
-          <button class="lsb-btn" onclick="chScore('${_oppScId}',-1)">▼</button>
+          <button class="lsb-btn" onclick="chScore('away',1)">▲</button>
+          <button class="lsb-btn" onclick="chScore('away',-1)">▼</button>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
-        <div class="lsb-team">${_oppName}</div>
+        <div class="lsb-team">${spielMeta.gast||'Gastteam'}</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">
           <button class="lsb-gegner-btn" onclick="logGegnerAktion('gegner_tor','Tor','#dc2626')">⚽ Tor</button>
           <button class="lsb-gegner-btn" style="background:rgba(234,88,12,.15);border-color:rgba(234,88,12,.35);color:#fdba74;" onclick="logGegnerAktion('gegner_2min','2-Minuten','#ea580c')">⏱ 2-Min</button>
@@ -2080,6 +2080,7 @@ function renderLog(){
   // Fallback: lineup enthält away-Spieler → wir sind Auswärtsteam
   const isAway = spielMeta.spielart==='auswaerts'
     || lineup.filter(p=>!p.bench).some(p=>p.team==='away');
+  // Bei Auswärts: Gegner = Heimteam (links im Score), bei Heim: Gegner = Gastteam (rechts)
   const gegnerName = isAway
     ? (spielMeta.heim||'Gegner')
     : (spielMeta.gast||'Gegner');
