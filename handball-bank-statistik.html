@@ -199,24 +199,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* Rechtes Panel: Aktion + Spieler-Grid */
 .live-right-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
 
-/* Auswahl- und Aktionsbereich */
-.live-sel-bar{background:white;border-bottom:1px solid var(--border);
-  padding:10px 16px;display:flex;align-items:center;gap:12px;
-  min-height:52px;flex-shrink:0;}
+/* Permanente Hinweisleiste */
+.live-hint-bar{padding:7px 14px;font-size:11.5px;font-weight:600;display:flex;
+  align-items:center;gap:7px;flex-shrink:0;border-bottom:1px solid var(--border);}
+.live-hint-bar.auto{background:#eff6ff;color:#1d4ed8;}
+.live-hint-bar.manual{background:#fefce8;color:#92400e;}
+
+/* Action-Drawer (unten, ein-/ausblendbar) */
+.live-action-drawer{flex-shrink:0;border-top:2px solid var(--border);background:white;}
+.live-sel-bar{padding:10px 16px;display:flex;align-items:center;gap:12px;
+  min-height:52px;border-bottom:1px solid var(--border);}
 .live-sel-bar .sel-num{font-size:26px;font-weight:800;color:var(--accent);
   font-family:'DM Mono',monospace;}
 .live-sel-bar .sel-name{font-size:16px;font-weight:700;}
-.live-sel-bar .sel-vals{display:flex;gap:14px;margin-left:auto;}
+.live-sel-bar .sel-close{margin-left:auto;background:none;border:1px solid var(--border);
+  border-radius:6px;padding:3px 9px;cursor:pointer;font-size:12px;color:var(--soft);}
+.live-sel-bar .sel-close:hover{background:var(--bg);}
+.live-sel-bar .sel-vals{display:flex;gap:14px;}
 .sel-val{text-align:center;}
 .sel-val .sv{font-size:20px;font-weight:800;font-family:'DM Mono',monospace;}
 .sel-val .sl{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--xsoft);}
-.no-sel-hint{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:6px;color:var(--xsoft);font-size:13px;text-align:center;}
-.hbn-auto-hint{font-size:11px;color:var(--accent);background:var(--accent-l);
-  padding:4px 10px;border-radius:6px;font-weight:600;}
 
-.act-scroll{overflow-y:auto;padding:12px 16px;border-bottom:1px solid var(--border);
-  background:white;max-height:220px;flex-shrink:0;}
+.act-scroll{overflow-y:auto;padding:12px 16px;background:white;max-height:210px;}
 .act-sec-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
   margin-bottom:8px;display:flex;align-items:center;gap:6px;}
 .act-sec-hdr.pos{color:var(--green);}
@@ -471,7 +475,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">v1.260507.2230</div>
+        <div class="logo-sub">v1.260507.2300</div>
       </div>
     </div>
 
@@ -527,7 +531,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.2230</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.2300</div>
     </div>
   </aside>
 
@@ -1776,26 +1780,10 @@ function renderLiveView(){
 
   // Auswahl-/Aktionsleiste
   ap.innerHTML=`
-    <div class="live-sel-bar" id="live-sel-bar">
-      <div class="no-sel-hint" id="no-sel-hint">
-        <span>Spieler antippen um Aktionen zu erfassen</span>
-        ${spielMeta.hbn_url ? `<span class="hbn-auto-hint">ℹ️ Tore &amp; 2-Min.-Strafen werden automatisch via handball.net erfasst</span>` : ''}
-      </div>
-      <div id="sel-detail" style="display:none;flex:1;align-items:center;gap:12px;">
-        <div class="sel-num" id="sel-num">#</div>
-        <div class="sel-name" id="sel-name">–</div>
-        <div class="sel-vals">
-          <div class="sel-val"><div class="sv vp" id="sel-plus">+0</div><div class="sl">+Wert</div></div>
-          <div class="sel-val"><div class="sv vn" id="sel-minus">-0</div><div class="sl">-Wert</div></div>
-          <div class="sel-val"><div class="sv" id="sel-wert">0</div><div class="sl">±</div></div>
-        </div>
-      </div>
-    </div>
-    <div id="act-scroll-wrap" class="act-scroll" style="display:none">
-      <div class="act-sec-hdr pos">✅ Positive Aktionen</div>
-      <div class="act-row" id="act-pos"></div>
-      <div class="act-sec-hdr neg">❌ Negative Aktionen</div>
-      <div class="act-row" id="act-neg"></div>
+    <div class="live-hint-bar ${spielMeta.hbn_url ? 'auto' : 'manual'}">
+      ${spielMeta.hbn_url
+        ? `<span>🔗</span><span>Tore &amp; 2-Min.-Strafen werden automatisch via handball.net erfasst</span>`
+        : `<span>⚠️</span><span>Tore &amp; 2-Min.-Strafen müssen manuell erfasst werden</span>`}
     </div>`;
 
   // Spieler-Kachelansicht
@@ -1833,6 +1821,30 @@ function renderLiveView(){
   });
 
   ap.appendChild(playerGrid);
+
+  // Action-Drawer (unter den Kacheln, standardmäßig versteckt)
+  const drawer=document.createElement('div');
+  drawer.className='live-action-drawer';
+  drawer.id='live-action-drawer';
+  drawer.style.display='none';
+  drawer.innerHTML=`
+    <div class="live-sel-bar" id="live-sel-bar">
+      <div class="sel-num" id="sel-num">#</div>
+      <div class="sel-name" id="sel-name">–</div>
+      <div class="sel-vals">
+        <div class="sel-val"><div class="sv vp" id="sel-plus">+0</div><div class="sl">+Wert</div></div>
+        <div class="sel-val"><div class="sv vn" id="sel-minus">-0</div><div class="sl">-Wert</div></div>
+        <div class="sel-val"><div class="sv" id="sel-wert">0</div><div class="sl">±</div></div>
+      </div>
+      <button class="sel-close" onclick="deselectPlayer()">✕ Schließen</button>
+    </div>
+    <div id="act-scroll-wrap" class="act-scroll">
+      <div class="act-sec-hdr pos">✅ Positive Aktionen</div>
+      <div class="act-row" id="act-pos"></div>
+      <div class="act-sec-hdr neg">❌ Negative Aktionen</div>
+      <div class="act-row" id="act-neg"></div>
+    </div>`;
+  ap.appendChild(drawer);
   body.appendChild(ap);
   wrap.appendChild(body);
   v.appendChild(wrap);
@@ -1844,28 +1856,38 @@ function renderLiveView(){
   }
 }
 
+function deselectPlayer(){
+  selPlayerId=null;
+  document.querySelectorAll('.player-tile').forEach(t=>t.classList.remove('active'));
+  const drawer=document.getElementById('live-action-drawer');
+  if(drawer) drawer.style.display='none';
+}
+
 function selectPlayer(pid){
+  // Toggle: nochmal klicken → abwählen
+  if(selPlayerId===pid){ deselectPlayer(); return; }
+
   selPlayerId=pid;
   const p=lineup.find(x=>x.id===pid);
   if(!p) return;
 
-  // Update tiles
+  // Kacheln aktualisieren
   document.querySelectorAll('.player-tile').forEach(t=>{
     t.classList.toggle('active',t.id==='pt-'+pid);
   });
 
-  // Update sel bar
-  document.getElementById('no-sel-hint').style.display='none';
-  const sd=document.getElementById('sel-detail');
-  sd.style.display='flex';
+  // Spieler-Info im Drawer befüllen
   document.getElementById('sel-num').textContent='#'+(p.nummer||'?');
   document.getElementById('sel-name').textContent=p.name||'—';
   updateSelStats();
 
-  // Show action buttons
-  const aw=document.getElementById('act-scroll-wrap');
-  aw.style.display='block';
+  // Drawer anzeigen + Aktionen aufbauen
+  const drawer=document.getElementById('live-action-drawer');
+  if(drawer) drawer.style.display='block';
   buildActBtns(p.pos);
+
+  // Drawer in Sicht scrollen
+  drawer?.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 function updateSelStats(){
@@ -1942,6 +1964,7 @@ async function logAktion(type,label,color){
   updateSelStats();
   renderLog();
   toast(`#${p.nummer} ${p.name}: ${label} (${min}')`, polarity>=0?'success':'error');
+  deselectPlayer();
 }
 
 async function undoAction(){
