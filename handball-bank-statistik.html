@@ -557,7 +557,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.2200</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.2245</div>
     </div>
   </aside>
 
@@ -3943,6 +3943,7 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
             : null;
 
         if (dedupKey) {
+          // Spieler/Nummer bekannt: nur namentlichen Check nutzen
           oppNameSeen[dedupKey] = (oppNameSeen[dedupKey]||0) + 1;
           const alreadyInDb = aktionen.filter(a =>
             !a.spieler_id && a.type === gm.type && (
@@ -3951,11 +3952,12 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
             )
           ).length;
           if (oppNameSeen[dedupKey] <= alreadyInDb) continue;
+          // Namentlich neues Ereignis → direkt einfügen, kein Gesamt-Check nötig
+        } else {
+          // Kein Name/Nummer: Gesamt-Zähler als einziges Dedup-Mittel
+          tickerOpp[gm.type] = (tickerOpp[gm.type]||0) + 1;
+          if (tickerOpp[gm.type] <= (dbOpp[gm.type]||0)) continue;
         }
-
-        // Gesamt-Zähler als Sicherheitsnetz
-        tickerOpp[gm.type] = (tickerOpp[gm.type]||0) + 1;
-        if (tickerOpp[gm.type] <= (dbOpp[gm.type]||0)) continue;
 
         // Gegner aus Lineup suchen für vollständige Info
         const oppByNr   = evNummer ? oppLineup.find(p=>String(p.nummer)===String(evNummer)) : null;
