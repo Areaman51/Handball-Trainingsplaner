@@ -465,7 +465,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">v1.260507.1830</div>
+        <div class="logo-sub">v1.260507.1900</div>
       </div>
     </div>
 
@@ -520,6 +520,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="sidebar-link" onclick="signOut()">
         <span>↩</span> Abmelden
       </div>
+      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.1900</div>
     </div>
   </aside>
 
@@ -2233,8 +2235,8 @@ async function autoDetectTeam() {
     window._availableMannschaften = data;
   }
 
-  // Spielplan-Feed laden wenn Team neu gesetzt oder noch kein URL vorhanden
-  if (_myTeamId && (_myTeamId !== prevTeamId || !_myTeamIcal)) {
+  // Spielplan-Feeds immer laden wenn noch nicht aus DB geholt
+  if (_myTeamId && window._teamIcalFeeds === undefined) {
     await autoLoadTeamIcal(_myTeamId);
   }
 }
@@ -2937,16 +2939,21 @@ function showView(id){
   if(id==='statistik') renderStatistik();
   if(id==='kader') renderKaderView();
   if(id==='spielplan'){
-    // Feed-Chips (falls bereits geladen) rendern
-    renderFeedChips(window._teamIcalFeeds || []);
     if(window._icalGamesMain){
-      // Gecachte Ergebnisse sofort anzeigen
+      // Cache vorhanden → sofort rendern
+      renderFeedChips(window._teamIcalFeeds || []);
       renderIcalMain(window._icalGamesMain);
+    } else if(_myTeamId && window._teamIcalFeeds === undefined){
+      // Feeds noch nicht aus DB geholt → jetzt holen und laden
+      renderFeedChips([]);
+      autoLoadTeamIcal(_myTeamId);
     } else if(window._teamIcalFeeds?.length){
-      // Feeds bekannt aber noch nicht geladen → jetzt laden
+      // Feeds bekannt, Spiele noch nicht geladen
+      renderFeedChips(window._teamIcalFeeds);
       loadAllTeamFeeds();
     } else {
-      // Kein Team-Feed: manuelles URL-Feld vorausfüllen falls vorhanden
+      // Kein Team-Feed in DB: Chips leeren, manuelles Feld vorausfüllen
+      renderFeedChips([]);
       const saved = localStorage.getItem('hbs_ical_url');
       const inp = document.getElementById('sp-ical-main');
       if(inp && saved) inp.value = saved;
