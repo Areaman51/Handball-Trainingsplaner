@@ -557,7 +557,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1615</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1700</div>
     </div>
   </aside>
 
@@ -2246,18 +2246,41 @@ function renderStatistikGegner(c){
   if(!oppPlayers.length){
     inner.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--xsoft);">Kein Gegner-Lineup. Wizard neu starten.</div>';
   } else {
+    // Hilfsfunktion: Aktion gehört zu Spieler wenn Name ODER Nummer übereinstimmt
+    // N.N.-Spieler und namenlose Ticker-Einträge werden über die Nummer gematcht
+    const isNN = name => !name || normName(name)===normName('n. n.')
+      || normName(name)===normName('n.n.') || normName(name).replace(/\s/g,'')===normName('nn');
+
+    const matchesPlayer = (a, p) => {
+      // 1. Name-Match (wenn beide Namen haben und nicht N.N.)
+      if(a.gegner_name && !isNN(a.gegner_name) && !isNN(p.name)) {
+        if(normName(a.gegner_name)===normName(p.name||'')) return true;
+      }
+      // 2. Nummer-Match (Fallback für N.N. und namenlose Aktionen)
+      if(a.gegner_nummer && p.nummer && String(a.gegner_nummer)===String(p.nummer)) return true;
+      // 3. N.N.-Spieler: Name-Match auf "n. n."
+      if(isNN(p.name) && isNN(a.gegner_name)) return true;
+      return false;
+    };
+
+    // Bereits zugeordnete Aktionen merken um Doppelzählung zu vermeiden
+    const matchedIds = new Set();
+
     oppPlayers.forEach(p=>{
-      const pTore = aktionen.filter(a=>!a.spieler_id && a.type==='gegner_tor'
-        && a.gegner_name && normName(a.gegner_name)===normName(p.name||'')).length;
-      const p2min = aktionen.filter(a=>!a.spieler_id && a.type==='gegner_2min'
-        && a.gegner_name && normName(a.gegner_name)===normName(p.name||'')).length;
-      const pRot  = aktionen.filter(a=>!a.spieler_id && a.type==='gegner_rot'
-        && a.gegner_name && normName(a.gegner_name)===normName(p.name||'')).length;
+      const oppAkt = aktionen.filter(a=>!a.spieler_id && GEGNER_TYPES.has(a.type)
+        && !matchedIds.has(a.id) && matchesPlayer(a, p));
+      oppAkt.forEach(a=>matchedIds.add(a.id));
+
+      const pTore = oppAkt.filter(a=>a.type==='gegner_tor').length;
+      const p2min = oppAkt.filter(a=>a.type==='gegner_2min').length;
+      const pRot  = oppAkt.filter(a=>a.type==='gegner_rot').length;
+
+      const displayName = isNN(p.name) ? 'N. N.' : (p.name||'—');
       const card = document.createElement('div');
       card.className = 'opp-overview-card' + (p.pos==='TH'?' th':'');
       card.innerHTML = `
         <div class="opp-num">${p.nummer||'?'}</div>
-        <div class="opp-name" title="${p.name||''}">${p.name||'—'}</div>
+        <div class="opp-name" title="${p.name||''}">${displayName}</div>
         <div style="font-size:9px;color:var(--xsoft);margin-bottom:5px;">${p.pos==='TH'?'● Torhüter':'▲ Feldspieler'}</div>
         <div class="opp-badges">
           ${pTore>0 ? `<span class="opp-badge tor">⚽ ${pTore}</span>` : ''}
@@ -2267,6 +2290,28 @@ function renderStatistikGegner(c){
         </div>`;
       inner.appendChild(card);
     });
+
+    // Nicht zugeordnete Aktionen (kein Name, keine passende Nummer) separat anzeigen
+    const unmatched = aktionen.filter(a=>!a.spieler_id && GEGNER_TYPES.has(a.type)
+      && !matchedIds.has(a.id));
+    if(unmatched.length){
+      const uTore = unmatched.filter(a=>a.type==='gegner_tor').length;
+      const u2min = unmatched.filter(a=>a.type==='gegner_2min').length;
+      const uRot  = unmatched.filter(a=>a.type==='gegner_rot').length;
+      const card = document.createElement('div');
+      card.className = 'opp-overview-card';
+      card.style.cssText='border-style:dashed;opacity:.75;';
+      card.innerHTML = `
+        <div class="opp-num" style="font-size:14px;color:var(--xsoft);">?</div>
+        <div class="opp-name">Nicht zugeordnet</div>
+        <div style="font-size:9px;color:var(--xsoft);margin-bottom:5px;">ohne Spieler-Match</div>
+        <div class="opp-badges">
+          ${uTore>0 ? `<span class="opp-badge tor">⚽ ${uTore}</span>` : ''}
+          ${u2min>0 ? `<span class="opp-badge zwei">⏱ ${u2min}</span>` : ''}
+          ${uRot>0  ? `<span class="opp-badge rot">🟥 ${uRot}</span>` : ''}
+        </div>`;
+      inner.appendChild(card);
+    }
   }
   grid.appendChild(inner);
   c.appendChild(grid);
