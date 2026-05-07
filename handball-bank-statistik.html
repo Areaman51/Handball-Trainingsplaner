@@ -2045,32 +2045,56 @@ function renderLog(){
   const body=document.getElementById('log-body');
   if(!body) return;
   body.innerHTML='';
-  // Laufende Scorezähler für Schnappschuss im Log
-  let snapH=0, snapA=0;
-  const sorted=[...aktionen].sort((a,b)=>new Date(a.erstellt_am)-new Date(b.erstellt_am));
-  [...sorted].reverse().slice(0,50).forEach(a=>{
+
+  // Gegner-Name korrekt: bei Auswärtsspiel ist heim der Gegner, sonst gast
+  const gegnerName = spielMeta.spielart==='auswaerts'
+    ? (spielMeta.heim||'Gegner')
+    : (spielMeta.gast||'Gegner');
+
+  // Sortierung: primär nach Spielminute, sekundär nach Erstellungszeit
+  const sorted=[...aktionen].sort((a,b)=>{
+    const mDiff=(a.spielminute||0)-(b.spielminute||0);
+    if(mDiff!==0) return mDiff;
+    return new Date(a.erstellt_am)-new Date(b.erstellt_am);
+  });
+
+  // Für laufenden Score-Schnappschuss vorwärts zählen
+  let runH=0, runA=0;
+  const isAway=spielMeta.spielart==='auswaerts';
+
+  // Score-Schnappschuss VORWÄRTS akkumulieren, dann rückwärts anzeigen
+  const withSnap=sorted.map(a=>{
+    if(GOAL_TYPES.has(a.type)&&a.spieler_id){ isAway?runA++:runH++; }
+    else if(a.type===GEGNER_GOAL_TYPE){ isAway?runH++:runA++; }
+    return{...a,_sh:runH,_sa:runA};
+  });
+
+  [...withSnap].reverse().slice(0,60).forEach(a=>{
     const row=document.createElement('div');
     if(!a.spieler_id){
-      // Gegner-Ereignis
+      const scoreSnap=a.type===GEGNER_GOAL_TYPE
+        ?`<span class="log-score-snap" style="background:rgba(220,38,38,.18);color:#fca5a5;">${a._sh}:${a._sa}</span>`
+        :'';
       row.className='log-row log-row-gegner';
-      const scoreSnap = a.type===GEGNER_GOAL_TYPE
-        ? `<span class="log-score-snap" style="background:rgba(220,38,38,.18);color:#fca5a5;">${spielMeta.score_home||0}:${spielMeta.score_away||0}</span>`
-        : '';
       row.innerHTML=`
         <span class="log-min">${a.spielminute}'</span>
         <span class="log-nr">GEG</span>
-        <span class="log-name" style="font-weight:600;color:var(--text);">${spielMeta.gast||'Gegner'}</span>
+        <span class="log-name" style="font-weight:600;color:var(--text);">${gegnerName}</span>
         <span class="log-aktion neg" style="color:${a.color||'var(--red)'};">${a.label}</span>
         ${scoreSnap}`;
     } else {
       const p=lineup.find(x=>x.id===a.spieler_id);
       if(!p) return;
+      const scoreSnap=GOAL_TYPES.has(a.type)
+        ?`<span class="log-score-snap" style="background:rgba(0,87,255,.12);color:#93c5fd;">${a._sh}:${a._sa}</span>`
+        :'';
       row.className='log-row';
       row.innerHTML=`
         <span class="log-min">${a.spielminute}'</span>
         <span class="log-nr">#${p.nummer}</span>
         <span class="log-name">${p.name}</span>
-        <span class="log-aktion ${a.polarity>0?'pos':'neg'}" style="color:${a.color}">${a.label}</span>`;
+        <span class="log-aktion ${a.polarity>0?'pos':'neg'}" style="color:${a.color}">${a.label}</span>
+        ${scoreSnap}`;
     }
     body.appendChild(row);
   });
@@ -3589,7 +3613,14 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
     const playerMap = new Map(myLineup.map(p => [normName(p.name), p.id]));
 
     // Aktionen die bereits importiert sind (für Deduplizierung)
-    const existingKeys = new Set(aktionen.map(a => `${a.spielminute}-${a.type}-${a.spieler_id}`));
+    // Für Gegner-Einträge (spieler_id=null): Zähler pro Minute+Typ, da kein Spielername in DB
+    const existingKeys = new Set(aktionen.filter(a=>a.spieler_id).map(a=>`${a.spielminute}-${a.type}-${a.spieler_id}`));
+    // Gegner-Einträge: für jeden vorhandenen Eintrag einen Platzhalterschlüssel reservieren
+    const gegnerCountMap = {};
+    aktionen.filter(a=>!a.spieler_id&&GEGNER_TYPES.has(a.type)).forEach(a=>{
+      const mk=`${a.spielminute}-${a.type}`;
+      gegnerCountMap[mk]=(gegnerCountMap[mk]||0)+1;
+    });
 
     // Gegner-Mapping (Ereignisse ohne Treffer im eigenem Lineup)
     const gegnerTickerMap = {
@@ -3626,9 +3657,20 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       } else if (ev.playerName && gegnerTickerMap[ev.type]) {
         // ── Gegner-Spieler: als Gegner-Aktion importieren ──
         const gm = gegnerTickerMap[ev.type];
-        const key = `${ev.minute}-${gm.type}-null`;
-        if (existingKeys.has(key)) continue;
-        existingKeys.add(key);
+        // Dedup: neuer Eintrag nur wenn nicht bereits so viele in dieser Minute+Typ in DB
+        const mk = `${ev.minute}-${gm.type}`;
+        const nameKey = `${mk}-${normName(ev.playerName)}`;
+        if (existingKeys.has(nameKey)) continue;
+        // Prüfe ob DB-Zähler ausreicht (ältere Einträge ohne playerName)
+        const dbCount = gegnerCountMap[mk]||0;
+        let nameKeyUsed = false;
+        if (dbCount > 0) {
+          // Bereits durch DB-Eintrag abgedeckt: Zähler dekrementieren statt skippen
+          gegnerCountMap[mk]--;
+          nameKeyUsed = true;
+        }
+        existingKeys.add(nameKey);
+        if (nameKeyUsed) continue; // Bereits in DB
         toGegner.push({
           spiel_id: spielId, spieler_id: null,
           user_id: currentUser.id,
@@ -3660,7 +3702,12 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       }
     }
 
-    recalcScore();
+    // Ticker-Score ist autoritativ (Name-Matching ist nicht 100% → recalcScore nicht aufrufen)
+    // Score wurde bereits aus ticker.score_home/away gesetzt; nur Display aktualisieren
+    const _elH=document.getElementById('live-sc-home');
+    const _elA=document.getElementById('live-sc-away');
+    if(_elH) _elH.textContent=spielMeta.score_home||0;
+    if(_elA) _elA.textContent=spielMeta.score_away||0;
     await saveSpielMeta();
     setStatus('ok', `${importedCount} Aktionen importiert`);
     if (skippedCount) toast(`${importedCount} importiert, ${skippedCount} übersprungen`, 'info');
