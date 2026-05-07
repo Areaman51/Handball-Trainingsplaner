@@ -465,7 +465,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">v1.260507.1600</div>
+        <div class="logo-sub">v1.260507.1715</div>
       </div>
     </div>
 
@@ -584,12 +584,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="card" style="margin-bottom:18px;">
           <div class="card-body">
             <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
-              color:var(--xsoft);margin-bottom:10px;">📅 iCal / Spielplan-URL</div>
+              color:var(--xsoft);margin-bottom:10px;">📅 Spielplan-Feed</div>
             <p style="font-size:13px;color:var(--soft);margin-bottom:12px;line-height:1.6;">
-              Die iCal-URL deines Teams von handball.net einfügen. Du findest sie im Teambereich
-              unter <strong>Kalender-Export</strong> oder <strong>Abonnieren</strong>.
-              Das Format ist <code style="background:var(--bg);padding:1px 5px;border-radius:4px;
-              font-size:12px;">webcal://www.handball.net/…</code>
+              Der aktive Spielplan-Feed wird automatisch aus der
+              <a href="mannschaftsverwaltung.html" style="color:var(--accent);text-decoration:none;">Mannschaftsverwaltung</a>
+              geladen. Alternativ hier manuell eine iCal-URL eingeben.
             </p>
             <div style="display:flex;gap:8px;margin-bottom:8px;">
               <input class="form-input" id="sp-ical-main"
@@ -598,8 +597,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
               <button class="btn btn-primary" id="sp-ical-main-btn"
                 onclick="loadIcalMain()">🔄 Laden</button>
             </div>
-            <div style="font-size:11.5px;color:var(--xsoft);">
-              Die URL wird lokal im Browser gespeichert und beim nächsten Besuch vorausgefüllt.
+            <div style="font-size:11.5px;color:var(--xsoft);" id="sp-ical-status">
+              Kein aktiver Feed in der Mannschaftsverwaltung hinterlegt.
             </div>
           </div>
         </div>
@@ -2193,6 +2192,8 @@ async function autoDetectTeam() {
     .order('created_at', { ascending: true });
   if (error || !data?.length) return;
 
+  const prevTeamId = _myTeamId;
+
   if (data.length === 1) {
     // Nur eine Mannschaft → automatisch setzen
     _myTeamId   = data[0].id;
@@ -2202,7 +2203,6 @@ async function autoDetectTeam() {
     renderMyTeamWidget();
   } else if (!_myTeamId) {
     // Mehrere Mannschaften, noch keine gewählt → Picker anbieten
-    // (Widget zeigt "Team auswählen…" und öffnet bei Klick den Picker)
     window._availableMannschaften = data;
     renderMyTeamWidget();
   } else {
@@ -2214,6 +2214,47 @@ async function autoDetectTeam() {
       renderMyTeamWidget();
     }
     window._availableMannschaften = data;
+  }
+
+  // Spielplan-Feed laden wenn Team neu gesetzt oder noch kein URL vorhanden
+  if (_myTeamId && (_myTeamId !== prevTeamId || !_myTeamIcal)) {
+    await autoLoadTeamIcal(_myTeamId);
+  }
+}
+
+// Holt den aktiven Spielplan-Feed aus mannschaft_kalender und triggert ggf. Auto-Load
+async function autoLoadTeamIcal(teamId, forceReload = false) {
+  if (!teamId) return;
+  const { data, error } = await supa
+    .from('mannschaft_kalender')
+    .select('url,typ')
+    .eq('mannschaft_id', teamId)
+    .eq('aktiv', true)
+    .in('typ', ['spielplan', 'pokal', 'sonstige'])
+    .order('typ')
+    .limit(1);
+
+  if (error || !data?.length) return;
+  const icalUrl = data[0].url;
+  if (!icalUrl) return;
+
+  // Speichern
+  _myTeamIcal = icalUrl;
+  localStorage.setItem('hbs_ical_url', icalUrl);
+
+  // Input-Feld im Spielplan-View aktualisieren
+  const inp = document.getElementById('sp-ical-main');
+  if (inp) inp.value = icalUrl;
+
+  // Status-Text im Spielplan-View aktualisieren
+  const statusEl = document.getElementById('sp-ical-status');
+  if (statusEl) statusEl.textContent = `Automatisch aus Mannschaftsverwaltung geladen (${data[0].typ})`;
+
+  // Sofort laden wenn Spielplan-View aktiv oder Cache leer oder forceReload
+  const spielplanActive = document.getElementById('view-spielplan')?.classList.contains('active');
+  if (forceReload || spielplanActive || !window._icalGamesMain) {
+    window._icalGamesMain = null;
+    if (spielplanActive) await loadIcalMain();
   }
 }
 
@@ -2337,14 +2378,21 @@ function selectMannschaftOption(id, name, el) {
   el.appendChild(chk);
 }
 
-function saveMyTeamConfig() {
+async function saveMyTeamConfig() {
   if (_pendingTeamId) {
+    const teamChanged = _pendingTeamId !== _myTeamId;
     _myTeamId   = _pendingTeamId;
     _myTeamName = _pendingTeamName;
     _pendingTeamId   = '';
     _pendingTeamName = '';
     localStorage.setItem('hbs_my_team',          _myTeamName);
     localStorage.setItem('hbs_my_mannschaft_id', _myTeamId);
+    // Bei Teamwechsel: iCal-Cache leeren und neu laden
+    if (teamChanged) {
+      _myTeamIcal = '';
+      window._icalGamesMain = null;
+      await autoLoadTeamIcal(_myTeamId, true);
+    }
   }
   renderMyTeamWidget();
   closeModal('m-myteam');
@@ -2812,9 +2860,16 @@ function showView(id){
   if(id==='statistik') renderStatistik();
   if(id==='kader') renderKaderView();
   if(id==='spielplan'){
-    // URL aus localStorage vorausfüllen
-    const saved=localStorage.getItem('hbs_ical_url');
-    if(saved) document.getElementById('sp-ical-main').value=saved;
+    const icalUrl = _myTeamIcal || localStorage.getItem('hbs_ical_url') || '';
+    const inp = document.getElementById('sp-ical-main');
+    if(inp && icalUrl) inp.value = icalUrl;
+    // Automatisch laden wenn URL bekannt und noch kein Ergebnis vorhanden
+    if(icalUrl && !window._icalGamesMain){
+      loadIcalMain();
+    } else if(icalUrl && window._icalGamesMain) {
+      // Gecachte Ergebnisse sofort rendern
+      renderIcalMain(window._icalGamesMain);
+    }
   }
 }
 
