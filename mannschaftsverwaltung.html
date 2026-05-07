@@ -1,10 +1,10 @@
 <!DOCTYPE html>
+<!-- Handball Coaching Tools v1.260503.1700 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>&#127939; Mannschaftsverwaltung &#8211; Handball Coaching Tools</title>
-<link rel="icon" href="data:,">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -151,6 +151,13 @@ tbody tr:hover{background:#fafbff;}
 .copy-field code{flex:1;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-family:'DM Mono',monospace;font-size:11.5px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #toast{position:fixed;bottom:24px;right:24px;background:#111827;color:white;padding:12px 20px;border-radius:10px;font-size:13.5px;font-weight:500;z-index:200;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;}
 #toast.show{opacity:1;transform:translateY(0);}
+
+/* Kalender-Typ-Chips */
+.typ-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.typ-training{background:#f0fdf4;color:#15803d;}
+.typ-spiele{background:#e6eeff;color:#0057ff;}
+.typ-pokal{background:#ede9fe;color:#7c3aed;}
+.typ-sonstige{background:#fffbeb;color:#d97706;}
 @media(max-width:768px){.sidebar{display:none;}.main{margin-left:0;}.form-row{grid-template-columns:1fr;}.team-grid{grid-template-columns:1fr;}.content{padding:16px;}}
 </style>
 </head>
@@ -192,6 +199,8 @@ tbody tr:hover{background:#fafbff;}
       <a class="sidebar-link" href="handball-bank-statistik.html">&#128202; Bank-Statistik</a>
       <a class="sidebar-link" href="nutzerverwaltung.html">&#128101; Nutzerverwaltung</a>
       <div class="sidebar-link" onclick="logout()" style="margin-top:4px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px;">&#8947; Abmelden</div>
+    
+      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1700</div>
     </div>
   </aside>
   <main class="main">
@@ -284,6 +293,57 @@ tbody tr:hover{background:#fafbff;}
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeDeleteModal()">Abbrechen</button><button class="btn btn-danger" id="delete-confirm-btn" onclick="executeDelete()">&#128465;&#65039; Endg&#252;ltig l&#246;schen</button></div>
   </div>
 </div>
+
+<!-- MODAL Kalender -->
+<div class="modal-overlay" id="kalender-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="km-title">Kalender hinzuf&#252;gen</div>
+      <button class="modal-close" onclick="closeKalenderModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="km-id">
+      <div class="form-group">
+        <label class="form-label">Name *</label>
+        <input class="form-input" id="km-name" placeholder="z.B. Spielplan Staffel 1, Pokal, Training">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Typ</label>
+        <select class="form-select" id="km-typ">
+          <option value="training">&#127947; Training</option>
+          <option value="spiele">&#127942; Spielplan</option>
+          <option value="pokal">&#127942; Pokal</option>
+          <option value="sonstige">&#128197; Sonstige</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">iCal-URL *</label>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="km-url" placeholder="webcal://handball.net/... oder https://sportsmember.com/..." style="margin:0;flex:1;">
+          <button class="btn btn-ghost" onclick="testKalenderUrl(document.getElementById('km-url').value,'km-test-result')" style="flex-shrink:0;">Testen</button>
+        </div>
+        <div id="km-test-result" style="margin-top:6px;min-height:18px;font-size:12px;"></div>
+        <div style="margin-top:6px;font-size:11.5px;color:var(--xsoft);">
+          handball.net: Teamseite &#8594; Kalender-Symbol &#8594; iCal-Link kopieren<br>
+          Sportsmember: Kalender &#8594; Export &#8594; iCal-Link
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Aktiv</div>
+            <div class="toggle-sub">Kalender wird im Trainingsplaner und in der Bank-Statistik geladen</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="km-aktiv" checked><span class="slider"></span></label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeKalenderModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveKalender()">Speichern</button>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 <script>
 const SUPA_URL='https://dlofjsmnkwltuutpxoer.supabase.co';
@@ -291,8 +351,9 @@ const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const supa=supabase.createClient(SUPA_URL,SUPA_KEY);
 const ICAL_PROXY_URL=SUPA_URL+'/functions/v1/ical-proxy';
 const CORS_FALLBACKS=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
+const HBN_EDGE_FN=SUPA_URL+'/functions/v1/quick-service';
 
-let currentUser=null,allTeams=[],ownerProfiles={},currentTeamId=null,currentPlayers=[],currentFreigaben=[],activeTab='kader',deleteTarget=null,searchTimeout=null;
+let currentUser=null,allTeams=[],ownerProfiles={},currentTeamId=null,currentPlayers=[],currentFreigaben=[],currentKalender=[],activeTab='kader',deleteTarget=null,searchTimeout=null,editKalenderId=null;
 
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const isOwner=t=>t&&t.user_id===currentUser?.id;
@@ -344,6 +405,11 @@ async function loadFreigaben(tid){
     (profs||[]).forEach(p=>{ownerProfiles[p.id]={full_name:p.full_name,email:p.email};});
   }
 }
+async function loadKalender(tid){
+  const{data}=await supa.from('mannschaft_kalender').select('*')
+    .eq('mannschaft_id',tid).order('typ').order('sort_order').order('created_at');
+  currentKalender=data||[];
+}
 
 // NAV
 function showOverview(){
@@ -377,6 +443,7 @@ async function showTeamDetail(tid){
   renderSidebarTeams();
   await loadPlayers(tid);
   if(owned)await loadFreigaben(tid);
+  await loadKalender(tid);
   setTab(activeTab);
 }
 
@@ -445,7 +512,26 @@ function renderTabKader(team){
     <td>${owned?`<div style="display:flex;gap:5px;"><button class="btn btn-ghost btn-sm" onclick="openPlayerModal('${p.id}')">&#9999;&#65039;</button><button class="btn btn-danger btn-sm" onclick="confirmDeletePlayer('${p.id}')">&#128465;&#65039;</button></div>`:'&#8211;'}</td>
   </tr>`).join(''):`<tr><td colspan="5"><div class="empty"><div class="empty-icon">&#128101;</div><div class="empty-text">Noch keine Spieler.</div></div></td></tr>`;
   document.getElementById('tab-content-kader').innerHTML=`
-    ${owned?`<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;"><button class="btn btn-ghost" onclick="openPlayerModal(null,'FL')">+ &#9650; Feldspieler</button><button class="btn btn-ghost" onclick="openPlayerModal(null,'TH')">+ &#9679; Torrhüter</button></div>`:''}
+    ${owned?`
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="toggleHbnImport()" title="Kader von handball.net importieren">&#127760; handball.net</button>
+      <button class="btn btn-ghost" onclick="openPlayerModal(null,'FL')">+ &#9650; Feldspieler</button>
+      <button class="btn btn-ghost" onclick="openPlayerModal(null,'TH')">+ &#9679; Torrhüter</button>
+    </div>
+    <div id="hbn-import-panel" style="display:none;background:var(--accent-l);border:1.5px solid #bfdbfe;border-radius:10px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:600;color:#1e3a8a;margin-bottom:8px;">&#127760; Kader von handball.net importieren</div>
+      <div style="font-size:12px;color:#1e3a8a;margin-bottom:12px;line-height:1.5;">
+        handball.net-Spielseite aufrufen &#8594; URL der Aufstellungsseite kopieren und hier einfügen.
+        Neue Spieler werden mit dem bestehenden Kader abgeglichen.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input class="form-input" id="hbn-match-url"
+          placeholder="https://www.handball.net/spiele/.../aufstellung"
+          style="flex:1;min-width:200px;margin:0;" onkeydown="if(event.key==='Enter')hbnLoadRoster()">
+        <button class="btn btn-primary" onclick="hbnLoadRoster()">Laden</button>
+      </div>
+      <div id="hbn-import-result" style="margin-top:12px;"></div>
+    </div>`:''}
     <div class="card"><div class="table-wrap"><table>
       <thead><tr><th>#</th><th>Name</th><th>Position</th><th>Status</th><th>Aktionen</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -454,67 +540,85 @@ function renderTabKader(team){
 }
 
 // TAB FEEDS
-function _feedSavedChip(val){
-  return val
-    ?'<span style="font-size:11px;font-weight:600;color:var(--green);background:var(--green-l);border:1px solid var(--green-b);padding:2px 8px;border-radius:20px;white-space:nowrap;">&#10003; Gespeichert</span>'
-    :'<span style="font-size:11px;font-weight:600;color:var(--xsoft);background:var(--bg);border:1px solid var(--border);padding:2px 8px;border-radius:20px;white-space:nowrap;">Nicht gespeichert</span>';
-}
+const TYP_LABELS={training:{icon:'&#127947;',label:'Training',color:'#15803d'},spiele:{icon:'&#127942;',label:'Spielplan',color:'#0057ff'},pokal:{icon:'&#127942;',label:'Pokal',color:'#7c3aed'},sonstige:{icon:'&#128197;',label:'Sonstige',color:'#d97706'}};
+
 function renderTabFeeds(team){
   const owned=isOwner(team);
-  const fld=(id,val,ph)=>owned
-    ?`<input class="form-input" id="${id}" value="${esc(val||'')}" placeholder="${ph}" style="flex:1;min-width:200px;margin:0;">`
-    :`<code style="flex:1;padding:8px 11px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-family:'DM Mono',monospace;font-size:12px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(val||'(kein Feed)')}</code>`;
+  const rows=currentKalender.length?currentKalender.map(k=>{
+    const t=TYP_LABELS[k.typ]||TYP_LABELS.sonstige;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:9px;border:1px solid var(--border);background:white;margin-bottom:8px;">
+      <span style="flex-shrink:0;width:28px;height:28px;border-radius:6px;background:${t.color}20;display:flex;align-items:center;justify-content:center;font-size:13px;">${t.icon}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:2px;">${esc(k.name)}</div>
+        <div style="font-size:11px;color:var(--xsoft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(k.url)}</div>
+      </div>
+      <span style="font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:20px;background:${t.color}20;color:${t.color};flex-shrink:0;">${t.label}</span>
+      <span style="font-size:10.5px;padding:2px 8px;border-radius:20px;background:${k.aktiv?'var(--green-l)':'var(--red-l)'};color:${k.aktiv?'var(--green)':'var(--red)'};flex-shrink:0;">${k.aktiv?'Aktiv':'Inaktiv'}</span>
+      <button class="btn btn-ghost btn-sm" onclick="testKalenderUrl('${esc(k.url)}','test-${k.id}')">Testen</button>
+      ${owned?`<button class="btn btn-ghost btn-sm" onclick="openKalenderModal('${k.id}')">&#9999;&#65039;</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteKalender('${k.id}','${esc(k.name)}')">&#128465;</button>`:''}
+      <div id="test-${k.id}" style="font-size:11.5px;min-width:80px;text-align:right;"></div>
+    </div>`;
+  }).join(''):`<div style="padding:20px 0;color:var(--xsoft);font-size:13px;text-align:center;">Noch keine Kalender hinterlegt.</div>`;
+
   document.getElementById('tab-content-feeds').innerHTML=`
-    <div class="card" style="padding:24px;margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-        <span style="font-size:14px;font-weight:600;">&#127947; Training-Feed</span>
-        <span id="saved-chip-training">${_feedSavedChip(team.ical_training)}</span>
+    <div class="card" style="padding:20px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:600;">&#128197; Kalender (${currentKalender.length})</div>
+        ${owned?'<button class="btn btn-primary btn-sm" onclick="openKalenderModal()">+ Kalender hinzuf&uuml;gen</button>':''}
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${fld('feed-training',team.ical_training,'https://sportsmember.com/ical/...')}
-        <button class="btn btn-ghost" onclick="testFeed('feed-training','s-training')">Testen</button>
-        ${owned?'<button class="btn btn-primary" id="btn-save-training" onclick="saveFeed(\'training\')">Speichern</button>':''}
-      </div>
-      <div id="s-training" style="margin-top:7px;min-height:18px;"></div>
+      ${rows}
     </div>
-    <div class="card" style="padding:24px;margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-        <span style="font-size:14px;font-weight:600;">&#127942; Spiel-Feed</span>
-        <span id="saved-chip-spiele">${_feedSavedChip(team.ical_spiele)}</span>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${fld('feed-spiele',team.ical_spiele,'webcal://handball.net/ical/...')}
-        <button class="btn btn-ghost" onclick="testFeed('feed-spiele','s-spiele')">Testen</button>
-        ${owned?'<button class="btn btn-primary" id="btn-save-spiele" onclick="saveFeed(\'spiele\')">Speichern</button>':''}
-      </div>
-      <div id="s-spiele" style="margin-top:7px;min-height:18px;"></div>
-    </div>
-    <div class="info-box">&#128161; iCal-URLs findest du auf <strong>handball.net</strong> unter <em>Kalender &rarr; Abonnieren</em>. Sportsmember-URLs erhältst du von deinem Verein. &#9432; Klicke <strong>Speichern</strong> nach dem Eingeben &#8211; Testen allein speichert nicht.</div>`;
+    <div class="info-box">&#128161; Du kannst beliebig viele Kalender je Mannschaft hinterlegen &mdash; z.B. Training, Spielplan, Pokal und mehr. Die URLs werden automatisch im Trainingsplaner und in der Bank-Statistik verwendet.</div>`;
 }
-async function saveFeed(type){
-  const field=type==='training'?'ical_training':'ical_spiele';
-  const input=document.getElementById(`feed-${type}`);
-  const btn=document.getElementById(`btn-save-${type}`);
-  if(!input)return;
-  const url=input.value.trim();
-  if(btn){btn.textContent='...';btn.disabled=true;}
-  // .select() is REQUIRED: without it Supabase JS v2 always returns {data:null, error:null}
-  // even when RLS blocks the update or 0 rows are matched (silent failure).
-  const{data,error}=await supa.from('mannschaften').update({[field]:url}).eq('id',currentTeamId).select('id,ical_training,ical_spiele');
-  if(btn){btn.textContent='Speichern';btn.disabled=false;}
+
+async function testKalenderUrl(url, statusId){
+  const s=document.getElementById(statusId);
+  if(!s||!url)return;
+  s.innerHTML='<span style="color:var(--soft)">&#8987;</span>';
+  try{const evs=await fetchICalFeed(url);s.innerHTML=`<span style="color:var(--green);font-weight:600;">${evs.length} Termine</span>`;}
+  catch(e){s.innerHTML=`<span style="color:var(--red);font-size:11px;">${esc(e.message||'Fehler')}</span>`;}
+}
+
+function openKalenderModal(kid=null){
+  const k=kid?currentKalender.find(x=>x.id===kid):null;
+  editKalenderId=kid||null;
+  document.getElementById('km-title').textContent=k?'Kalender bearbeiten':'Kalender hinzufügen';
+  document.getElementById('km-id').value=kid||'';
+  document.getElementById('km-name').value=k?k.name:'';
+  document.getElementById('km-url').value=k?k.url:'';
+  document.getElementById('km-typ').value=k?k.typ:'spiele';
+  document.getElementById('km-aktiv').checked=k?k.aktiv:true;
+  document.getElementById('km-test-result').innerHTML='';
+  document.getElementById('kalender-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('km-name').focus(),100);
+}
+function closeKalenderModal(){document.getElementById('kalender-modal').classList.remove('open');editKalenderId=null;}
+
+async function saveKalender(){
+  const id=document.getElementById('km-id').value;
+  const name=document.getElementById('km-name').value.trim();
+  const url=document.getElementById('km-url').value.trim();
+  if(!name){showToast('Name ist Pflichtfeld.','error');return;}
+  if(!url){showToast('URL ist Pflichtfeld.','error');return;}
+  const data={mannschaft_id:currentTeamId,name,url,typ:document.getElementById('km-typ').value,aktiv:document.getElementById('km-aktiv').checked};
+  let error;
+  if(id){({error}=await supa.from('mannschaft_kalender').update(data).eq('id',id));}
+  else  {({error}=await supa.from('mannschaft_kalender').insert(data));}
   if(error){showToast('Fehler: '+error.message,'error');return;}
-  if(!data||!data.length){
-    showToast('Update fehlgeschlagen – keine Zeile aktualisiert. Prüfe Supabase-Verbindung und Rechte.','error');
-    return;
-  }
-  // Sync local cache from confirmed DB response (not from input value)
-  const returned=data[0];
-  const team=allTeams.find(t=>t.id===currentTeamId);
-  if(team){team.ical_training=returned.ical_training;team.ical_spiele=returned.ical_spiele;}
-  // Update saved-chip inline without full re-render
-  const chip=document.getElementById(`saved-chip-${type}`);
-  if(chip)chip.innerHTML=_feedSavedChip(url);
-  // Keep overview stats counter accurate while still in detail view
-  renderOverviewStats();
-  showToast('Feed gespeichert','success');
+  showToast(id?'Kalender aktualisiert':'Kalender hinzugefügt','success');
+  closeKalenderModal();
+  await loadKalender(currentTeamId);
+  renderTabFeeds(allTeams.find(t=>t.id===currentTeamId));
+}
+
+async function deleteKalender(kid,name){
+  if(!confirm(`Kalender "${name}" wirklich löschen?`))return;
+  const{error}=await supa.from('mannschaft_kalender').delete().eq('id',kid);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast('Kalender gelöscht','success');
+  await loadKalender(currentTeamId);
+  renderTabFeeds(allTeams.find(t=>t.id===currentTeamId));
 }
 
 // TAB INFO
@@ -707,27 +811,30 @@ async function testFeed(inputId,statusId){
   catch(e){s.innerHTML=`<span class="feed-result-err">${e.message||'Nicht erreichbar'}</span>`;}
 }
 async function fetchICalFeed(url){
+  // webcal:// normalisieren
   url=url.replace(/^webcal:\/\//i,'https://');
-  try{
-    const{data:{session}}=await supa.auth.getSession();
-    if(session?.access_token){
-      const res=await fetch(ICAL_PROXY_URL+'?url='+encodeURIComponent(url),{headers:{'Authorization':'Bearer '+session.access_token},signal:AbortSignal.timeout(12000)});
-      if(res.ok){const t=await res.text();if(t.includes('BEGIN:VCALENDAR'))return parseICal(t);}
-    }
-  }catch(e){if(e.message?.includes('Nicht')||e.message?.includes('erlaubt'))throw e;}
+  // Direkt CORS-Proxies verwenden (Edge Function ical-proxy noch nicht deployed)
   let lastErr;
   for(const proxy of CORS_FALLBACKS){
-    try{const res=await fetch(proxy+encodeURIComponent(url),{signal:AbortSignal.timeout(8000)});if(!res.ok)throw new Error('HTTP '+res.status);const t=await res.text();if(!t.includes('BEGIN:VCALENDAR'))throw new Error('Kein gültiger iCal-Feed');return parseICal(t);}
-    catch(e){lastErr=e;}
+    try{
+      const res=await fetch(proxy+encodeURIComponent(url),{signal:AbortSignal.timeout(10000)});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const t=await res.text();
+      if(!t.includes('BEGIN:VCALENDAR'))throw new Error('Kein gültiger iCal-Feed');
+      return parseICal(t);
+    }catch(e){lastErr=e;}
   }
   throw lastErr||new Error('Feed nicht abrufbar');
 }
 function parseICal(text){
-  const u=text.replace(/\r\n[ \t]|\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n'),events=[],blocks=u.split('BEGIN:VEVENT');
+  const u=text.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const events=[],blocks=u.split('BEGIN:VEVENT');
   for(let i=1;i<blocks.length;i++){
     const block=blocks[i].split('END:VEVENT')[0],ev={};
-    block.split('\n').forEach(line=>{const sep=line.indexOf(':');if(sep<0)return;const key=line.slice(0,sep).split(';')[0].trim().toUpperCase(),val=line.slice(sep+1).trim();
-      if(key==='SUMMARY')ev.summary=val.replace(/\n/g,' ').replace(/\,/g,',');
+    block.split('\n').forEach(line=>{
+      const sep=line.indexOf(':');if(sep<0)return;
+      const key=line.slice(0,sep).split(';')[0].trim().toUpperCase(),val=line.slice(sep+1).trim();
+      if(key==='SUMMARY')ev.summary=val.replace(/\\n/g,' ').replace(/\\,/g,',');
       if(key==='DTSTART')ev.dtstart=parseICalDate(val);
       if(key==='DTEND')ev.dtend=parseICalDate(val);
     });
@@ -735,17 +842,250 @@ function parseICal(text){
   }
   return events;
 }
-function parseICalDate(s){s=s.replace('Z','');if(s.includes('T'))return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(9,11)}:${s.slice(11,13)}:00`);return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);}
-
-// UTILS
-let toastTimer;
-function showToast(msg,type='success'){
-  const el=document.getElementById('toast');el.textContent=msg;
-  el.style.background=type==='error'?'#7f1d1d':type==='info'?'#1e3a8a':'#111827';
-  el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3500);
+function parseICalDate(s){
+  s=s.replace('Z','');
+  if(s.includes('T'))return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(9,11)}:${s.slice(11,13)}:00`);
+  return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);
 }
-document.addEventListener('click',e=>{const r=document.getElementById('freigabe-results');if(r&&!e.target.closest('.search-wrap-rel'))r.style.display='none';});
-document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;['team-modal','player-modal','delete-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));const r=document.getElementById('freigabe-results');if(r)r.style.display='none';});
+
+
+
+// ════════════════════════════════════════════════════════════════
+//  handball.net KADER-IMPORT
+// ════════════════════════════════════════════════════════════════
+
+function toggleHbnImport(){
+  const panel=document.getElementById('hbn-import-panel');
+  if(!panel)return;
+  const open=panel.style.display==='none';
+  panel.style.display=open?'':'none';
+  if(open) setTimeout(()=>document.getElementById('hbn-match-url')?.focus(),100);
+}
+
+/** Ruft die handball.net-Seite via Edge Function ab */
+async function hbnFetchMatch(url){
+  const{data:{session}}=await supa.auth.getSession();
+  if(!session?.access_token) throw new Error('Nicht eingeloggt');
+  const res=await fetch(HBN_EDGE_FN,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+    body:JSON.stringify({url,requestType:'roster'}),
+    signal:AbortSignal.timeout(20000)
+  });
+  if(!res.ok){
+    const err=await res.json().catch(()=>({message:'HTTP '+res.status}));
+    throw new Error(err.message||'HTTP '+res.status);
+  }
+  return res.json();
+}
+
+/** Normalisiert einen Namen für den Abgleich */
+function normName(n){
+  return String(n||'')
+    .toLowerCase()
+    .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
+    .replace(/[^a-z0-9]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+/** Gleicht einen Spieler gegen den bestehenden Kader ab */
+function matchPlayer(importedName, existing){
+  const normImp=normName(importedName);
+  // Exakter Treffer
+  const exact=existing.find(p=>normName(p.name)===normImp);
+  if(exact) return{match:'exact',player:exact};
+  // Teilstring-Treffer (Nachname reicht)
+  const partImpParts=normImp.split(' ');
+  const partial=existing.find(p=>{
+    const normEx=normName(p.name);
+    return partImpParts.some(part=>part.length>2&&normEx.includes(part));
+  });
+  if(partial) return{match:'partial',player:partial};
+  return{match:'none',player:null};
+}
+
+/** Lädt Kader von handball.net und zeigt Abgleich-UI */
+async function hbnLoadRoster(){
+  const url=document.getElementById('hbn-match-url')?.value.trim();
+  const res=document.getElementById('hbn-import-result');
+  if(!url){showToast('Bitte URL eingeben.','error');return;}
+  res.innerHTML='<div style="color:var(--soft);font-size:12.5px;">&#8987; Lade Kader von handball.net&#8230;</div>';
+
+  try{
+    const data=await hbnFetchMatch(url);
+    if(!data.heimRoster?.length&&!data.gastRoster?.length){
+      res.innerHTML='<div style="color:var(--red);font-size:12.5px;">Kein Kader in den Spieldaten gefunden.</div>';
+      return;
+    }
+    window._hbnMatchData=data;
+    // Zeige Team-Auswahl wenn beide Kader vorhanden
+    if(data.heimRoster?.length&&data.gastRoster?.length){
+      res.innerHTML=renderHbnTeamChoice(data);
+    } else {
+      const roster=data.heimRoster?.length?data.heimRoster:data.gastRoster;
+      const label=data.heimRoster?.length?data.heim:data.gast;
+      renderHbnDiff(roster,label);
+    }
+  }catch(e){
+    res.innerHTML=`<div style="color:var(--red);font-size:12.5px;padding:10px;background:var(--red-l);
+      border:1px solid var(--red-b);border-radius:8px;">&#10060; ${e.message}<br>
+      <span style="font-size:11px;opacity:.8;display:block;margin-top:4px;">
+        Tipp: Die /aufstellung-URL des Spiels verwenden.</span></div>`;
+  }
+}
+
+function renderHbnTeamChoice(data){
+  const hCount=data.heimRoster?.length||0;
+  const gCount=data.gastRoster?.length||0;
+  return `<div style="font-size:12px;font-weight:600;color:#1e3a8a;margin-bottom:10px;">
+    &#9654; Welche Mannschaft abgleichen?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button class="btn btn-ghost" style="flex-direction:column;align-items:flex-start;padding:10px 12px;"
+        onclick="renderHbnDiff(window._hbnMatchData.heimRoster,'${data.heim.replace(/'/g,"\'")}')">
+        <span style="font-weight:600;">&#127968; ${data.heim}</span>
+        <span style="font-size:11px;color:var(--soft);margin-top:2px;">${hCount} Spieler</span>
+      </button>
+      <button class="btn btn-ghost" style="flex-direction:column;align-items:flex-start;padding:10px 12px;"
+        onclick="renderHbnDiff(window._hbnMatchData.gastRoster,'${data.gast.replace(/'/g,"\'")}')">
+        <span style="font-weight:600;">&#9992;&#65039; ${data.gast}</span>
+        <span style="font-size:11px;color:var(--soft);margin-top:2px;">${gCount} Spieler</span>
+      </button>
+    </div>`;
+}
+
+/** Rendert den Abgleich: vorhanden / ähnlich / neu */
+function renderHbnDiff(roster, teamLabel){
+  const res=document.getElementById('hbn-import-result');
+  if(!res)return;
+
+  const matched   =[];  // exakter Treffer
+  const similar   =[];  // Teilstring-Treffer
+  const newPlayers=[];  // nicht gefunden
+
+  roster.forEach(p=>{
+    const{match,player}=matchPlayer(p.name,currentPlayers);
+    if(match==='exact') matched.push({imported:p,existing:player});
+    else if(match==='partial') similar.push({imported:p,existing:player});
+    else newPlayers.push({imported:p});
+  });
+
+  const posIcon=pos=>pos==='TH'?'&#9679;':'&#9650;';
+
+  const matchedRows=matched.map(({imported,existing})=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;background:var(--green-l);margin-bottom:4px;">
+      <span style="color:var(--green);font-size:13px;">&#10003;</span>
+      <span style="font-size:11.5px;color:var(--green);font-weight:500;flex:1;">${imported.nummer?'#'+imported.nummer+' ':''}${imported.name}</span>
+      <span style="font-size:11px;color:var(--green);">bereits im Kader</span>
+    </div>`).join('');
+
+  const similarRows=similar.map(({imported,existing},i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;background:var(--yellow-l);margin-bottom:4px;border:1px solid var(--yellow-b);">
+      <input type="checkbox" id="sim-${i}" checked style="flex-shrink:0;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11.5px;font-weight:500;">${posIcon(imported.pos)} ${imported.nummer?'#'+imported.nummer+' ':''}${imported.name}</div>
+        <div style="font-size:10.5px;color:var(--yellow);">&#8776; ähnlich wie: ${existing.name} (bestehend)</div>
+      </div>
+      <span style="font-size:10.5px;color:var(--yellow);font-weight:600;">als NEU importieren?</span>
+    </div>`).join('');
+
+  const newRows=newPlayers.map(({imported},i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;background:white;border:1px solid var(--border);margin-bottom:4px;">
+      <input type="checkbox" id="new-${i}" checked style="flex-shrink:0;">
+      <span style="font-size:11.5px;font-weight:500;flex:1;">${posIcon(imported.pos)} ${imported.nummer?'#'+imported.nummer+' ':''}${imported.name}</span>
+      <span style="font-size:10.5px;background:var(--accent-l);color:var(--accent);padding:2px 7px;border-radius:20px;font-weight:600;">Neu</span>
+    </div>`).join('');
+
+  const totalNew=newPlayers.length+similar.length;
+
+  res.innerHTML=`
+    <div style="border-top:1px solid #bfdbfe;padding-top:12px;margin-top:8px;">
+      <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:10px;">
+        Abgleich mit ${teamLabel}: ${matched.length} vorhanden &middot; ${similar.length} ähnlich &middot; ${newPlayers.length} neu
+      </div>
+
+      ${matched.length?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin-bottom:6px;">Bereits im Kader</div>${matchedRows}`:''}
+
+      ${similar.length?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--yellow);margin:10px 0 6px;">Ähnliche Namen (prüfen)</div>${similarRows}`:''}
+
+      ${newPlayers.length?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin:10px 0 6px;">Neue Spieler</div>${newRows}`:''}
+
+      ${totalNew>0?`
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px;"
+        onclick="hbnImportSelected(${JSON.stringify(newPlayers).replace(/"/g,'&quot;')},${JSON.stringify(similar).replace(/"/g,'&quot;')})">
+        &#8595; Ausgewählte importieren
+      </button>`:'<div style="padding:8px 0;font-size:12.5px;color:var(--green);font-weight:500;">&#10003; Alle Spieler bereits im Kader vorhanden.</div>'}
+    </div>`;
+
+  // Store for import function
+  window._hbnNewPlayers=newPlayers;
+  window._hbnSimilarPlayers=similar;
+}
+
+/** Importiert ausgewählte Spieler in den Kader */
+async function hbnImportSelected(newPlayers,similarPlayers){
+  const toInsert=[];
+
+  newPlayers.forEach(({imported},i)=>{
+    const cb=document.getElementById('new-'+i);
+    if(cb?.checked) toInsert.push({
+      mannschaft_id:currentTeamId,
+      name:imported.name,
+      nummer:imported.nummer||null,
+      pos:imported.pos||'FL',
+      aktiv:true
+    });
+  });
+
+  similarPlayers.forEach(({imported},i)=>{
+    const cb=document.getElementById('sim-'+i);
+    if(cb?.checked) toInsert.push({
+      mannschaft_id:currentTeamId,
+      name:imported.name,
+      nummer:imported.nummer||null,
+      pos:imported.pos||'FL',
+      aktiv:true
+    });
+  });
+
+  if(!toInsert.length){showToast('Keine Spieler ausgewählt.','info');return;}
+
+  const{error}=await supa.from('mannschaft_spieler').insert(toInsert);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+
+  showToast(`&#10003; ${toInsert.length} Spieler importiert`,'success');
+  // Panel schliessen, Kader neu laden
+  const panel=document.getElementById('hbn-import-panel');
+  if(panel) panel.style.display='none';
+  await loadPlayers(currentTeamId);
+  renderTabKader(allTeams.find(t=>t.id===currentTeamId));
+}
+
+// ── UTILS ────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type='success'){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = type==='error' ? '#7f1d1d' : type==='info' ? '#1e3a8a' : '#111827';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// Suchfeld bei Klick außerhalb schließen
+document.addEventListener('click', e => {
+  const r = document.getElementById('freigabe-results');
+  if (r && !e.target.closest('.search-wrap-rel')) r.style.display = 'none';
+});
+
+// ESC schließt alle Modals
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  ['team-modal','player-modal','delete-modal'].forEach(id =>
+    document.getElementById(id).classList.remove('open'));
+  const r = document.getElementById('freigabe-results');
+  if (r) r.style.display = 'none';
+});
 
 supa.auth.getSession().then(({data:{session}})=>{if(session)onAuth(session.user);});
 supa.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'&&session&&!currentUser)onAuth(session.user);if(event==='SIGNED_OUT')location.reload();});
