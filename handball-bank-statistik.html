@@ -465,7 +465,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">v1.260507.1800</div>
+        <div class="logo-sub">v1.260507.1830</div>
       </div>
     </div>
 
@@ -2247,7 +2247,7 @@ async function autoLoadTeamIcal(teamId, forceReload = false) {
     .select('id,url,typ,name')
     .eq('mannschaft_id', teamId)
     .eq('aktiv', true)
-    .in('typ', ['spielplan', 'pokal', 'sonstige'])
+    .in('typ', ['spiele', 'pokal', 'sonstige'])
     .order('typ')
     .order('created_at');
 
@@ -2276,7 +2276,7 @@ function renderFeedChips(feeds) {
   const details   = document.getElementById('sp-manual-details');
   if (!autoDiv) return;
 
-  const TYP_LABEL = { spielplan: '🏆 Liga', pokal: '🥅 Pokal', sonstige: '📅 Sonstiges' };
+  const TYP_LABEL = { spiele: '🏆 Liga', pokal: '🥅 Pokal', sonstige: '📅 Sonstiges' };
 
   if (feeds.length) {
     autoDiv.style.display  = '';
@@ -2305,7 +2305,7 @@ async function loadAllTeamFeeds() {
   if (out) out.innerHTML = '<div style="color:var(--soft);font-size:13px;padding:16px;">Lade Spielplan…</div>';
 
   try {
-    const TYP_LABEL = { spielplan: '🏆 Liga', pokal: '🥅 Pokal', sonstige: '📅' };
+    const TYP_LABEL = { spiele: '🏆 Liga', pokal: '🥅 Pokal', sonstige: '📅 Sonstiges' };
     const results = await Promise.allSettled(
       feeds.map(f => hbnFetch(f.url, 'ical').then(d => ({ games: d.games || [], typ: f.typ })))
     );
@@ -2964,7 +2964,7 @@ async function loadIcalManual(){
   if(!url){toast('Bitte iCal-URL eingeben','error');return;}
   localStorage.setItem('hbs_ical_url',url);
   // Einmaligen Feed als single-entry-Array behandeln
-  window._teamIcalFeeds=[{url,typ:'spielplan',name:'Manuell'}];
+  window._teamIcalFeeds=[{url,typ:'spiele',name:'Manuell'}];
   renderFeedChips(window._teamIcalFeeds);
   await loadAllTeamFeeds();
 }
