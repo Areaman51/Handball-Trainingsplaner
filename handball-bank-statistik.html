@@ -3591,7 +3591,15 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
     // Aktionen die bereits importiert sind (für Deduplizierung)
     const existingKeys = new Set(aktionen.map(a => `${a.spielminute}-${a.type}-${a.spieler_id}`));
 
-    const toInsert = [];
+    // Gegner-Mapping (Ereignisse ohne Treffer im eigenem Lineup)
+    const gegnerTickerMap = {
+      tor:    { type:'gegner_tor',  label:'Tor',        color:'#dc2626', polarity:-1 },
+      tor_7m: { type:'gegner_tor',  label:'Tor 7m',     color:'#dc2626', polarity:-1 },
+      '2min': { type:'gegner_2min', label:'2-Minuten',  color:'#ea580c', polarity: 0 },
+      rot:    { type:'gegner_rot',  label:'Rote Karte', color:'#7f1d1d', polarity: 0 },
+    };
+
+    const toInsert = [], toGegner = [];
     let importedCount = 0, skippedCount = 0;
 
     for (const ev of events) {
@@ -3599,43 +3607,65 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       const mappedType = tickerTypeMap[ev.type];
       if (!mappedType) continue;
 
-      // Spieler in Lineup suchen
+      // Spieler in eigenem Lineup suchen
       const pid = ev.playerName ? playerMap.get(normName(ev.playerName)) : null;
-      if (!pid) { skippedCount++; continue; }
 
-      const key = `${ev.minute}-${mappedType.type}-${pid}`;
-      if (existingKeys.has(key)) continue; // bereits vorhanden
-
-      existingKeys.add(key);
-      toInsert.push({
-        spiel_id: spielId, spieler_id: pid,
-        user_id: currentUser.id,
-        type: mappedType.type,
-        label: mappedType.label,
-        color: mappedType.color,
-        polarity: mappedType.polarity,
-        spielminute: ev.minute,
-        erstellt_am: new Date().toISOString(),
-      });
-      importedCount++;
+      if (pid) {
+        // ── Eigener Spieler ──
+        const key = `${ev.minute}-${mappedType.type}-${pid}`;
+        if (existingKeys.has(key)) continue;
+        existingKeys.add(key);
+        toInsert.push({
+          spiel_id: spielId, spieler_id: pid,
+          user_id: currentUser.id,
+          type: mappedType.type, label: mappedType.label,
+          color: mappedType.color, polarity: mappedType.polarity,
+          spielminute: ev.minute, erstellt_am: new Date().toISOString(),
+        });
+        importedCount++;
+      } else if (ev.playerName && gegnerTickerMap[ev.type]) {
+        // ── Gegner-Spieler: als Gegner-Aktion importieren ──
+        const gm = gegnerTickerMap[ev.type];
+        const key = `${ev.minute}-${gm.type}-null`;
+        if (existingKeys.has(key)) continue;
+        existingKeys.add(key);
+        toGegner.push({
+          spiel_id: spielId, spieler_id: null,
+          user_id: currentUser.id,
+          type: gm.type, label: gm.label, color: gm.color, polarity: gm.polarity,
+          spielminute: ev.minute, erstellt_am: new Date().toISOString(),
+        });
+        importedCount++;
+      } else {
+        skippedCount++;
+      }
     }
 
+    // Eigene Aktionen in DB
     if (toInsert.length) {
       const { error } = await supa.from('spielaktionen').insert(toInsert);
-      if (error) { setStatus('err', 'Fehler'); return; }
-      // Lokal mergen
-      aktionen = [...aktionen, ...toInsert.map((a, i) => ({ ...a, id: 'tmp-' + i }))];
+      if (error) { setStatus('err', 'DB-Fehler (eigene)'); }
+      else aktionen = [...aktionen, ...toInsert.map((a, i) => ({ ...a, id: 'tmp-own-' + i }))];
     }
 
+    // Gegner-Aktionen in DB (spieler_id=null – benötigt DROP NOT NULL Migration)
+    if (toGegner.length) {
+      const { error: gErr } = await supa.from('spielaktionen').insert(toGegner);
+      if (gErr) {
+        // Fallback: lokal halten
+        console.warn('Gegner-Ticker lokal (NOT NULL?):', gErr.message);
+        aktionen = [...aktionen, ...toGegner.map((a, i) => ({ ...a, id: 'local-g-' + i }))];
+      } else {
+        aktionen = [...aktionen, ...toGegner.map((a, i) => ({ ...a, id: 'tmp-opp-' + i }))];
+      }
+    }
+
+    recalcScore();
+    await saveSpielMeta();
     setStatus('ok', `${importedCount} Aktionen importiert`);
-    if (skippedCount) toast(`${importedCount} importiert, ${skippedCount} Spieler nicht gefunden`, 'info');
+    if (skippedCount) toast(`${importedCount} importiert, ${skippedCount} übersprungen`, 'info');
     else toast(`${importedCount} Ticker-Aktionen importiert ✓`, 'success');
 
-    // Score im Header aktualisieren
-    const sh = document.getElementById('live-sc-home');
-    const sa = document.getElementById('live-sc-away');
-    if (sh) sh.textContent = spielMeta.score_home;
-    if (sa) sa.textContent = spielMeta.score_away;
     renderLog();
     renderGrid && typeof renderGrid === 'function' && renderGrid();
 
