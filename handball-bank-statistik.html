@@ -535,7 +535,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2000</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2100</div>
     </div>
   </aside>
 
@@ -2048,6 +2048,24 @@ async function undoAction(){
   updateSelStats();
   renderLog();
   toast('Rückgängig: '+last.label,'info');
+}
+
+// Gegner-Aktionen mit Name+Nummer aus bench-Lineup anreichern
+function enrichGegnerAktionen(){
+  const oppPlayers = lineup.filter(p=>p.bench);
+  // Name-Map: normierter Name → {name, nummer}
+  const oppByName = new Map(oppPlayers.map(p=>[normName(p.name||''), p]));
+  aktionen.forEach(a=>{
+    if(a.spieler_id || a.gegner_name) return; // bereits angereichert
+    // Ohne Namen: kann nicht rekonstruiert werden → Leer lassen
+    // Wenn Name vorhanden aber Nummer fehlt: aus Lineup holen
+  });
+  // Aktionen die gegner_name haben aber keine Nummer: ergänzen
+  aktionen.forEach(a=>{
+    if(a.spieler_id || !a.gegner_name || a.gegner_nummer) return;
+    const opp = oppByName.get(normName(a.gegner_name));
+    if(opp) a.gegner_nummer = opp.nummer || null;
+  });
 }
 
 function renderLog(){
@@ -3577,6 +3595,8 @@ async function confirmGameStart() {
     // Aktionen neu laden falls Ticker importiert wurde
     const{data:akNeu}=await supa.from('spielaktionen').select('*').eq('spiel_id',spielId).order('erstellt_am');
     aktionen=akNeu||[];
+    // gegner_name/nummer aus Gegner-Lineup rekonstruieren (nicht in DB gespeichert)
+    enrichGegnerAktionen();
 
     closeModal('m-gamestart');
     // Mit skipWizard=true direkt in Live-Modus — kein erneuter Wizard-Aufruf
@@ -3700,12 +3720,14 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
         // Nummer aus gespeichertem Gegner-Lineup (bench=true) holen
         const oppPlayer = ev.playerName ? oppMap.get(normName(ev.playerName)) : null;
         toGegner.push({
+          // Nur DB-Spalten – gegner_name/gegner_nummer nur lokal
+          _gegner_name:   ev.playerName || null,
+          _gegner_nummer: oppPlayer ? (oppPlayer.nummer||null) : (ev.playerNumber||null),
+          // DB-Payload:
           spiel_id: spielId, spieler_id: null,
           user_id: currentUser.id,
           type: gm.type, label: gm.label, color: gm.color, polarity: gm.polarity,
           spielminute: ev.minute, erstellt_am: new Date().toISOString(),
-          gegner_name:   ev.playerName || null,
-          gegner_nummer: oppPlayer ? (oppPlayer.nummer||null) : (ev.playerNumber||null),
         });
         importedCount++;
       } else {
@@ -3720,15 +3742,24 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       else aktionen = [...aktionen, ...toInsert.map((a, i) => ({ ...a, id: 'tmp-own-' + i }))];
     }
 
-    // Gegner-Aktionen in DB (spieler_id=null – benötigt DROP NOT NULL Migration)
+    // Gegner-Aktionen in DB – lokale Hilfsfelder (_-Prefix) vor Insert entfernen
     if (toGegner.length) {
-      const { error: gErr } = await supa.from('spielaktionen').insert(toGegner);
+      const toGegnerDb = toGegner.map(({_gegner_name, _gegner_nummer, ...rest}) => rest);
+      const { data: gData, error: gErr } = await supa.from('spielaktionen').insert(toGegnerDb).select();
       if (gErr) {
-        // Fallback: lokal halten
-        console.warn('Gegner-Ticker lokal (NOT NULL?):', gErr.message);
-        aktionen = [...aktionen, ...toGegner.map((a, i) => ({ ...a, id: 'local-g-' + i }))];
+        console.warn('Gegner-Ticker lokal:', gErr.message);
+        // Lokal mit Metainfos behalten
+        aktionen = [...aktionen, ...toGegner.map((a, i) => ({
+          ...a, id: 'local-g-' + i,
+          gegner_name: a._gegner_name, gegner_nummer: a._gegner_nummer
+        }))];
       } else {
-        aktionen = [...aktionen, ...toGegner.map((a, i) => ({ ...a, id: 'tmp-opp-' + i }))];
+        // DB-IDs + lokale Metainfos zusammenführen
+        aktionen = [...aktionen, ...(gData||[]).map((a, i) => ({
+          ...a,
+          gegner_name:   toGegner[i]?._gegner_name   || null,
+          gegner_nummer: toGegner[i]?._gegner_nummer || null,
+        }))];
       }
     }
 
