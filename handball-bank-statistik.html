@@ -3585,6 +3585,11 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
     if (ticker.score_home !== undefined) {
       spielMeta.score_home = ticker.score_home;
       spielMeta.score_away = ticker.score_away;
+      // Sofort im DOM aktualisieren (vor möglichem Early-Return)
+      const _sh=document.getElementById('live-sc-home');
+      const _sa=document.getElementById('live-sc-away');
+      if(_sh) _sh.textContent=spielMeta.score_home;
+      if(_sa) _sa.textContent=spielMeta.score_away;
     }
     if (ticker.status === 'beendet') spielMeta.status = 'beendet';
 
@@ -3597,7 +3602,7 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
 
     // Aktionen zuordnen und einfügen
     const events = ticker.events || [];
-    if (!events.length) { setStatus('ok', 'Ticker leer'); return; }
+    if (!events.length) { setStatus('ok', 'Ticker leer'); renderLog(); return; }
 
     // Bestimmte Teams erkennen (heim vs. gast des aktuellen Spiels)
     const myTeamSide = spielMeta.spielart === 'auswaerts' ? 'away' : 'home';
@@ -3702,19 +3707,13 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       }
     }
 
-    // Ticker-Score ist autoritativ (Name-Matching ist nicht 100% → recalcScore nicht aufrufen)
-    // Score wurde bereits aus ticker.score_home/away gesetzt; nur Display aktualisieren
-    const _elH=document.getElementById('live-sc-home');
-    const _elA=document.getElementById('live-sc-away');
-    if(_elH) _elH.textContent=spielMeta.score_home||0;
-    if(_elA) _elA.textContent=spielMeta.score_away||0;
+    // Ticker-Score ist bereits oben gesetzt + im DOM aktualisiert
     await saveSpielMeta();
     setStatus('ok', `${importedCount} Aktionen importiert`);
     if (skippedCount) toast(`${importedCount} importiert, ${skippedCount} übersprungen`, 'info');
     else toast(`${importedCount} Ticker-Aktionen importiert ✓`, 'success');
 
     renderLog();
-    renderGrid && typeof renderGrid === 'function' && renderGrid();
 
   } catch(e) {
     setStatus('err', 'Ticker-Fehler');
