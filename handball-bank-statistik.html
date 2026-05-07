@@ -537,7 +537,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1245</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1400</div>
     </div>
   </aside>
 
@@ -1561,6 +1561,7 @@ async function openLive(spId, skipWizard=false){
     if(akErr) console.warn('aktionen Fehler:',akErr);
     aktionen=ak||[];
     enrichGegnerAktionen();
+    await enrichLineupFromKader();  // Torhüter aus Kader erkennen
 
     // Score aus dem Aktionslog neu berechnen und persistieren
     recalcScore();
@@ -2053,6 +2054,41 @@ async function undoAction(){
   updateSelStats();
   renderLog();
   toast('Rückgängig: '+last.label,'info');
+}
+
+// ════════════════════════════════════════════════════════════
+// LINEUP ↔ KADER ABGLEICH: Torhüter automatisch erkennen
+// ════════════════════════════════════════════════════════════
+async function enrichLineupFromKader(){
+  if(!_myTeamId || !spielId) return;
+
+  // Kader aus Mannschaftsverwaltung laden
+  const{data:kader}=await supa.from('mannschaft_spieler')
+    .select('name,nummer,pos')
+    .eq('mannschaft_id',_myTeamId);
+  if(!kader?.length) return;
+
+  // Lookup: normierter Name UND Nummer → pos
+  const byName   = new Map(kader.map(k=>[normName(k.name), k.pos]));
+  const byNummer = new Map(kader.map(k=>[String(k.nummer||''), k.pos]));
+
+  // Eigene Spieler (bench=false) prüfen
+  const toUpdate = [];
+  lineup.filter(p=>!p.bench).forEach(p=>{
+    const kaderPos = byNummer.get(String(p.nummer||'')) || byName.get(normName(p.name||''));
+    if(kaderPos && kaderPos !== p.pos){
+      p.pos = kaderPos;           // lokal sofort anpassen
+      if(p.id) toUpdate.push({id: p.id, pos: kaderPos});
+    }
+  });
+
+  // Geänderte Positionen in DB persistieren
+  if(toUpdate.length){
+    await Promise.all(toUpdate.map(u=>
+      supa.from('spieler_lineup').update({pos:u.pos}).eq('id',u.id)
+    ));
+    console.log(`[kader-sync] ${toUpdate.length} Position(en) aktualisiert`);
+  }
 }
 
 // Gegner-Aktionen mit Name+Nummer aus bench-Lineup anreichern
@@ -3589,6 +3625,7 @@ async function confirmGameStart() {
     // Lineup neu laden
     const { data: pl } = await supa.from('spieler_lineup').select('*').eq('spiel_id', spielId).order('sort_order');
     lineup = pl || [];
+    await enrichLineupFromKader();  // Torhüter aus Kader erkennen
 
     // Ticker importieren
     if (importTicker && baseUrl) {
