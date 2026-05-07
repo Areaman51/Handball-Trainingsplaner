@@ -465,7 +465,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">v1.260504.2000</div>
+        <div class="logo-sub">v1.260507.1600</div>
       </div>
     </div>
 
@@ -2188,8 +2188,7 @@ async function autoDetectTeam() {
   if (!currentUser) return;
   const { data, error } = await supa
     .from('mannschaften')
-    .select('id,name,spielklasse,verein')
-    .eq('user_id', currentUser.id)
+    .select('id,name,verein,farbe_geplant')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
   if (error || !data?.length) return;
@@ -2293,8 +2292,7 @@ async function loadMannschaftenForConfig() {
     list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Lade…</div>';
     const { data, error } = await supa
       .from('mannschaften')
-      .select('id,name,spielklasse,verein')
-      .eq('user_id', currentUser.id)
+      .select('id,name,verein,farbe_geplant')
       .order('sort_order', {ascending:true})
       .order('created_at', {ascending:true});
     teams = data || [];
@@ -2315,7 +2313,7 @@ async function loadMannschaftenForConfig() {
       <div class="mo-icon">🤾</div>
       <div style="flex:1;">
         <div style="font-size:13.5px;font-weight:600;">${m.name}</div>
-        ${m.verein||m.spielklasse ? `<div style="font-size:11.5px;color:var(--soft);">${[m.verein,m.spielklasse].filter(Boolean).join(' · ')}</div>` : ''}
+        ${m.verein ? `<div style="font-size:11.5px;color:var(--soft);">${m.verein}</div>` : ''}
       </div>
       ${m.id === _myTeamId ? '<div style="color:var(--accent);font-size:14px;">✓</div>' : ''}
     </div>`).join('');
