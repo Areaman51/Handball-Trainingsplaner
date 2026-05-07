@@ -535,7 +535,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.1830</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2000</div>
     </div>
   </aside>
 
@@ -1829,8 +1829,10 @@ function renderLiveView(){
   const ap=document.createElement('div');
   ap.className='live-right-panel';
 
-  const hasBothTeams = lineup.some(p=>p.team==='home') && lineup.some(p=>p.team==='away');
-  const sorted=[...lineup].sort((a,b)=>{
+  // bench=true = Gegner-Spieler (nur für Lookup) → nicht als Kacheln zeigen
+  const myLineupTiles = lineup.filter(p=>!p.bench);
+  const hasBothTeams = myLineupTiles.some(p=>p.team==='home') && myLineupTiles.some(p=>p.team==='away');
+  const sorted=[...myLineupTiles].sort((a,b)=>{
     if(hasBothTeams && (a.team||'home')!==(b.team||'home')) return (a.team||'home')==='home'?-1:1;
     if(a.pos!==b.pos) return a.pos==='TH'?-1:1;
     return (parseInt(a.nummer)||99)-(parseInt(b.nummer)||99);
@@ -3529,10 +3531,14 @@ async function confirmGameStart() {
       bench: false, sort_order: i + 100, team: 'away'
     }));
 
-    let toInsert = [];
-    if (selectedTeam === 'home')  toInsert = heimPlayers;
-    if (selectedTeam === 'away')  toInsert = gastPlayers;
-    if (selectedTeam === 'both')  toInsert = [...heimPlayers, ...gastPlayers];
+    // Immer BEIDE Rosters speichern – mein Team zum Erfassen, Gegner für Name→Nummer-Lookup
+    // Eigene Spieler: bench=false (für Aktionserfassung sichtbar)
+    // Gegner-Spieler: bench=true (nur für Lookup, nicht in der Kachelansicht)
+    let myPlayers = [], oppPlayers = [];
+    if (selectedTeam === 'home') { myPlayers = heimPlayers; oppPlayers = gastPlayers.map(p=>({...p,bench:true})); }
+    if (selectedTeam === 'away') { myPlayers = gastPlayers; oppPlayers = heimPlayers.map(p=>({...p,bench:true})); }
+    if (selectedTeam === 'both') { myPlayers = [...heimPlayers,...gastPlayers]; oppPlayers = []; }
+    const toInsert = [...myPlayers, ...oppPlayers];
 
     // Spielart anpassen
     const spielart = selectedTeam === 'away' ? 'auswaerts' : 'heim';
@@ -3628,8 +3634,12 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       return (p.team || 'home') === myTeamSide;
     });
 
-    // Spieler-Name-Map für schnelles Lookup
+    // Eigenes Team: Name→ID für Aktion-Zuordnung
     const playerMap = new Map(myLineup.map(p => [normName(p.name), p.id]));
+    // Gegner-Team: Name→{id,nummer} für Log-Anzeige (bench=true Spieler)
+    const oppSide = myTeamSide === 'home' ? 'away' : 'home';
+    const oppLineup = lineup.filter(p => p.bench && (p.team||'') === oppSide);
+    const oppMap = new Map(oppLineup.map(p => [normName(p.name), p]));
 
     // Aktionen die bereits importiert sind (für Deduplizierung)
     // Für Gegner-Einträge (spieler_id=null): Zähler pro Minute+Typ, da kein Spielername in DB
@@ -3673,27 +3683,29 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
           spielminute: ev.minute, erstellt_am: new Date().toISOString(),
         });
         importedCount++;
-      } else if (ev.playerName && gegnerTickerMap[ev.type]) {
-        // ── Gegner-Spieler: als Gegner-Aktion importieren ──
+      } else if (gegnerTickerMap[ev.type]) {
+        // ── Gegner-Spieler (oder unbekannter Spieler): als Gegner-Aktion ──
         const gm = gegnerTickerMap[ev.type];
         const mk = `${ev.minute}-${gm.type}`;
-        // Dedup: ev.type (original) + Name → tor und tor_7m desselben Spielers werden getrennt
-        const nameKey = `${ev.minute}-${ev.type}-${normName(ev.playerName)}`;
+        // Dedup: ev.type + Name (oder Zähler wenn kein Name)
+        const nameKey = ev.playerName
+          ? `${ev.minute}-${ev.type}-${normName(ev.playerName)}`
+          : `${ev.minute}-${ev.type}-anon-${(gegnerCountMap[mk]||0)}`;
         if (existingKeys.has(nameKey)) continue;
         existingKeys.add(nameKey);
-        // Prüfen ob DB-Eintrag für diese Minute+Typ bereits existiert (ohne Name)
-        // Wenn ja: Zähler dekrementieren (abgedeckt) und nicht nochmal einfügen
         if ((gegnerCountMap[mk]||0) > 0) {
           gegnerCountMap[mk]--;
-          continue; // bereits in DB
+          continue;
         }
+        // Nummer aus gespeichertem Gegner-Lineup (bench=true) holen
+        const oppPlayer = ev.playerName ? oppMap.get(normName(ev.playerName)) : null;
         toGegner.push({
           spiel_id: spielId, spieler_id: null,
           user_id: currentUser.id,
           type: gm.type, label: gm.label, color: gm.color, polarity: gm.polarity,
           spielminute: ev.minute, erstellt_am: new Date().toISOString(),
-          gegner_name: ev.playerName,        // Nachname für Log
-          gegner_nummer: ev.playerNumber||null, // Trikotnummer falls vorhanden
+          gegner_name:   ev.playerName || null,
+          gegner_nummer: oppPlayer ? (oppPlayer.nummer||null) : (ev.playerNumber||null),
         });
         importedCount++;
       } else {
