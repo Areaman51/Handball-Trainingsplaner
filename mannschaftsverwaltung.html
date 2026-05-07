@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260503.1700 -->
+<!-- Handball Coaching Tools v1.260507.1100 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -200,7 +200,7 @@ tbody tr:hover{background:#fafbff;}
       <a class="sidebar-link" href="nutzerverwaltung.html">&#128101; Nutzerverwaltung</a>
       <div class="sidebar-link" onclick="logout()" style="margin-top:4px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px;">&#8947; Abmelden</div>
     
-      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1700</div>
+      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.1100</div>
     </div>
   </aside>
   <main class="main">
@@ -462,9 +462,10 @@ function renderOverviewStats(){
   const own=allTeams.filter(t=>isOwner(t)),shared=allTeams.filter(t=>!isOwner(t));
   document.getElementById('stat-own').textContent=own.length;
   document.getElementById('stat-shared').textContent=shared.length;
-  document.getElementById('stat-feeds').textContent=allTeams.filter(t=>t.ical_training||t.ical_spiele).length;
+  document.getElementById('stat-feeds').textContent='...';
   document.getElementById('stat-spieler').textContent='...';
   supa.from('mannschaft_spieler').select('*',{count:'exact',head:true}).then(({count})=>{const el=document.getElementById('stat-spieler');if(el)el.textContent=count??0;});
+  supa.from('mannschaft_kalender').select('*',{count:'exact',head:true}).eq('aktiv',true).then(({count})=>{const el=document.getElementById('stat-feeds');if(el)el.textContent=count??0;});
 }
 function renderTeamGrid(){
   const grid=document.getElementById('team-grid');
