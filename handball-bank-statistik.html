@@ -110,7 +110,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   font-family:'DM Mono',monospace;}
 .spiel-meta-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
 .spiel-meta-item{font-size:11.5px;color:var(--soft);display:flex;align-items:center;gap:3px;}
-.spiel-actions{display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.spiel-actions{display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.spiel-actions .btn-primary{flex:1 1 100%;} /* Primär-Button nimmt immer die volle erste Zeile */
+.spiel-actions .spiel-actions-secondary{display:flex;gap:6px;flex:1 1 100%;align-items:center;}
+.spiel-actions .spiel-actions-secondary .btn-danger{margin-left:auto;}
+.spiel-actions-row{display:flex;gap:6px;align-items:center;}
 
 /* ── FORM ── */
 .form-group{margin-bottom:14px;}
@@ -465,7 +469,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">v1.260507.2100</div>
+        <div class="logo-sub">v1.260507.2145</div>
       </div>
     </div>
 
@@ -521,7 +525,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.2100</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.2145</div>
     </div>
   </aside>
 
@@ -2167,11 +2171,15 @@ function renderSpieleList(){
         ${sp.hbn_url?`<span class="spiel-meta-item">${hbnInfoLink(sp.hbn_url)}</span>`:''}
       </div>
       <div class="spiel-actions">
-        <button class="btn btn-primary btn-sm" onclick="openLive('${sp.id}')">▶ Live öffnen</button>
-        ${sp.hbn_url ? `<button class="btn btn-ghost btn-sm" onclick="forceWizard('${sp.id}')" title="Team neu auswählen / Aufstellung neu laden">⚙️ Einrichten</button>` : ''}
-        <button class="btn btn-ghost btn-sm" onclick="openStatistik('${sp.id}')">📊 Statistik</button>
-        <button class="btn btn-ghost btn-sm" onclick="openSpielModal('${sp.id}')">✏️ Bearbeiten</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteSpiel('${sp.id}')">🗑</button>
+        <div class="spiel-actions-row">
+          <button class="btn btn-primary btn-sm" onclick="openLive('${sp.id}')">▶ Live öffnen</button>
+          <button class="btn btn-ghost btn-sm" onclick="openStatistik('${sp.id}')">📊 Statistik</button>
+        </div>
+        <div class="spiel-actions-row">
+          ${sp.hbn_url ? `<button class="btn btn-ghost btn-sm" onclick="forceWizard('${sp.id}')" title="Team neu auswählen / Aufstellung neu laden">⚙️ Einrichten</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="openSpielModal('${sp.id}')">✏️ Bearbeiten</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSpiel('${sp.id}')" style="margin-left:auto;">🗑</button>
+        </div>
       </div>`;
     grid.appendChild(card);
   });
