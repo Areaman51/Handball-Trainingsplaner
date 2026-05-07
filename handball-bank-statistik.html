@@ -535,7 +535,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2330</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1000</div>
     </div>
   </aside>
 
@@ -3660,14 +3660,23 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
     const oppLineup = lineup.filter(p => p.bench && (p.team||'') === oppSide);
     const oppMap = new Map(oppLineup.map(p => [normName(p.name), p]));
 
-    // Aktionen die bereits importiert sind (für Deduplizierung)
-    // Für Gegner-Einträge (spieler_id=null): Zähler pro Minute+Typ, da kein Spielername in DB
-    const existingKeys = new Set(aktionen.filter(a=>a.spieler_id).map(a=>`${a.spielminute}-${a.type}-${a.spieler_id}`));
-    // Gegner-Einträge: für jeden vorhandenen Eintrag einen Platzhalterschlüssel reservieren
-    const gegnerCountMap = {};
+    // ── Zählbasiertes Dedup ──────────────────────────────────────
+    // Problem: Edge-Function rundet Minuten (z.B. 3:54 + 4:25 → beide Minute 4)
+    // → Minuten-basiertes Dedup würde zweites Tor als Duplikat erkennen.
+    // Lösung: Zählen wie viele Aktionen pro Spieler+Typ in DB vorhanden sind.
+    // Ticker-Ereignisse werden erst ab dem (n+1)-ten gezählt.
+
+    // DB-Zähler: wie viele Aktionen pro Spieler+Typ existieren bereits?
+    const dbOwn = {}; // `${spieler_id}-${type}` → Anzahl in DB
+    aktionen.filter(a=>a.spieler_id).forEach(a=>{
+      const k = `${a.spieler_id}-${a.type}`;
+      dbOwn[k] = (dbOwn[k]||0) + 1;
+    });
+
+    // DB-Zähler Gegner: wie viele Gegner-Aktionen pro Typ in DB?
+    const dbOpp = {}; // `${type}` → Anzahl in DB
     aktionen.filter(a=>!a.spieler_id&&GEGNER_TYPES.has(a.type)).forEach(a=>{
-      const mk=`${a.spielminute}-${a.type}`;
-      gegnerCountMap[mk]=(gegnerCountMap[mk]||0)+1;
+      dbOpp[a.type] = (dbOpp[a.type]||0) + 1;
     });
 
     // Gegner-Mapping (Ereignisse ohne Treffer im eigenem Lineup)
@@ -3680,7 +3689,10 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
 
     const toInsert = [], toGegner = [];
     let importedCount = 0, skippedCount = 0;
-    const anonSeq = {}; // Sequenzieller Zähler für namenlose Gegner-Events
+    const tickerOwn = {};  // Ticker-Zähler eigene Spieler: `${pid}-${type}`
+    const tickerOpp = {};  // Ticker-Zähler Gegner: `${type}`
+    // Innerhalb dieser Session bereits gesehene benannte Gegner-Events
+    const oppNameSeen = {}; // `${type}-${normName}` → Anzahl in diesem Ticker-Lauf
 
     for (const ev of events) {
       // Nur relevante Aktionen
@@ -3691,10 +3703,11 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       const pid = ev.playerName ? playerMap.get(normName(ev.playerName)) : null;
 
       if (pid) {
-        // ── Eigener Spieler ──
-        const key = `${ev.minute}-${mappedType.type}-${pid}`;
-        if (existingKeys.has(key)) continue;
-        existingKeys.add(key);
+        // ── Eigener Spieler: zählbasiertes Dedup ──
+        const k = `${pid}-${mappedType.type}`;
+        tickerOwn[k] = (tickerOwn[k]||0) + 1;
+        if (tickerOwn[k] <= (dbOwn[k]||0)) continue; // bereits in DB
+
         toInsert.push({
           spiel_id: spielId, spieler_id: pid,
           user_id: currentUser.id,
@@ -3703,24 +3716,28 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
           spielminute: ev.minute, erstellt_am: new Date().toISOString(),
         });
         importedCount++;
+
       } else if (gegnerTickerMap[ev.type]) {
-        // ── Gegner-Spieler (oder unbekannter Spieler): als Gegner-Aktion ──
+        // ── Gegner-Spieler: zählbasiertes Dedup ──
         const gm = gegnerTickerMap[ev.type];
-        const mk = `${ev.minute}-${gm.type}`;
-        // Dedup: ev.type + Name (oder Zähler wenn kein Name)
-        // Namenlose Events: sequenzieller Zähler verhindert Dedup-Kollision
-        const _anonKey = `${ev.minute}-${ev.type}`;
-        if (!ev.playerName) anonSeq[_anonKey] = (anonSeq[_anonKey]||0) + 1;
-        const nameKey = ev.playerName
-          ? `${ev.minute}-${ev.type}-${normName(ev.playerName)}`
-          : `${ev.minute}-${ev.type}-anon-${anonSeq[_anonKey]}`;
-        if (existingKeys.has(nameKey)) continue;
-        existingKeys.add(nameKey);
-        if ((gegnerCountMap[mk]||0) > 0) {
-          gegnerCountMap[mk]--;
-          continue;
+
+        // Innerhalb dieses Ticker-Laufs: benannten Spieler pro Typ deduplizieren
+        if (ev.playerName) {
+          const nk = `${gm.type}-${normName(ev.playerName)}`;
+          oppNameSeen[nk] = (oppNameSeen[nk]||0) + 1;
+          // Wenn derselbe Spieler in diesem Lauf bereits öfter gezählt als er in DB hat:
+          // → erst einfügen wenn über DB-Grenze hinaus
+          const oppDbForName = aktionen.filter(a=>
+            !a.spieler_id && a.type===gm.type &&
+            a.gegner_name && normName(a.gegner_name)===normName(ev.playerName)
+          ).length;
+          if (oppNameSeen[nk] <= oppDbForName) continue; // bereits in DB (namentlich)
         }
-        // Nummer aus gespeichertem Gegner-Lineup (bench=true) holen
+
+        // Gesamt-Zähler für diesen Gegner-Typ
+        tickerOpp[gm.type] = (tickerOpp[gm.type]||0) + 1;
+        if (tickerOpp[gm.type] <= (dbOpp[gm.type]||0)) continue; // bereits in DB
+
         const oppPlayer = ev.playerName ? oppMap.get(normName(ev.playerName)) : null;
         toGegner.push({
           spiel_id: spielId, spieler_id: null,
