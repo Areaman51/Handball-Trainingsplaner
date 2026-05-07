@@ -480,7 +480,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">v1.260508.1700</div>
       </div>
     </div>
 
@@ -536,7 +535,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.1700</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.1830</div>
     </div>
   </aside>
 
@@ -2086,13 +2085,15 @@ function renderLog(){
         ?`<span class="log-score-snap" style="background:rgba(220,38,38,.18);color:#fca5a5;">${a._sh}:${a._sa}</span>`
         :'';
       row.className='log-row log-row-gegner';
-      // Spielername aus Ticker anzeigen wenn vorhanden
-      const _gn = a.gegner_name
-        ? a.gegner_name.split(' ').slice(-1)[0]   // Nachname
-        : gegnerName;
+      // Trikotnummer oder Nachname aus Ticker
+      const _gnr = a.gegner_nummer ? '#'+a.gegner_nummer
+        : a.gegner_name ? a.gegner_name.split(' ').pop()
+        : 'GEG';
+      const _gnTitle = (a.gegner_nummer ? '#'+a.gegner_nummer+' ' : '') + (a.gegner_name||gegnerName);
       row.innerHTML=`
         <span class="log-min">${a.spielminute}'</span>
-        <span class="log-nr" style="color:var(--red);font-size:10px;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${a.gegner_name||gegnerName}">${_gn}</span>
+        <span class="log-nr" style="color:var(--red);font-size:10px;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+          title="${_gnTitle}">${_gnr}</span>
         <span class="log-aktion neg" style="color:${a.color||'var(--red)'};">${a.label}</span>
         ${scoreSnap}`;
     } else {
@@ -3676,8 +3677,8 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
         // ── Gegner-Spieler: als Gegner-Aktion importieren ──
         const gm = gegnerTickerMap[ev.type];
         const mk = `${ev.minute}-${gm.type}`;
-        // Dedup per Spielername: gleicher Name+Minute+Typ nur einmal
-        const nameKey = `${mk}-${normName(ev.playerName)}`;
+        // Dedup: ev.type (original) + Name → tor und tor_7m desselben Spielers werden getrennt
+        const nameKey = `${ev.minute}-${ev.type}-${normName(ev.playerName)}`;
         if (existingKeys.has(nameKey)) continue;
         existingKeys.add(nameKey);
         // Prüfen ob DB-Eintrag für diese Minute+Typ bereits existiert (ohne Name)
@@ -3691,7 +3692,8 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
           user_id: currentUser.id,
           type: gm.type, label: gm.label, color: gm.color, polarity: gm.polarity,
           spielminute: ev.minute, erstellt_am: new Date().toISOString(),
-          gegner_name: ev.playerName,  // Spielername aus Ticker für Log-Anzeige
+          gegner_name: ev.playerName,        // Nachname für Log
+          gegner_nummer: ev.playerNumber||null, // Trikotnummer falls vorhanden
         });
         importedCount++;
       } else {
