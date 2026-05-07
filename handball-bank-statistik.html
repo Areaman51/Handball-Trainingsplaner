@@ -2342,6 +2342,8 @@ async function loadAllTeamFeeds() {
     allGames.sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
 
     window._icalGamesMain = allGames;
+    // DEBUG: erstes Spiel-Objekt in Console ausgeben
+    if (allGames.length) console.log('[HBS DEBUG] Spiel-Objekt (Felder):', JSON.stringify(allGames[0], null, 2));
     renderIcalMain(allGames);
   } catch(e) {
     if (out) out.innerHTML = `<div style="padding:16px;color:var(--red);background:var(--red-l);
