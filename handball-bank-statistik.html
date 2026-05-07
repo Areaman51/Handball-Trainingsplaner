@@ -535,7 +535,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2230</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2330</div>
     </div>
   </aside>
 
@@ -3624,15 +3624,11 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
   try {
     const ticker = await hbnFetch(baseUrl + '/ticker', 'ticker');
 
-    // Score übernehmen
+    // Ticker-Status übernehmen – Score wird NACH Event-Import per recalcScore() berechnet
+    // (ticker.score_home/away als Referenz behalten, aber nicht für DOM-Anzeige nutzen)
     if (ticker.score_home !== undefined) {
-      spielMeta.score_home = ticker.score_home;
-      spielMeta.score_away = ticker.score_away;
-      // Sofort im DOM aktualisieren (vor möglichem Early-Return)
-      const _sh=document.getElementById('live-sc-home');
-      const _sa=document.getElementById('live-sc-away');
-      if(_sh) _sh.textContent=spielMeta.score_home;
-      if(_sa) _sa.textContent=spielMeta.score_away;
+      spielMeta._ticker_score_home = ticker.score_home;
+      spielMeta._ticker_score_away = ticker.score_away;
     }
     if (ticker.status === 'beendet') spielMeta.status = 'beendet';
 
@@ -3684,6 +3680,7 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
 
     const toInsert = [], toGegner = [];
     let importedCount = 0, skippedCount = 0;
+    const anonSeq = {}; // Sequenzieller Zähler für namenlose Gegner-Events
 
     for (const ev of events) {
       // Nur relevante Aktionen
@@ -3711,9 +3708,12 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
         const gm = gegnerTickerMap[ev.type];
         const mk = `${ev.minute}-${gm.type}`;
         // Dedup: ev.type + Name (oder Zähler wenn kein Name)
+        // Namenlose Events: sequenzieller Zähler verhindert Dedup-Kollision
+        const _anonKey = `${ev.minute}-${ev.type}`;
+        if (!ev.playerName) anonSeq[_anonKey] = (anonSeq[_anonKey]||0) + 1;
         const nameKey = ev.playerName
           ? `${ev.minute}-${ev.type}-${normName(ev.playerName)}`
-          : `${ev.minute}-${ev.type}-anon-${(gegnerCountMap[mk]||0)}`;
+          : `${ev.minute}-${ev.type}-anon-${anonSeq[_anonKey]}`;
         if (existingKeys.has(nameKey)) continue;
         existingKeys.add(nameKey);
         if ((gegnerCountMap[mk]||0) > 0) {
@@ -3754,10 +3754,11 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       }
     }
 
-    // Ticker-Score ist bereits oben gesetzt + im DOM aktualisiert
+    // Score aus tatsächlichen Aktionen berechnen (Single Source of Truth)
+    recalcScore();
     await saveSpielMeta();
     setStatus('ok', `${importedCount} Aktionen importiert`);
-    if (skippedCount) toast(`${importedCount} importiert, ${skippedCount} übersprungen`, 'info');
+    if (skippedCount) toast(`${importedCount} importiert · ${skippedCount} nicht relevant (z.B. Fehlwurf Gegner)`, 'info');
     else toast(`${importedCount} Ticker-Aktionen importiert ✓`, 'success');
 
     renderLog();
