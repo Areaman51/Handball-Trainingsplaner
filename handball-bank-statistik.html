@@ -263,7 +263,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .live-team-sep{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
   color:var(--xsoft);padding:6px 2px 2px;grid-column:1/-1;}
 
+
 /* ── STATISTIK VIEW ── */
+/* Statistik-Toggle Mein Team / Gegner */
+.stat-toggle{display:flex;gap:0;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;flex-shrink:0;}
+.stat-toggle-btn{padding:5px 16px;font-size:12px;font-weight:700;cursor:pointer;
+  background:white;border:none;color:var(--soft);transition:all .12s;font-family:'DM Sans',sans-serif;}
+.stat-toggle-btn.active{background:var(--accent);color:white;}
+/* Gegner-Übersichtstabelle */
+.opp-overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding:16px;}
+.opp-overview-card{background:white;border:1.5px solid #fecaca;border-radius:10px;
+  padding:10px 10px 8px;text-align:center;}
+.opp-overview-card.th{border-color:#c4b5fd;}
+.opp-num{font-size:22px;font-weight:800;color:#dc2626;font-family:'DM Mono',monospace;line-height:1.1;}
+.opp-overview-card.th .opp-num{color:#7c3aed;}
+.opp-name{font-size:11px;font-weight:600;margin:3px 0 5px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.opp-badges{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;}
+.opp-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;}
+.opp-badge.tor{background:#dcfce7;color:#15803d;}
+.opp-badge.zwei{background:#fee2e2;color:#dc2626;}
+.opp-badge.rot{background:#fef2f2;color:#7f1d1d;}
 .stat-card{background:white;border:1px solid var(--border);border-radius:var(--radius);
   box-shadow:var(--shadow);margin-bottom:18px;overflow:hidden;}
 .stat-card-hdr{padding:14px 20px;border-bottom:1px solid var(--border);
@@ -537,7 +557,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1400</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1615</div>
     </div>
   </aside>
 
@@ -581,7 +601,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <div class="page-title">Statistik</div>
             <div class="page-subtitle" id="stat-subtitle">–</div>
           </div>
-          <div style="display:flex;gap:8px;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div class="stat-toggle" id="stat-mode-toggle" style="display:none;">
+              <button class="stat-toggle-btn active" id="stb-own"
+                onclick="setStatMode('own')">🏠 Mein Team</button>
+              <button class="stat-toggle-btn" id="stb-opp"
+                onclick="setStatMode('opp')">👥 Gegner</button>
+            </div>
             <button class="btn btn-ghost btn-sm" onclick="renderStatistik()">🔄 Aktualisieren</button>
             <button class="btn btn-ghost btn-sm" onclick="exportStats()">📄 Export JSON</button>
           </div>
@@ -2179,6 +2205,83 @@ function renderLog(){
 // ════════════════════════════════════════════════════════════
 // STATISTIK VIEW
 // ════════════════════════════════════════════════════════════
+function renderStatistikGegner(c){
+  const isAway = spielMeta.spielart==='auswaerts'
+    || lineup.filter(p=>!p.bench).some(p=>p.team==='away');
+  const oppTeamName = isAway ? (spielMeta.heim||'Gegner') : (spielMeta.gast||'Gegner');
+
+  const oppPlayers = lineup.filter(p=>p.bench)
+    .sort((a,b)=>{
+      if(a.pos!==b.pos) return a.pos==='TH'?-1:1;
+      return (parseInt(a.nummer)||99)-(parseInt(b.nummer)||99);
+    });
+
+  // Gesamt-Zähler
+  const totalTore = aktionen.filter(a=>a.type==='gegner_tor').length;
+  const total2min = aktionen.filter(a=>a.type==='gegner_2min').length;
+  const totalRot  = aktionen.filter(a=>a.type==='gegner_rot').length;
+
+  // KPI-Leiste
+  c.insertAdjacentHTML('beforeend',`
+    <div class="stat-card" style="margin-bottom:12px;">
+      <div class="stat-card-hdr">
+        <div class="stat-card-title">👥 ${oppTeamName} — Ticker-Übersicht</div>
+      </div>
+      <div class="kpi-grid">
+        ${[
+          ['Tore', totalTore],
+          ['2-Minuten', total2min],
+          ['Rote Karten', totalRot],
+        ].map(([l,v])=>`<div class="kpi"><div class="kv">${v}</div><div class="kl">${l}</div></div>`).join('')}
+      </div>
+    </div>`);
+
+  // Spieler-Karten
+  const grid = document.createElement('div');
+  grid.className = 'stat-card';
+  grid.innerHTML = '<div class="stat-card-hdr"><div class="stat-card-title">▲ / ● Spieler</div></div>';
+  const inner = document.createElement('div');
+  inner.className = 'opp-overview-grid';
+
+  if(!oppPlayers.length){
+    inner.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--xsoft);">Kein Gegner-Lineup. Wizard neu starten.</div>';
+  } else {
+    oppPlayers.forEach(p=>{
+      const pTore = aktionen.filter(a=>!a.spieler_id && a.type==='gegner_tor'
+        && a.gegner_name && normName(a.gegner_name)===normName(p.name||'')).length;
+      const p2min = aktionen.filter(a=>!a.spieler_id && a.type==='gegner_2min'
+        && a.gegner_name && normName(a.gegner_name)===normName(p.name||'')).length;
+      const pRot  = aktionen.filter(a=>!a.spieler_id && a.type==='gegner_rot'
+        && a.gegner_name && normName(a.gegner_name)===normName(p.name||'')).length;
+      const card = document.createElement('div');
+      card.className = 'opp-overview-card' + (p.pos==='TH'?' th':'');
+      card.innerHTML = `
+        <div class="opp-num">${p.nummer||'?'}</div>
+        <div class="opp-name" title="${p.name||''}">${p.name||'—'}</div>
+        <div style="font-size:9px;color:var(--xsoft);margin-bottom:5px;">${p.pos==='TH'?'● Torhüter':'▲ Feldspieler'}</div>
+        <div class="opp-badges">
+          ${pTore>0 ? `<span class="opp-badge tor">⚽ ${pTore}</span>` : ''}
+          ${p2min>0 ? `<span class="opp-badge zwei">⏱ ${p2min}</span>` : ''}
+          ${pRot>0  ? `<span class="opp-badge rot">🟥 ${pRot}</span>` : ''}
+          ${!pTore&&!p2min&&!pRot ? '<span style="font-size:10px;color:var(--xsoft);">–</span>' : ''}
+        </div>`;
+      inner.appendChild(card);
+    });
+  }
+  grid.appendChild(inner);
+  c.appendChild(grid);
+}
+
+
+let _statMode = 'own'; // 'own' | 'opp'
+
+function setStatMode(mode){
+  _statMode = mode;
+  document.getElementById('stb-own').classList.toggle('active', mode==='own');
+  document.getElementById('stb-opp').classList.toggle('active', mode==='opp');
+  renderStatistik();
+}
+
 function renderStatistik(){
   const c=document.getElementById('stat-content');
   c.innerHTML='';
@@ -2188,8 +2291,17 @@ function renderStatistik(){
   }
   document.getElementById('stat-subtitle').textContent=`${spielMeta.heim} vs. ${spielMeta.gast} — ${fmtDate(spielMeta.datum)}`;
 
-  const fl=lineup.filter(p=>p.pos==='FL');
-  const th=lineup.filter(p=>p.pos==='TH');
+  // Toggle nur anzeigen wenn Gegner-Lineup vorhanden
+  const hasOppLineup = lineup.some(p=>p.bench);
+  const toggleEl = document.getElementById('stat-mode-toggle');
+  if(toggleEl) toggleEl.style.display = hasOppLineup ? '' : 'none';
+
+  // ── GEGNER-MODUS ──
+  if(_statMode === 'opp' && hasOppLineup){ renderStatistikGegner(c); return; }
+
+  // ── EIGENES TEAM: nur bench=false Spieler ──
+  const fl=lineup.filter(p=>!p.bench && p.pos==='FL');
+  const th=lineup.filter(p=>!p.bench && p.pos==='TH');
 
   // ── Field players ──
   if(fl.length){
