@@ -557,7 +557,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1700</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1900</div>
     </div>
   </aside>
 
@@ -2252,14 +2252,20 @@ function renderStatistikGegner(c){
       || normName(name)===normName('n.n.') || normName(name).replace(/\s/g,'')===normName('nn');
 
     const matchesPlayer = (a, p) => {
-      // 1. Name-Match (wenn beide Namen haben und nicht N.N.)
-      if(a.gegner_name && !isNN(a.gegner_name) && !isNN(p.name)) {
-        if(normName(a.gegner_name)===normName(p.name||'')) return true;
-      }
-      // 2. Nummer-Match (Fallback für N.N. und namenlose Aktionen)
+      // 1. Nummer-Match (höchste Priorität — eindeutig und Nummern-only-Fall)
       if(a.gegner_nummer && p.nummer && String(a.gegner_nummer)===String(p.nummer)) return true;
-      // 3. N.N.-Spieler: Name-Match auf "n. n."
-      if(isNN(p.name) && isNN(a.gegner_name)) return true;
+      // 2. Nummern-only Name in Aktion (z.B. "8." aus altem Import) → per Nummer matchen
+      if(a.gegner_name && isNumberOnly(a.gegner_name)) {
+        const n = extractNumber(a.gegner_name);
+        if(n && p.nummer && String(n)===String(p.nummer)) return true;
+      }
+      // 3. Echter Name-Match (wenn beide echte Namen haben, kein N.N.)
+      if(a.gegner_name && !isNN(a.gegner_name) && !isNumberOnly(a.gegner_name)
+         && p.name && !isNN(p.name)) {
+        if(normName(a.gegner_name)===normName(p.name)) return true;
+      }
+      // 4. N.N.-Spieler ↔ Aktion ohne Namen und ohne Nummer
+      if(isNN(p.name) && (!a.gegner_name || isNN(a.gegner_name)) && !a.gegner_nummer) return true;
       return false;
     };
 
@@ -2275,7 +2281,8 @@ function renderStatistikGegner(c){
       const p2min = oppAkt.filter(a=>a.type==='gegner_2min').length;
       const pRot  = oppAkt.filter(a=>a.type==='gegner_rot').length;
 
-      const displayName = isNN(p.name) ? 'N. N.' : (p.name||'—');
+      // Kein Name oder N.N.: Platzhalter anzeigen
+      const displayName = (!p.name || isNN(p.name)) ? 'N. N.' : p.name;
       const card = document.createElement('div');
       card.className = 'opp-overview-card' + (p.pos==='TH'?' th':'');
       card.innerHTML = `
@@ -3918,31 +3925,47 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
         // ── Gegner-Spieler: zählbasiertes Dedup ──
         const gm = gegnerTickerMap[ev.type];
 
-        // Innerhalb dieses Ticker-Laufs: benannten Spieler pro Typ deduplizieren
+        // Innerhalb dieses Ticker-Laufs: Spieler pro Typ deduplizieren
         if (ev.playerName) {
-          const nk = `${gm.type}-${normName(ev.playerName)}`;
+          // Nummern-only ("8.") → Key über extrahierte Nummer
+          const _nOnly = isNumberOnly(ev.playerName);
+          const _nKey = _nOnly ? extractNumber(ev.playerName) : normName(ev.playerName);
+          const nk = `${gm.type}-${_nKey}`;
           oppNameSeen[nk] = (oppNameSeen[nk]||0) + 1;
-          // Wenn derselbe Spieler in diesem Lauf bereits öfter gezählt als er in DB hat:
-          // → erst einfügen wenn über DB-Grenze hinaus
-          const oppDbForName = aktionen.filter(a=>
-            !a.spieler_id && a.type===gm.type &&
-            a.gegner_name && normName(a.gegner_name)===normName(ev.playerName)
-          ).length;
-          if (oppNameSeen[nk] <= oppDbForName) continue; // bereits in DB (namentlich)
+          // DB-Einträge für diesen Spieler zählen (per Name ODER Nummer)
+          const oppDbForName = aktionen.filter(a=>{
+            if(!a.spieler_id || a.spieler_id===null) {
+              if(a.type !== gm.type) return false;
+              if(_nOnly && a.gegner_nummer && String(a.gegner_nummer)===String(_nKey)) return true;
+              if(!_nOnly && a.gegner_name && normName(a.gegner_name)===normName(ev.playerName)) return true;
+            }
+            return false;
+          }).length;
+          if (oppNameSeen[nk] <= oppDbForName) continue; // bereits in DB
         }
 
         // Gesamt-Zähler für diesen Gegner-Typ
         tickerOpp[gm.type] = (tickerOpp[gm.type]||0) + 1;
         if (tickerOpp[gm.type] <= (dbOpp[gm.type]||0)) continue; // bereits in DB
 
-        const oppPlayer = ev.playerName ? oppMap.get(normName(ev.playerName)) : null;
+        // Nummern-only Namen (z.B. "8.", "11.") → als Nummer behandeln, kein Name
+        const _isNumOnly = isNumberOnly(ev.playerName);
+        const _extractedNr = _isNumOnly ? extractNumber(ev.playerName) : null;
+        // Gegner-Lookup: erst per Name (wenn echter Name), dann per Nummer
+        const oppPlayer = (!_isNumOnly && ev.playerName)
+          ? (oppMap.get(normName(ev.playerName)) || null)
+          : null;
+        const _nummer = oppPlayer
+          ? String(oppPlayer.nummer||'')
+          : (_extractedNr || String(ev.playerNumber||'') || null);
         toGegner.push({
           spiel_id: spielId, spieler_id: null,
           user_id: currentUser.id,
           type: gm.type, label: gm.label, color: gm.color, polarity: gm.polarity,
           spielminute: ev.minute, erstellt_am: new Date().toISOString(),
-          gegner_name:   ev.playerName || null,
-          gegner_nummer: oppPlayer ? String(oppPlayer.nummer||'') : String(ev.playerNumber||'') || null,
+          // Nummern-only: kein Name speichern, nur Nummer
+          gegner_name:   _isNumOnly ? null : (ev.playerName || null),
+          gegner_nummer: _nummer || null,
         });
         importedCount++;
       } else {
@@ -4011,6 +4034,17 @@ const tickerTypeMap = {
 // Namens-Normalisierung für Matching (Groß/Klein, extra Leerzeichen)
 function normName(s) {
   return (s||'').toLowerCase().replace(/\s+/g,' ').trim();
+}
+
+// Erkennt Nummern-only Namen wie "8.", "11.", "77" (kein echter Name vorhanden)
+function isNumberOnly(s) {
+  return /^\d+\.?\s*$/.test((s||'').trim());
+}
+
+// Extrahiert Nummer aus Nummern-only String: "8." → "8", "11." → "11"
+function extractNumber(s) {
+  const m = (s||'').match(/^(\d+)\.?\s*$/);
+  return m ? m[1] : null;
 }
 
 // ── Live-View: Ticker-Button ─────────────────────────────────
