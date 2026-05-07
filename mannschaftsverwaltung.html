@@ -353,7 +353,7 @@ const ICAL_PROXY_URL=SUPA_URL+'/functions/v1/ical-proxy';
 const CORS_FALLBACKS=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
 const HBN_EDGE_FN=SUPA_URL+'/functions/v1/quick-service';
 
-let currentUser=null,allTeams=[],ownerProfiles={},currentTeamId=null,currentPlayers=[],currentFreigaben=[],currentKalender=[],activeTab='kader',deleteTarget=null,searchTimeout=null,editKalenderId=null;
+let currentUser=null,allTeams=[],ownerProfiles={},allKalenderMap={},currentTeamId=null,currentPlayers=[],currentFreigaben=[],currentKalender=[],activeTab='kader',deleteTarget=null,searchTimeout=null,editKalenderId=null;
 
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const isOwner=t=>t&&t.user_id===currentUser?.id;
@@ -388,6 +388,16 @@ async function loadTeams(){
   if(foreignIds.length){
     const{data:profs}=await supa.from('profiles').select('id,full_name,email').in('id',foreignIds);
     (profs||[]).forEach(p=>{ownerProfiles[p.id]={full_name:p.full_name,email:p.email};});
+  }
+  // Alle Kalender-Einträge für die Übersichts-Karten laden
+  if(allTeams.length){
+    const teamIds=allTeams.map(t=>t.id);
+    const{data:kal}=await supa.from('mannschaft_kalender').select('mannschaft_id,typ,aktiv').in('mannschaft_id',teamIds);
+    allKalenderMap={};
+    (kal||[]).forEach(k=>{
+      if(!allKalenderMap[k.mannschaft_id])allKalenderMap[k.mannschaft_id]=[];
+      allKalenderMap[k.mannschaft_id].push(k);
+    });
   }
 }
 function ownerName(team){if(!team.user_id)return'Unbekannt';const p=ownerProfiles[team.user_id];return p?(p.full_name||p.email):'Unbekannt';}
@@ -478,8 +488,7 @@ function renderTeamGrid(){
       ${isOwner(t)?'<span class="badge-owner">Ich</span>':`<span class="badge-shared" title="Geteilt von ${esc(ownerName(t))}">Geteilt</span>`}
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap;">
-      <span class="feed-chip ${t.ical_training?'ok':''}">&#127947; ${t.ical_training?'Training-Feed':'Kein Training-Feed'}</span>
-      <span class="feed-chip ${t.ical_spiele?'ok':''}">&#127942; ${t.ical_spiele?'Spiel-Feed':'Kein Spiel-Feed'}</span>
+      ${(()=>{const kal=allKalenderMap[t.id]||[];const hasTraining=kal.some(k=>k.typ==='training'&&k.aktiv);const hasSpiele=kal.some(k=>(k.typ==='spiele'||k.typ==='pokal')&&k.aktiv);return`<span class="feed-chip ${hasTraining?'ok':''}">&#127947; ${hasTraining?'Training-Feed':'Kein Training-Feed'}</span><span class="feed-chip ${hasSpiele?'ok':''}">&#127942; ${hasSpiele?'Spiel-Feed':'Kein Spiel-Feed'}</span>`;})()}
     </div>
     ${!isOwner(t)?`<div style="margin-top:10px;font-size:11.5px;color:var(--purple);font-weight:500;">Geteilt von ${esc(ownerName(t))}</div>`:''}
   </div>`;
@@ -610,7 +619,13 @@ async function saveKalender(){
   showToast(id?'Kalender aktualisiert':'Kalender hinzugefügt','success');
   closeKalenderModal();
   await loadKalender(currentTeamId);
+  await refreshKalenderMap(currentTeamId);
   renderTabFeeds(allTeams.find(t=>t.id===currentTeamId));
+}
+
+async function refreshKalenderMap(tid){
+  const{data:kal}=await supa.from('mannschaft_kalender').select('mannschaft_id,typ,aktiv').eq('mannschaft_id',tid);
+  allKalenderMap[tid]=(kal||[]);
 }
 
 async function deleteKalender(kid,name){
@@ -619,6 +634,7 @@ async function deleteKalender(kid,name){
   if(error){showToast('Fehler: '+error.message,'error');return;}
   showToast('Kalender gelöscht','success');
   await loadKalender(currentTeamId);
+  await refreshKalenderMap(currentTeamId);
   renderTabFeeds(allTeams.find(t=>t.id===currentTeamId));
 }
 
