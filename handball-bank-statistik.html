@@ -557,7 +557,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1945-debug</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.2030</div>
     </div>
   </aside>
 
@@ -3828,9 +3828,8 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
   try {
     const ticker = await hbnFetch(baseUrl + '/ticker', 'ticker');
 
-    // Ticker-Status übernehmen – Score wird NACH Event-Import per recalcScore() berechnet
-    // (ticker.score_home/away als Referenz behalten, aber nicht für DOM-Anzeige nutzen)
-    if (ticker.score_home !== undefined) {
+    // Ticker-Status und Score-Referenz merken
+    if (ticker.score_home !== undefined && (ticker.score_home > 0 || ticker.score_away > 0)) {
       spielMeta._ticker_score_home = ticker.score_home;
       spielMeta._ticker_score_away = ticker.score_away;
     }
@@ -3845,11 +3844,6 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
 
     // Aktionen zuordnen und einfügen
     const events = ticker.events || [];
-    // DEBUG: kompletten Ticker-Inhalt loggen
-    console.log('[ticker-debug] ticker keys:', Object.keys(ticker));
-    console.log('[ticker-debug] events.length:', events.length);
-    console.log('[ticker-debug] erste 3 events:', JSON.stringify(events.slice(0,3), null, 2));
-    console.log('[ticker-debug] score_home:', ticker.score_home, 'score_away:', ticker.score_away);
     if (!events.length) { setStatus('ok', 'Ticker leer'); renderLog(); return; }
 
     // Bestimmte Teams erkennen (heim vs. gast des aktuellen Spiels)
@@ -3904,19 +3898,23 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
     const oppNameSeen = {}; // `${type}-${normName}` → Anzahl in diesem Ticker-Lauf
 
     for (const ev of events) {
-      // Nur relevante Aktionen
+      // Nur relevante Aktionen (Tor, 7m, 2min, Rot)
       const mappedType = tickerTypeMap[ev.type];
       if (!mappedType) continue;
 
-      // Spieler in eigenem Lineup suchen
+      // ── Entscheidung own vs. Gegner über ev.team (zuverlässiger als Name-Matching) ──
+      const isOwnTeam = ev.team && ev.team === myTeamSide;
+      // playerNum ist das korrekte Feld der Edge Function (nicht playerNumber)
+      const evNummer = ev.playerNum || ev.playerNumber || null;
 
-      const pid = ev.playerName ? playerMap.get(normName(ev.playerName)) : null;
+      if (isOwnTeam) {
+        // ── Eigener Spieler ──
+        const pid = ev.playerName ? playerMap.get(normName(ev.playerName)) : null;
+        if (!pid) { skippedCount++; continue; }
 
-      if (pid) {
-        // ── Eigener Spieler: zählbasiertes Dedup ──
         const k = `${pid}-${mappedType.type}`;
         tickerOwn[k] = (tickerOwn[k]||0) + 1;
-        if (tickerOwn[k] <= (dbOwn[k]||0)) continue; // bereits in DB
+        if (tickerOwn[k] <= (dbOwn[k]||0)) continue;
 
         toInsert.push({
           spiel_id: spielId, spieler_id: pid,
@@ -3928,50 +3926,45 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
         importedCount++;
 
       } else if (gegnerTickerMap[ev.type]) {
-        // ── Gegner-Spieler: zählbasiertes Dedup ──
+        // ── Gegner-Spieler ──
         const gm = gegnerTickerMap[ev.type];
 
-        // Innerhalb dieses Ticker-Laufs: Spieler pro Typ deduplizieren
-        if (ev.playerName) {
-          // Nummern-only ("8.") → Key über extrahierte Nummer
-          const _nOnly = isNumberOnly(ev.playerName);
-          const _nKey = _nOnly ? extractNumber(ev.playerName) : normName(ev.playerName);
-          const nk = `${gm.type}-${_nKey}`;
-          oppNameSeen[nk] = (oppNameSeen[nk]||0) + 1;
-          // DB-Einträge für diesen Spieler zählen (per Name ODER Nummer)
-          const oppDbForName = aktionen.filter(a=>{
-            if(!a.spieler_id || a.spieler_id===null) {
-              if(a.type !== gm.type) return false;
-              if(_nOnly && a.gegner_nummer && String(a.gegner_nummer)===String(_nKey)) return true;
-              if(!_nOnly && a.gegner_name && normName(a.gegner_name)===normName(ev.playerName)) return true;
-            }
-            return false;
-          }).length;
-          if (oppNameSeen[nk] <= oppDbForName) continue; // bereits in DB
+        // Dedup-Key: primär über Nummer, sekundär über Name
+        const dedupKey = evNummer
+          ? `${gm.type}-nr-${evNummer}`
+          : ev.playerName
+            ? `${gm.type}-nm-${normName(ev.playerName)}`
+            : null;
+
+        if (dedupKey) {
+          oppNameSeen[dedupKey] = (oppNameSeen[dedupKey]||0) + 1;
+          const alreadyInDb = aktionen.filter(a =>
+            !a.spieler_id && a.type === gm.type && (
+              (evNummer && a.gegner_nummer && String(a.gegner_nummer) === String(evNummer)) ||
+              (!evNummer && ev.playerName && a.gegner_name && normName(a.gegner_name) === normName(ev.playerName))
+            )
+          ).length;
+          if (oppNameSeen[dedupKey] <= alreadyInDb) continue;
         }
 
-        // Gesamt-Zähler für diesen Gegner-Typ
+        // Gesamt-Zähler als Sicherheitsnetz
         tickerOpp[gm.type] = (tickerOpp[gm.type]||0) + 1;
-        if (tickerOpp[gm.type] <= (dbOpp[gm.type]||0)) continue; // bereits in DB
+        if (tickerOpp[gm.type] <= (dbOpp[gm.type]||0)) continue;
 
-        // Nummern-only Namen (z.B. "8.", "11.") → als Nummer behandeln, kein Name
-        const _isNumOnly = isNumberOnly(ev.playerName);
-        const _extractedNr = _isNumOnly ? extractNumber(ev.playerName) : null;
-        // Gegner-Lookup: erst per Name (wenn echter Name), dann per Nummer
-        const oppPlayer = (!_isNumOnly && ev.playerName)
-          ? (oppMap.get(normName(ev.playerName)) || null)
-          : null;
-        const _nummer = oppPlayer
-          ? String(oppPlayer.nummer||'')
-          : (_extractedNr || String(ev.playerNumber||'') || null);
+        // Gegner aus Lineup suchen für vollständige Info
+        const oppByNr   = evNummer ? oppLineup.find(p=>String(p.nummer)===String(evNummer)) : null;
+        const oppByName = (!oppByNr && ev.playerName && !isNumberOnly(ev.playerName))
+          ? oppMap.get(normName(ev.playerName)) : null;
+        const oppPlayer = oppByNr || oppByName || null;
+        const realName  = (ev.playerName && !isNumberOnly(ev.playerName)) ? ev.playerName : null;
+
         toGegner.push({
           spiel_id: spielId, spieler_id: null,
           user_id: currentUser.id,
           type: gm.type, label: gm.label, color: gm.color, polarity: gm.polarity,
           spielminute: ev.minute, erstellt_am: new Date().toISOString(),
-          // Nummern-only: kein Name speichern, nur Nummer
-          gegner_name:   _isNumOnly ? null : (ev.playerName || null),
-          gegner_nummer: _nummer || null,
+          gegner_name:   oppPlayer?.name || realName || null,
+          gegner_nummer: String(evNummer || oppPlayer?.nummer || '') || null,
         });
         importedCount++;
       } else {
