@@ -535,7 +535,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2100</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2230</div>
     </div>
   </aside>
 
@@ -1558,6 +1558,7 @@ async function openLive(spId, skipWizard=false){
     const{data:ak,error:akErr}=await supa.from('spielaktionen').select('*').eq('spiel_id',spId).order('erstellt_am');
     if(akErr) console.warn('aktionen Fehler:',akErr);
     aktionen=ak||[];
+    enrichGegnerAktionen();
 
     // Score aus dem Aktionslog neu berechnen (single source of truth)
     recalcScore(); timerOffset=spielMeta.timer_offset||0; timerStartedAt=null;
@@ -1661,7 +1662,7 @@ function recalcScore(){
   const userGoals   = aktionen.filter(a=>GOAL_TYPES.has(a.type)&&a.spieler_id).length;
   const gegnerGoals = aktionen.filter(a=>a.type===GEGNER_GOAL_TYPE).length;
   // Bei Auswärtsspiel ist mein Team der Gast (score_away) und Gegner heim (score_home)
-  const isAway = spielMeta.spielart==='auswaerts' || lineup.some(p=>p.team==='away');
+  const isAway = spielMeta.spielart==='auswaerts' || lineup.filter(p=>!p.bench).some(p=>p.team==='away');
   spielMeta.score_home = isAway ? gegnerGoals : userGoals;
   spielMeta.score_away = isAway ? userGoals   : gegnerGoals;
   // DOM: IDs bleiben immer live-sc-home/away, aber visuelle Position variiert (Score-Bar)
@@ -1753,7 +1754,9 @@ function renderLiveView(){
 
   // ── Score bar ──
   // Mein Team immer LINKS – bei Auswärtsspiel Display spiegeln
-  const _sbAway   = spielMeta.spielart==='auswaerts' || lineup.some(p=>p.team==='away');
+  // Nur eigene Spieler (bench=false) für Auswärts-Erkennung prüfen
+  const _myPlayers = lineup.filter(p=>!p.bench);
+  const _sbAway   = spielMeta.spielart==='auswaerts' || _myPlayers.some(p=>p.team==='away');
   const _myName   = _sbAway ? (spielMeta.gast||'Mein Team') : (spielMeta.heim||'Mein Team');
   const _oppName  = _sbAway ? (spielMeta.heim||'Gegner')    : (spielMeta.gast||'Gegner');
   const _myScId   = _sbAway ? 'away' : 'home';
@@ -2076,7 +2079,7 @@ function renderLog(){
   // Gegner-Name korrekt: bei Auswärtsspiel ist heim der Gegner
   // Fallback: lineup enthält away-Spieler → wir sind Auswärtsteam
   const isAway = spielMeta.spielart==='auswaerts'
-    || lineup.some(p=>p.team==='away');
+    || lineup.filter(p=>!p.bench).some(p=>p.team==='away');
   const gegnerName = isAway
     ? (spielMeta.heim||'Gegner')
     : (spielMeta.gast||'Gegner');
@@ -3720,14 +3723,12 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
         // Nummer aus gespeichertem Gegner-Lineup (bench=true) holen
         const oppPlayer = ev.playerName ? oppMap.get(normName(ev.playerName)) : null;
         toGegner.push({
-          // Nur DB-Spalten – gegner_name/gegner_nummer nur lokal
-          _gegner_name:   ev.playerName || null,
-          _gegner_nummer: oppPlayer ? (oppPlayer.nummer||null) : (ev.playerNumber||null),
-          // DB-Payload:
           spiel_id: spielId, spieler_id: null,
           user_id: currentUser.id,
           type: gm.type, label: gm.label, color: gm.color, polarity: gm.polarity,
           spielminute: ev.minute, erstellt_am: new Date().toISOString(),
+          gegner_name:   ev.playerName || null,
+          gegner_nummer: oppPlayer ? String(oppPlayer.nummer||'') : String(ev.playerNumber||'') || null,
         });
         importedCount++;
       } else {
@@ -3742,24 +3743,14 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       else aktionen = [...aktionen, ...toInsert.map((a, i) => ({ ...a, id: 'tmp-own-' + i }))];
     }
 
-    // Gegner-Aktionen in DB – lokale Hilfsfelder (_-Prefix) vor Insert entfernen
+    // Gegner-Aktionen in DB
     if (toGegner.length) {
-      const toGegnerDb = toGegner.map(({_gegner_name, _gegner_nummer, ...rest}) => rest);
-      const { data: gData, error: gErr } = await supa.from('spielaktionen').insert(toGegnerDb).select();
+      const { data: gData, error: gErr } = await supa.from('spielaktionen').insert(toGegner).select();
       if (gErr) {
-        console.warn('Gegner-Ticker lokal:', gErr.message);
-        // Lokal mit Metainfos behalten
-        aktionen = [...aktionen, ...toGegner.map((a, i) => ({
-          ...a, id: 'local-g-' + i,
-          gegner_name: a._gegner_name, gegner_nummer: a._gegner_nummer
-        }))];
+        console.warn('Gegner-Ticker lokal (DB-Fehler):', gErr.message);
+        aktionen = [...aktionen, ...toGegner.map((a, i) => ({ ...a, id: 'local-g-' + i }))];
       } else {
-        // DB-IDs + lokale Metainfos zusammenführen
-        aktionen = [...aktionen, ...(gData||[]).map((a, i) => ({
-          ...a,
-          gegner_name:   toGegner[i]?._gegner_name   || null,
-          gegner_nummer: toGegner[i]?._gegner_nummer || null,
-        }))];
+        aktionen = [...aktionen, ...(gData||[])];
       }
     }
 
@@ -3812,6 +3803,9 @@ function normName(s) {
 async function liveRefreshTicker() {
   const baseUrl = getBaseUrl(spielMeta.hbn_url);
   if (!baseUrl) { toast('Keine handball.net URL am Spiel', 'info'); return; }
+  // Aktionen frisch aus DB laden damit Dedup exakt ist
+  const { data: akFresh } = await supa.from('spielaktionen').select('*').eq('spiel_id', spielId).order('erstellt_am');
+  if (akFresh) { aktionen = akFresh; enrichGegnerAktionen(); }
   await autoImportTickerActions(baseUrl, _gs.timerMode || 'manual');
   renderLog();
 }
@@ -3826,6 +3820,7 @@ async function forceWizard(spId) {
   lineup=pl||[];
   const{data:ak}=await supa.from('spielaktionen').select('*').eq('spiel_id',spId).order('erstellt_am');
   aktionen=ak||[];
+  enrichGegnerAktionen();
   timerRunning=false; timerOffset=spielMeta.timer_offset||0; timerStartedAt=null;
   clearInterval(timerIv); setStatus('ok','');
   const baseUrl = getBaseUrl(spielMeta.hbn_url);
