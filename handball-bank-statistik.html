@@ -465,7 +465,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">v1.260507.2015</div>
+        <div class="logo-sub">v1.260507.2100</div>
       </div>
     </div>
 
@@ -521,7 +521,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.2015</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.2100</div>
     </div>
   </aside>
 
@@ -2119,11 +2119,19 @@ function exportStats(){
 // SPIELE LIST RENDER
 // ════════════════════════════════════════════════════════════
 
-// handball.net /info-Link aus Base-URL konstruieren
-function hbnInfoLink(url) {
-  if (!url) return '';
-  let base = url.replace(/\/+$/, '').replace(/\/(info|aufstellung|ticker|spielbericht|tabelle|halle)$/, '');
-  const href = base + '/info';
+// handball.net /info-Link aus URL oder UID konstruieren
+function hbnInfoLink(url, uid) {
+  let href = '';
+  if (url && url.trim()) {
+    // URL vorhanden: Suffix normalisieren → /info
+    let base = url.trim().replace(/\/+$/, '')
+      .replace(/\/(info|aufstellung|ticker|spielbericht|tabelle|halle)$/, '');
+    href = base + '/info';
+  } else if (uid && uid.trim()) {
+    // Kein URL aber UID: handball.net /spiele/-Muster konstruieren
+    href = `https://www.handball.net/spiele/${uid.trim()}/info`;
+  }
+  if (!href) return '';
   return `<a href="${href}" target="_blank" rel="noopener"
     style="font-size:11px;color:var(--accent);text-decoration:none;display:inline-flex;
     align-items:center;gap:3px;opacity:.8;"
@@ -2342,8 +2350,7 @@ async function loadAllTeamFeeds() {
     allGames.sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
 
     window._icalGamesMain = allGames;
-    // DEBUG: erstes Spiel-Objekt in Console ausgeben
-    if (allGames.length) console.log('[HBS DEBUG] Spiel-Objekt (Felder):', JSON.stringify(allGames[0], null, 2));
+
     renderIcalMain(allGames);
   } catch(e) {
     if (out) out.innerHTML = `<div style="padding:16px;color:var(--red);background:var(--red-l);
@@ -3054,7 +3061,7 @@ function renderIcalTable(games,today,isPast){
             ${g.heim} vs. ${g.gast}</span>
         </div>
         <div style="font-size:11.5px;color:var(--soft);margin-bottom:2px;">${g.ort||'–'}</div>
-        ${(g.url||g.baseUrl) ? hbnInfoLink(g.url||g.baseUrl) : ''}
+        ${hbnInfoLink(g.url||g.baseUrl||'', g.uid||'')}
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
         ${alreadyExists
