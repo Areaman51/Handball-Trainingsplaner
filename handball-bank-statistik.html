@@ -195,6 +195,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .log-aktion{font-weight:700;}
 .log-aktion.pos{color:var(--green);}
 .log-aktion.neg{color:var(--red);}
+.log-row-gegner{background:rgba(220,38,38,.05);border-left:2px solid var(--red);padding-left:6px;}
+.log-row-gegner .log-nr{color:var(--red);}
+.log-score-snap{font-size:10px;font-weight:700;font-family:'DM Mono',monospace;
+  color:rgba(255,255,255,.5);background:rgba(255,255,255,.1);
+  padding:1px 6px;border-radius:4px;white-space:nowrap;}
 
 /* Rechtes Panel: Aktion + Spieler-Grid */
 .live-right-panel{flex:1;overflow-y:auto;background:var(--bg);}
@@ -475,7 +480,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="logo-icon">🤾</div>
       <div>
         <div class="logo-text">Bank-Statistik</div>
-        <div class="logo-sub">v1.260507.2315</div>
+        <div class="logo-sub">v1.260507.2330</div>
       </div>
     </div>
 
@@ -531,7 +536,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.2315</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260507.2330</div>
     </div>
   </aside>
 
@@ -1291,6 +1296,8 @@ const POL={
   turnover:-1,fw:-1,fw_7m:-1,tf:-1,fp:-1,'1zu1':-1,'7m_v':-1,rot:-1,kass:-1,kass_7m:-1
 };
 const GOAL_TYPES=new Set(['tor','tor_7m']);
+const GEGNER_GOAL_TYPE='gegner_tor';
+const GEGNER_TYPES=new Set(['gegner_tor','gegner_2min','gegner_rot']);
 
 // ════════════════════════════════════════════════════════════
 // AUTH
@@ -1553,7 +1560,8 @@ async function openLive(spId, skipWizard=false){
     if(akErr) console.warn('aktionen Fehler:',akErr);
     aktionen=ak||[];
 
-    timerRunning=false; timerOffset=spielMeta.timer_offset||0; timerStartedAt=null;
+    // Score aus dem Aktionslog neu berechnen (single source of truth)
+    recalcScore(); timerOffset=spielMeta.timer_offset||0; timerStartedAt=null;
     clearInterval(timerIv);
     setStatus('ok','Spiel geladen');
 
@@ -1649,16 +1657,55 @@ function doTimeSync(){
 // ════════════════════════════════════════════════════════════
 // SCORE
 // ════════════════════════════════════════════════════════════
+// Berechnet score_home/away aus dem Aktionslog (single source of truth)
+function recalcScore(){
+  const sh=aktionen.filter(a=>GOAL_TYPES.has(a.type)&&a.spieler_id).length;
+  const sa=aktionen.filter(a=>a.type===GEGNER_GOAL_TYPE).length;
+  spielMeta.score_home=sh;
+  spielMeta.score_away=sa;
+  const elH=document.getElementById('live-sc-home');
+  const elA=document.getElementById('live-sc-away');
+  if(elH) elH.textContent=sh;
+  if(elA) elA.textContent=sa;
+}
+
+// Manuelle Korrektur (nur für Ticker-Override oder externe Korrektur)
 async function chScore(side,d){
   spielMeta['score_'+side]=Math.max(0,(spielMeta['score_'+side]||0)+d);
   document.getElementById('live-sc-'+side).textContent=spielMeta['score_'+side];
   await saveSpielMeta();
 }
-async function gegnerTor(){
-  spielMeta.score_away=(spielMeta.score_away||0)+1;
-  document.getElementById('live-sc-away').textContent=spielMeta.score_away;
-  toast('Gegner: Tor ⚽','error');
+
+// Gegner-Ereignis ins Aktionslog schreiben
+async function logGegnerAktion(type, label, color){
+  if(!spielId) return;
+  const min=timerMin();
+  setStatus('saving','…');
+  const{data,error}=await supa.from('spielaktionen').insert({
+    spiel_id:spielId,
+    spieler_id:null,
+    user_id:currentUser.id,
+    type, label, color,
+    polarity: type===GEGNER_GOAL_TYPE ? -1 : 0,
+    spielminute:min,
+    erstellt_am:new Date().toISOString()
+  }).select().single();
+  setStatus('ok','');
+  if(error){
+    // spieler_id hat evtl. ein NOT-NULL-Constraint. Lokal merken bis SQL-Fix erfolgt.
+    console.warn('logGegnerAktion DB-Fehler (lokal):', error.message);
+    aktionen.push({spiel_id:spielId,spieler_id:null,user_id:currentUser.id,
+      type,label,color,polarity:type===GEGNER_GOAL_TYPE?-1:0,
+      spielminute:min,erstellt_am:new Date().toISOString(),id:'local-'+Date.now()});
+    toast('⚠️ Lokal gespeichert – DB-Fix nötig: ALTER TABLE spielaktionen ALTER COLUMN spieler_id DROP NOT NULL','error');
+  } else {
+    aktionen.push(data);
+  }
+  recalcScore();
   await saveSpielMeta();
+  renderLog();
+  const toastType=type===GEGNER_GOAL_TYPE?'error':'info';
+  if(!error) toast(`Gegner: ${label} (${min}')`,toastType);
 }
 async function toggleHz(){
   spielMeta.hz=spielMeta.hz===1?2:1;
@@ -1745,9 +1792,13 @@ function renderLiveView(){
           <button class="lsb-btn" onclick="chScore('away',-1)">▼</button>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
         <div class="lsb-team">${spielMeta.gast||'Gegner'}</div>
-        <button class="lsb-gegner-btn" onclick="gegnerTor()">⚽ Gegner Tor</button>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="lsb-gegner-btn" onclick="logGegnerAktion('gegner_tor','Tor','#dc2626')">⚽ Tor</button>
+          <button class="lsb-gegner-btn" style="background:rgba(234,88,12,.15);border-color:rgba(234,88,12,.35);color:#fdba74;" onclick="logGegnerAktion('gegner_2min','2-Minuten','#ea580c')">⏱ 2-Min</button>
+          <button class="lsb-gegner-btn" style="background:rgba(127,29,29,.25);border-color:rgba(180,50,50,.4);color:#fca5a5;" onclick="logGegnerAktion('gegner_rot','Rote Karte','#7f1d1d')">🟥 Rot</button>
+        </div>
       </div>
     </div>`;
   wrap.appendChild(sb);
@@ -1950,9 +2001,7 @@ async function logAktion(type,label,color){
 
   // Auto-count goal in score
   if(GOAL_TYPES.has(type)){
-    spielMeta.score_home=(spielMeta.score_home||0)+1;
-    const el=document.getElementById('live-sc-home');
-    if(el) el.textContent=spielMeta.score_home;
+    recalcScore();
     saveSpielMeta();
   }
 
@@ -1976,10 +2025,8 @@ async function undoAction(){
   if(error){toast('Fehler beim Rückgängigmachen','error');return;}
   aktionen.pop();
 
-  if(GOAL_TYPES.has(last.type)){
-    spielMeta.score_home=Math.max(0,(spielMeta.score_home||0)-1);
-    const el=document.getElementById('live-sc-home');
-    if(el) el.textContent=spielMeta.score_home;
+  if(GOAL_TYPES.has(last.type)||last.type===GEGNER_GOAL_TYPE){
+    recalcScore();
     saveSpielMeta();
   }
 
@@ -1998,16 +2045,33 @@ function renderLog(){
   const body=document.getElementById('log-body');
   if(!body) return;
   body.innerHTML='';
-  [...aktionen].reverse().slice(0,35).forEach(a=>{
-    const p=lineup.find(x=>x.id===a.spieler_id);
-    if(!p) return;
+  // Laufende Scorezähler für Schnappschuss im Log
+  let snapH=0, snapA=0;
+  const sorted=[...aktionen].sort((a,b)=>new Date(a.erstellt_am)-new Date(b.erstellt_am));
+  [...sorted].reverse().slice(0,50).forEach(a=>{
     const row=document.createElement('div');
-    row.className='log-row';
-    row.innerHTML=`
-      <span class="log-min">${a.spielminute}'</span>
-      <span class="log-nr">#${p.nummer}</span>
-      <span class="log-name">${p.name}</span>
-      <span class="log-aktion ${a.polarity>0?'pos':'neg'}" style="color:${a.color}">${a.label}</span>`;
+    if(!a.spieler_id){
+      // Gegner-Ereignis
+      row.className='log-row log-row-gegner';
+      const scoreSnap = a.type===GEGNER_GOAL_TYPE
+        ? `<span class="log-score-snap" style="background:rgba(220,38,38,.18);color:#fca5a5;">${spielMeta.score_home||0}:${spielMeta.score_away||0}</span>`
+        : '';
+      row.innerHTML=`
+        <span class="log-min">${a.spielminute}'</span>
+        <span class="log-nr">GEG</span>
+        <span class="log-name" style="font-weight:600;color:var(--text);">${spielMeta.gast||'Gegner'}</span>
+        <span class="log-aktion neg" style="color:${a.color||'var(--red)'};">${a.label}</span>
+        ${scoreSnap}`;
+    } else {
+      const p=lineup.find(x=>x.id===a.spieler_id);
+      if(!p) return;
+      row.className='log-row';
+      row.innerHTML=`
+        <span class="log-min">${a.spielminute}'</span>
+        <span class="log-nr">#${p.nummer}</span>
+        <span class="log-name">${p.name}</span>
+        <span class="log-aktion ${a.polarity>0?'pos':'neg'}" style="color:${a.color}">${a.label}</span>`;
+    }
     body.appendChild(row);
   });
 }
