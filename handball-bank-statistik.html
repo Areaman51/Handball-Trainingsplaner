@@ -436,6 +436,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   width:20px;height:20px;border-radius:50%;font-size:11px;font-weight:700;
   background:var(--bg);color:var(--xsoft);}
 .kader-no-data{color:var(--xsoft);font-size:12px;text-align:center;padding:4px;}
+/* Wizard Kader-Auswahl */
+.wiz-player-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:7px;
+  max-height:340px;overflow-y:auto;padding:4px 2px;}
+.wiz-player-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;
+  border:1.5px solid var(--border);background:white;cursor:pointer;transition:all .12s;user-select:none;}
+.wiz-player-row:hover{border-color:var(--accent);background:var(--accent-l);}
+.wiz-player-row.selected{border-color:var(--accent);background:var(--accent-l);}
+.wiz-player-row.selected .wiz-cb{background:var(--accent);border-color:var(--accent);}
+.wiz-player-row.selected .wiz-cb::after{content:'✓';color:white;font-size:10px;font-weight:900;}
+.wiz-cb{width:18px;height:18px;border:2px solid var(--border);border-radius:4px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.wiz-player-nr{font-size:15px;font-weight:800;color:var(--accent);font-family:'DM Mono',monospace;
+  min-width:28px;text-align:right;}
+.wiz-player-name{font-size:12px;font-weight:600;flex:1;line-height:1.2;}
+.wiz-player-pos{font-size:10px;color:var(--xsoft);}
 
 /* ── MODAL: MEIN TEAM CONFIG ── */
 .mannschaft-option{display:flex;align-items:center;gap:12px;padding:10px 14px;
@@ -557,7 +572,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.2345</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.2359</div>
     </div>
   </aside>
 
@@ -3490,6 +3505,8 @@ let _gs = {
   baseUrl: '', data: null, selectedTeam: null,
   timerMode: 'manual',   // 'manual' | 'ticker'
   importTicker: false,
+  rosterSource: null,    // null | 'hbn' | 'kader' | 'manual'
+  selectedPlayers: [],   // ausgewählte Kader-Spieler (IDs)
 };
 
 async function showGameStartWizard(baseUrl) {
@@ -3608,13 +3625,145 @@ function renderWizardUrlInput() {
       </button>
 
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);
-        text-align:center;">
+        display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+        <button class="btn btn-ghost btn-sm"
+          onclick="showWizardKaderSelection()">
+          👥 Spieler aus Kader wählen
+        </button>
         <button class="btn btn-ghost btn-sm"
           onclick="closeModal('m-gamestart');showView('live');renderLiveView()">
-          Ohne handball.net öffnen
+          Ohne Lineup öffnen
         </button>
       </div>
     </div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// WIZARD: Spieler aus Kader wählen (ohne handball.net)
+// ════════════════════════════════════════════════════════════
+async function showWizardKaderSelection() {
+  const bodyEl   = document.getElementById('gs-body');
+  const footerEl = document.getElementById('gs-footer');
+  const subEl    = document.getElementById('gs-sub');
+  if (subEl) subEl.textContent = 'Spieler aus Kader wählen';
+
+  if (!_myTeamId) {
+    if (bodyEl) bodyEl.innerHTML = `
+      <div style="padding:24px;text-align:center;color:var(--xsoft);">
+        <div style="font-size:28px;margin-bottom:10px;">⚠️</div>
+        <div style="font-size:13px;">Keine Mannschaft zugeordnet.<br>
+        Bitte zuerst im <strong>Trainingsplaner</strong> eine Mannschaft anlegen und verknüpfen.</div>
+      </div>`;
+    return;
+  }
+
+  if (bodyEl) bodyEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--xsoft);">
+    <div style="font-size:24px;margin-bottom:8px;">⏳</div>Lade Kader…</div>`;
+
+  const { data: kader } = await supa.from('mannschaft_spieler')
+    .select('id,name,nummer,pos')
+    .eq('mannschaft_id', _myTeamId)
+    .order('pos').order('nummer');
+
+  if (!kader?.length) {
+    if (bodyEl) bodyEl.innerHTML = `
+      <div style="padding:24px;text-align:center;color:var(--xsoft);">
+        <div style="font-size:28px;margin-bottom:10px;">📭</div>
+        <div style="font-size:13px;">Keine Spieler im Kader gefunden.</div>
+      </div>`;
+    return;
+  }
+
+  _gs.rosterSource = 'kader';
+  _gs._kaderData = kader;
+  _gs.selectedPlayers = kader.map(p => p.id); // Alle vorausgewählt
+
+  if (bodyEl) bodyEl.innerHTML = renderKaderSelection(kader);
+  if (footerEl) {
+    footerEl.style.display = '';
+    const btn = document.getElementById('gs-confirm');
+    if (btn) { btn.textContent = '▶ Spiel starten'; btn.disabled = false; }
+  }
+
+  // Spielart-Auswahl → selectedTeam setzen
+  _gs.selectedTeam = 'home'; // default, änderbar über Buttons im UI
+}
+
+function renderKaderSelection(kader) {
+  const th = kader.filter(p => p.pos === 'TH');
+  const fl = kader.filter(p => p.pos !== 'TH');
+
+  const renderGroup = (players, label) => players.length ? `
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+      color:var(--xsoft);margin:10px 0 6px;">${label}</div>
+    <div class="wiz-player-grid">
+      ${players.map(p => `
+        <div class="wiz-player-row selected" id="wpr-${p.id}"
+          onclick="toggleWizardPlayer('${p.id}')">
+          <div class="wiz-cb"></div>
+          <div class="wiz-player-nr">${p.nummer||'?'}</div>
+          <div>
+            <div class="wiz-player-name">${p.name}</div>
+            <div class="wiz-player-pos">${p.pos==='TH'?'● Torhüter':'▲ Feldspieler'}</div>
+          </div>
+        </div>`).join('')}
+    </div>` : '';
+
+  return `
+    <div style="padding:14px 18px 0;">
+      <!-- Spielart -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+        color:var(--xsoft);margin-bottom:8px;">🏟 Spielart</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button id="kws-home" class="btn btn-primary btn-sm" style="flex:1;"
+          onclick="setKaderWizardSpielart('home')">🏠 Heimspiel</button>
+        <button id="kws-away" class="btn btn-ghost btn-sm" style="flex:1;"
+          onclick="setKaderWizardSpielart('away')">✈️ Auswärtsspiel</button>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border);margin-bottom:12px;">
+      <!-- Spieler-Auswahl -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+          color:var(--xsoft);">👥 Wer spielt mit?</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;"
+            onclick="selectAllWizardPlayers(true)">Alle</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;"
+            onclick="selectAllWizardPlayers(false)">Keine</button>
+        </div>
+      </div>
+      ${renderGroup(th, '● Torhüter')}
+      ${renderGroup(fl, '▲ Feldspieler')}
+    </div>`;
+}
+
+function setKaderWizardSpielart(side) {
+  _gs.selectedTeam = side;
+  document.getElementById('kws-home').className = 'btn btn-sm ' + (side==='home'?'btn-primary':'btn-ghost');
+  document.getElementById('kws-away').className = 'btn btn-sm ' + (side==='away'?'btn-primary':'btn-ghost');
+  document.getElementById('kws-home').style.flex = '1';
+  document.getElementById('kws-away').style.flex = '1';
+}
+
+function toggleWizardPlayer(id) {
+  const idx = _gs.selectedPlayers.indexOf(id);
+  const row = document.getElementById('wpr-' + id);
+  if (idx >= 0) {
+    _gs.selectedPlayers.splice(idx, 1);
+    row?.classList.remove('selected');
+  } else {
+    _gs.selectedPlayers.push(id);
+    row?.classList.add('selected');
+  }
+}
+
+function selectAllWizardPlayers(all) {
+  _gs.selectedPlayers = all ? (_gs._kaderData||[]).map(p=>p.id) : [];
+  (_gs._kaderData||[]).forEach(p => {
+    const row = document.getElementById('wpr-' + p.id);
+    if (all) row?.classList.add('selected');
+    else row?.classList.remove('selected');
+  });
 }
 
 // URL aus dem Eingabefeld laden und Spiel aktualisieren
@@ -3748,8 +3897,16 @@ function toggleTickerImport(checked) {
 }
 
 async function confirmGameStart() {
-  const { data, selectedTeam, timerMode, importTicker, baseUrl } = _gs;
-  if (!selectedTeam || !data) return;
+  const { data, selectedTeam, timerMode, importTicker, baseUrl, rosterSource } = _gs;
+  if (!selectedTeam) return;
+
+  // ── Kader-Pfad (kein handball.net) ──
+  if (rosterSource === 'kader') {
+    await confirmGameStartFromKader();
+    return;
+  }
+
+  if (!data) return;
 
   const btn = document.getElementById('gs-confirm');
   btn.textContent = '⏳'; btn.disabled = true;
@@ -4068,6 +4225,57 @@ function extractNumber(s) {
 
 // ── Live-View: Ticker-Button ─────────────────────────────────
 // Wird beim Render der Live-View aufgerufen wenn hbn_url vorhanden
+async function confirmGameStartFromKader() {
+  const { selectedTeam, timerMode, _kaderData, selectedPlayers } = _gs;
+
+  const selected = (_kaderData||[]).filter(p => selectedPlayers.includes(p.id));
+  if (!selected.length) { toast('Keine Spieler ausgewählt', 'error'); return; }
+
+  closeModal('m-gamestart');
+  setStatus('saving', 'Lineup speichern…');
+
+  // Spielart in DB speichern
+  const spielart = selectedTeam === 'away' ? 'auswaerts' : 'heim';
+  await supa.from('spiele').update({
+    spielart, status: 'live', updated_at: new Date().toISOString()
+  }).eq('id', spielId);
+  spielMeta.spielart = spielart;
+
+  // Bestehendes Lineup löschen
+  await supa.from('spieler_lineup').delete().eq('spiel_id', spielId);
+
+  // Eigene Spieler einfügen (aus Kader-Auswahl)
+  const toInsert = selected.map((p, i) => ({
+    spiel_id: spielId,
+    user_id:  currentUser.id,
+    spieler_id: null,        // kein Fremdschlüssel auf spieler-Tabelle nötig
+    name:    p.name,
+    nummer:  p.nummer,
+    pos:     p.pos || 'FL',
+    team:    selectedTeam === 'away' ? 'away' : 'home',
+    bench:   false,
+    sort_order: i,
+  }));
+
+  const { error } = await supa.from('spieler_lineup').insert(toInsert);
+  if (error) { setStatus('err', 'Fehler beim Speichern'); toast('Fehler: ' + error.message, 'error'); return; }
+
+  // Lineup neu laden
+  const { data: pl } = await supa.from('spieler_lineup').select('*').eq('spiel_id', spielId).order('sort_order');
+  lineup = pl || [];
+  await enrichLineupFromKader();
+
+  setStatus('ok', '');
+  timerOffset = 0; timerStartedAt = null; clearInterval(timerIv);
+
+  // Ticker-Timer-Modus
+  _gs.timerMode = timerMode;
+
+  showView('live');
+  renderLiveView();
+  toast(`${selected.length} Spieler aus Kader übernommen ✓`, 'success');
+}
+
 async function liveRefreshTicker() {
   const baseUrl = getBaseUrl(spielMeta.hbn_url);
   if (!baseUrl) { toast('Keine handball.net URL am Spiel', 'info'); return; }
