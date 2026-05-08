@@ -26,6 +26,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* ── SIDEBAR ── */
 .sidebar{width:220px;min-height:100vh;background:var(--sidebar);display:flex;
+  transition:transform .25s ease,width .25s ease;flex-shrink:0;}
+.sidebar.collapsed{width:0;overflow:hidden;transform:translateX(-220px);}
+/* Burger-Button */
+.burger-btn{position:fixed;top:10px;left:10px;z-index:200;
+  background:var(--sidebar);border:none;border-radius:8px;
+  width:36px;height:36px;display:none;align-items:center;justify-content:center;
+  cursor:pointer;color:white;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.25);}
+.sidebar.collapsed ~ .burger-btn-placeholder,
+body.sidebar-collapsed .burger-btn{display:flex;}
+/* Content verschiebt sich nicht — Sidebar liegt über Content auf Mobile */
+@media(max-width:900px){
+  #app{position:relative;}
+  .sidebar{position:fixed;top:0;left:0;height:100vh;z-index:150;transform:translateX(0);}
+  .sidebar.collapsed{transform:translateX(-220px);}
+  .content{margin-left:0!important;}
+  .burger-btn{display:flex;}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:149;}
+  .sidebar-overlay.visible{display:block;}
+}
   flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;}
 .sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06);
   display:flex;align-items:center;gap:10px;}
@@ -521,12 +540,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 <!-- ════ APP ════ -->
 <div id="app" style="display:none">
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-icon">🤾</div>
-      <div>
+  <!-- Burger-Button (Mobile / Sidebar eingeklappt) -->
+  <button class="burger-btn" id="burger-btn" onclick="toggleSidebar()" title="Menü">☰</button>
+  <!-- Overlay zum Schließen der Sidebar auf Mobile -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo" style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="logo-icon">🤾</div>
         <div class="logo-text">Bank-Statistik</div>
       </div>
+      <button onclick="toggleSidebar()" title="Sidebar einklappen"
+        style="background:none;border:none;color:rgba(255,255,255,.4);font-size:16px;
+        cursor:pointer;padding:2px 4px;border-radius:4px;line-height:1;"
+        onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,.4)'">✕</button>
     </div>
 
     <!-- ── MEIN TEAM WIDGET ── -->
@@ -581,7 +608,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260510.1200</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260510.1300</div>
     </div>
   </aside>
 
@@ -1455,6 +1482,7 @@ async function onAuth(user){
   }
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').style.display='';
+  initSidebarState();
   document.getElementById('topbar-user').textContent=profile?.full_name||profile?.email||user.email;
   await loadSpiele();
   initMyTeam();
@@ -1499,6 +1527,26 @@ async function saveSpielMeta(){
     // Dashboard-Karte live aktualisieren ohne komplettes Re-Render
     const card = document.querySelector(`[data-spiel-id="${spielId}"] .spiel-score`);
     if(card) card.textContent = `${spielMeta.score_home||0} : ${spielMeta.score_away||0}`;
+  }
+}
+
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const burger = document.getElementById('burger-btn');
+  const collapsed = sb.classList.toggle('collapsed');
+  overlay?.classList.toggle('visible', !collapsed);
+  // Zustand speichern
+  localStorage.setItem('hbs_sidebar_collapsed', collapsed ? '1' : '0');
+}
+
+function initSidebarState() {
+  // Auf Mobile standardmäßig eingeklappt
+  const isMobile = window.innerWidth <= 900;
+  const stored = localStorage.getItem('hbs_sidebar_collapsed');
+  const shouldCollapse = stored !== null ? stored === '1' : isMobile;
+  if (shouldCollapse) {
+    document.getElementById('sidebar')?.classList.add('collapsed');
   }
 }
 
@@ -2872,6 +2920,16 @@ function initMyTeam() {
   _myTeamId     = localStorage.getItem('hbs_my_mannschaft_id') || '';
   _myTeamIcal   = localStorage.getItem('hbs_ical_url')         || '';
   _analysisMode = localStorage.getItem('hbs_analysis_mode')    || 'own';
+  // Fallback: Supabase user_metadata (für iPad / Safari ohne persistenten Storage)
+  if (!_myTeamId && currentUser?.user_metadata) {
+    const meta = currentUser.user_metadata;
+    if (meta.hbs_my_mannschaft_id) {
+      _myTeamId   = meta.hbs_my_mannschaft_id;
+      _myTeamName = meta.hbs_my_team || '';
+      localStorage.setItem('hbs_my_team',          _myTeamName);
+      localStorage.setItem('hbs_my_mannschaft_id', _myTeamId);
+    }
+  }
   renderMyTeamWidget();
   // Immer frisch aus Supabase abgleichen (async, blockiert nicht)
   autoDetectTeam();
@@ -3142,6 +3200,11 @@ async function saveMyTeamConfig() {
     _pendingTeamName = '';
     localStorage.setItem('hbs_my_team',          _myTeamName);
     localStorage.setItem('hbs_my_mannschaft_id', _myTeamId);
+    // Auch in Supabase speichern (überlebt Safari-Cache-Leeren auf iPad)
+    supa.auth.updateUser({ data: {
+      hbs_my_team: _myTeamName,
+      hbs_my_mannschaft_id: _myTeamId
+    }}).catch(()=>{});
     // Bei Teamwechsel: iCal-Cache leeren und neu laden
     if (teamChanged) {
       _myTeamIcal = '';
