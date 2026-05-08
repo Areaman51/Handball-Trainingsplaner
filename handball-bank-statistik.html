@@ -572,7 +572,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.2359</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260510.1000</div>
     </div>
   </aside>
 
@@ -783,21 +783,41 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
 
       <hr class="form-divider">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;
-          letter-spacing:.08em;color:var(--xsoft);">👥 Aufstellung</div>
-        <div style="display:flex;gap:6px;">
+      <!-- Aufstellungs-Quelle -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+        color:var(--xsoft);margin-bottom:10px;">👥 Aufstellung</div>
+      <div style="display:flex;gap:4px;background:var(--bg);border-radius:8px;padding:3px;margin-bottom:12px;">
+        <button id="rst-tab-kader" class="btn btn-ghost btn-sm"
+          style="flex:1;justify-content:center;background:white;box-shadow:var(--shadow);"
+          onclick="switchRosterTab('kader')">👥 Aus Kader wählen</button>
+        <button id="rst-tab-manual" class="btn btn-ghost btn-sm"
+          style="flex:1;justify-content:center;"
+          onclick="switchRosterTab('manual')">✏️ Manuell</button>
+      </div>
+
+      <!-- Tab: Aus Kader wählen -->
+      <div id="rst-kader-tab">
+        <div id="rst-kader-content">
+          <div style="text-align:center;padding:16px;color:var(--xsoft);font-size:13px;">
+            ⏳ Kader wird geladen…
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Manuell -->
+      <div id="rst-manual-tab" style="display:none;">
+        <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px;">
           <button class="btn btn-ghost btn-sm" onclick="addRosterRow('FL')">+ ▲ Feldspieler</button>
           <button class="btn btn-ghost btn-sm" onclick="addRosterRow('TH')">+ ● Torhüter</button>
         </div>
-      </div>
-      <div id="roster-wrap">
-        <table class="roster-table">
-          <thead><tr>
-            <th>Pos</th><th>Nr.</th><th>Name</th><th style="width:30px;"></th>
-          </tr></thead>
-          <tbody id="roster-body"></tbody>
-        </table>
+        <div id="roster-wrap">
+          <table class="roster-table">
+            <thead><tr>
+              <th>Pos</th><th>Nr.</th><th>Name</th><th style="width:30px;"></th>
+            </tr></thead>
+            <tbody id="roster-body"></tbody>
+          </table>
+        </div>
       </div>
 
       <hr class="form-divider" style="margin-top:14px;">
@@ -1448,6 +1468,61 @@ async function saveSpielMeta(){
   }
 }
 
+function switchRosterTab(tab) {
+  document.getElementById('rst-kader-tab').style.display = tab==='kader' ? '' : 'none';
+  document.getElementById('rst-manual-tab').style.display = tab==='manual' ? '' : 'none';
+  document.getElementById('rst-tab-kader').style.cssText =
+    tab==='kader' ? 'flex:1;justify-content:center;background:white;box-shadow:var(--shadow);'
+                  : 'flex:1;justify-content:center;';
+  document.getElementById('rst-tab-manual').style.cssText =
+    tab==='manual' ? 'flex:1;justify-content:center;background:white;box-shadow:var(--shadow);'
+                   : 'flex:1;justify-content:center;';
+}
+
+async function loadKaderIntoRosterModal() {
+  const el = document.getElementById('rst-kader-content');
+  if (!el) return;
+  if (!_myTeamId) {
+    el.innerHTML = '<div style="padding:12px;color:var(--xsoft);font-size:13px;text-align:center;">' +
+      '⚠️ Keine Mannschaft verknüpft.</div>';
+    return;
+  }
+  const { data: kader } = await supa.from('mannschaft_spieler')
+    .select('id,name,nummer,pos')
+    .eq('mannschaft_id', _myTeamId)
+    .order('pos').order('nummer');
+  if (!kader?.length) {
+    el.innerHTML = '<div style="padding:12px;color:var(--xsoft);font-size:13px;text-align:center;">' +
+      '📭 Kein Kader vorhanden.</div>';
+    return;
+  }
+  // Alle vorauswählen
+  _gs._kaderData = kader;
+  _gs.selectedPlayers = kader.map(p => p.id);
+  const th = kader.filter(p => p.pos === 'TH');
+  const fl = kader.filter(p => p.pos !== 'TH');
+  const rows = (group) => group.map(p => `
+    <div class="wiz-player-row selected" id="wpr-${p.id}" onclick="toggleWizardPlayer('${p.id}')">
+      <div class="wiz-cb"></div>
+      <div class="wiz-player-nr">${p.nummer||'?'}</div>
+      <div>
+        <div class="wiz-player-name">${p.name}</div>
+        <div class="wiz-player-pos">${p.pos==='TH'?'● Torhüter':'▲ Feldspieler'}</div>
+      </div>
+    </div>`).join('');
+  el.innerHTML = `
+    <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:6px;">
+      <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;"
+        onclick="selectAllWizardPlayers(true)">Alle</button>
+      <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;"
+        onclick="selectAllWizardPlayers(false)">Keine</button>
+    </div>
+    ${th.length ? '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--xsoft);margin-bottom:5px;">● Torhüter</div>' : ''}
+    <div class="wiz-player-grid">${rows(th)}</div>
+    ${fl.length ? '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--xsoft);margin:10px 0 5px;">▲ Feldspieler</div>' : ''}
+    <div class="wiz-player-grid">${rows(fl)}</div>`;
+}
+
 async function openSpielModal(spId=null){
   editSpielId=spId;
   editRoster=[];
@@ -1482,6 +1557,8 @@ async function openSpielModal(spId=null){
   }
   renderRosterTable();
   openModal('m-spiel');
+  // Kader-Tab direkt laden
+  loadKaderIntoRosterModal();
 }
 
 function addRosterRow(pos){
@@ -1541,6 +1618,12 @@ function renderRosterTable(){
 }
 
 async function saveSpiel(){
+  // Wenn Kader-Tab aktiv: ausgewählte Spieler als editRoster übertragen
+  const _kaderTabActive = document.getElementById('rst-kader-tab')?.style.display !== 'none';
+  if (_kaderTabActive && _gs._kaderData) {
+    const _sel = (_gs._kaderData||[]).filter(p => (_gs.selectedPlayers||[]).includes(p.id));
+    editRoster = _sel.map(p => ({ nummer: p.nummer, name: p.name, pos: p.pos||'FL' }));
+  }
   const heim=document.getElementById('sp-heim').value.trim();
   const gast=document.getElementById('sp-gast').value.trim();
   if(!heim||!gast){toast('Bitte Mannschaft und Gegner eingeben.','error');return;}
