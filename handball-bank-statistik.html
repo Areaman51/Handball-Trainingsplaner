@@ -29,19 +29,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;
   transition:transform .25s ease;flex-shrink:0;}
 .sidebar.collapsed{transform:translateX(-220px);}
-/* Burger-Button */
-.burger-btn{position:fixed;top:10px;left:10px;z-index:200;
-  background:var(--sidebar);border:none;border-radius:8px;
-  width:36px;height:36px;display:none;align-items:center;justify-content:center;
-  cursor:pointer;color:white;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.25);}
-.sidebar.collapsed + * .burger-btn,
-.sidebar.collapsed ~ .burger-btn{display:flex;}
-/* Mobile: Sidebar liegt als Overlay über Content */
+/* Topbar Burger-Button (immer im DOM, sichtbar wenn collapsed) */
+.burger-btn{background:none;border:none;border-radius:6px;padding:4px 8px;
+  cursor:pointer;color:var(--soft);font-size:20px;line-height:1;display:none;
+  align-items:center;justify-content:center;transition:color .15s;}
+.burger-btn:hover{color:var(--text);}
+/* Main verschiebt sich mit Sidebar */
+.main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;
+  transition:margin-left .25s ease;}
+#app.sidebar-collapsed .main{margin-left:0;}
+#app.sidebar-collapsed .burger-btn{display:flex;}
+/* Overlay zum Schließen der Sidebar auf Mobile */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:19;}
+.sidebar-overlay.visible{display:block;}
 @media(max-width:900px){
-  .main{margin-left:0!important;}
   .burger-btn{display:flex;}
-  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:149;}
-  .sidebar-overlay.visible{display:block;}
+  .sidebar-overlay{z-index:19;}
 }
 .sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06);
   display:flex;align-items:center;gap:10px;}
@@ -62,8 +65,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   color:rgba(255,255,255,.35);font-size:12px;cursor:pointer;transition:all .15s;text-decoration:none;}
 .sidebar-link:hover{color:rgba(255,255,255,.6);background:var(--sidebar-h);}
 
-/* ── MAIN ── */
-.main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;}
+/* ── MAIN ── (Definition oben bei Sidebar) */
 
 /* ── TOPBAR ── */
 .topbar{background:white;border-bottom:1px solid var(--border);padding:0 26px;height:54px;
@@ -537,8 +539,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 <!-- ════ APP ════ -->
 <div id="app" style="display:none">
-  <!-- Burger-Button (Mobile / Sidebar eingeklappt) -->
-  <button class="burger-btn" id="burger-btn" onclick="toggleSidebar()" title="Menü">☰</button>
   <!-- Overlay zum Schließen der Sidebar auf Mobile -->
   <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
   <aside class="sidebar" id="sidebar">
@@ -605,14 +605,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260510.1300</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260510.1430</div>
     </div>
   </aside>
 
   <main class="main">
     <div class="topbar">
-      <div class="topbar-title">
-        <span id="topbar-title-text">Meine Spiele</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="burger-btn" id="burger-btn" onclick="toggleSidebar()" title="Menü ein-/ausblenden">☰</button>
+        <div class="topbar-title">
+          <span id="topbar-title-text">Meine Spiele</span>
+        </div>
       </div>
       <div class="topbar-right">
         <span id="status-indicator">
@@ -1528,22 +1531,22 @@ async function saveSpielMeta(){
 }
 
 function toggleSidebar() {
-  const sb = document.getElementById('sidebar');
+  const sb  = document.getElementById('sidebar');
+  const app = document.getElementById('app');
   const overlay = document.getElementById('sidebar-overlay');
-  const burger = document.getElementById('burger-btn');
   const collapsed = sb.classList.toggle('collapsed');
+  app.classList.toggle('sidebar-collapsed', collapsed);
   overlay?.classList.toggle('visible', !collapsed);
-  // Zustand speichern
   localStorage.setItem('hbs_sidebar_collapsed', collapsed ? '1' : '0');
 }
 
 function initSidebarState() {
-  // Auf Mobile standardmäßig eingeklappt
   const isMobile = window.innerWidth <= 900;
   const stored = localStorage.getItem('hbs_sidebar_collapsed');
   const shouldCollapse = stored !== null ? stored === '1' : isMobile;
   if (shouldCollapse) {
     document.getElementById('sidebar')?.classList.add('collapsed');
+    document.getElementById('app')?.classList.add('sidebar-collapsed');
   }
 }
 
