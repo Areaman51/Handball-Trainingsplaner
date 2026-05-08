@@ -557,7 +557,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span>↩</span> Abmelden
       </div>
       <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.2330</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.2345</div>
     </div>
   </aside>
 
@@ -1419,7 +1419,18 @@ async function saveSpielMeta(){
     status:spielMeta.status, timer_offset:Math.floor(timerSec()),
     updated_at:new Date().toISOString()
   }).eq('id',spielId);
-  if(error) setStatus('err','Speichern fehlgeschlagen');
+  if(error){ setStatus('err','Speichern fehlgeschlagen'); return; }
+  // Lokalen spiele-Array synchronisieren damit Dashboard aktuell bleibt
+  const sp = spiele.find(s=>s.id===spielId);
+  if(sp){
+    sp.score_home = spielMeta.score_home;
+    sp.score_away = spielMeta.score_away;
+    sp.hz         = spielMeta.hz;
+    sp.status     = spielMeta.status;
+    // Dashboard-Karte live aktualisieren ohne komplettes Re-Render
+    const card = document.querySelector(`[data-spiel-id="${spielId}"] .spiel-score`);
+    if(card) card.textContent = `${spielMeta.score_home||0} : ${spielMeta.score_away||0}`;
+  }
 }
 
 async function openSpielModal(spId=null){
@@ -2511,6 +2522,7 @@ function renderSpieleList(){
   [...spiele].sort((a,b)=>(b.datum||'').localeCompare(a.datum||'')).forEach(sp=>{
     const card=document.createElement('div');
     card.className='spiel-card';
+    card.dataset.spielId = sp.id;
     const statusLabel={geplant:'Geplant',live:'🔴 Live',beendet:'Beendet'};
     card.innerHTML=`
       <div class="spiel-card-header">
