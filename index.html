@@ -427,7 +427,7 @@ async function onAuthSuccess(user){
 
   // Dashboard zeigen
   document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('dashboard').style.display = '';
+  document.getElementById('dashboard').style.display = 'block';
 
   // User-Info
   const displayName = profile?.full_name || profile?.email || user.email;
