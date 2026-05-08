@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<!-- Handball Coaching Tools v1.260508.1200 — Mein Profil -->
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mein Profil — Handball Coaching</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f2f4f8;--white:#fff;--sidebar:#141820;--sidebar-h:#1e2535;
+  --accent:#0057ff;--accent-l:#e6eeff;
+  --text:#111827;--soft:#6b7280;--xsoft:#9ca3af;--border:#e5e7eb;
+  --shadow:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 16px rgba(0,0,0,.10);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.14);
+  --radius:12px;
+  --green:#15803d;--green-l:#f0fdf4;--green-b:#86efac;
+  --red:#dc2626;--red-l:#fee2e2;--red-b:#fca5a5;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{overflow-x:hidden;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── HEADER ── */
+.topbar{background:var(--sidebar);padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.back-btn{display:flex;align-items:center;gap:7px;color:rgba(255,255,255,.5);font-size:13px;text-decoration:none;padding:6px 10px;border-radius:7px;transition:all .15s;border:1px solid transparent;}
+.back-btn:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);border-color:rgba(255,255,255,.1);}
+.topbar-title{color:white;font-size:14px;font-weight:600;letter-spacing:-.2px;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.topbar-user{color:rgba(255,255,255,.4);font-size:12px;}
+.topbar-logout{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);border-radius:7px;padding:5px 11px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;}
+.topbar-logout:hover{color:rgba(255,130,130,.8);border-color:rgba(255,100,100,.25);}
+
+/* ── PAGE ── */
+.page{max-width:560px;margin:0 auto;padding:36px 20px 60px;}
+.page-icon{width:52px;height:52px;background:var(--accent-l);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:16px;}
+.page-title{font-size:22px;font-weight:700;letter-spacing:-.4px;margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--soft);margin-bottom:32px;}
+
+/* ── AVATAR ── */
+.avatar-row{display:flex;align-items:center;gap:16px;margin-bottom:28px;}
+.avatar{width:60px;height:60px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:white;flex-shrink:0;letter-spacing:-.5px;}
+.avatar-info{}
+.avatar-name{font-size:16px;font-weight:700;letter-spacing:-.3px;}
+.avatar-role{font-size:12px;color:var(--soft);margin-top:2px;}
+.role-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;}
+.role-admin{background:#ede9fe;color:#6d28d9;}
+.role-manager{background:#fef3c7;color:#b45309;}
+.role-trainer{background:var(--accent-l);color:var(--accent);}
+
+/* ── CARD ── */
+.card{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px;}
+.card-header{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.card-header-icon{font-size:15px;}
+.card-header-title{font-size:13px;font-weight:700;letter-spacing:-.1px;}
+.card-header-sub{font-size:11.5px;color:var(--soft);margin-left:auto;}
+.card-body{padding:22px;}
+
+/* ── FORM ── */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-group{margin-bottom:16px;}
+.form-group:last-child{margin-bottom:0;}
+.form-label{display:block;font-size:11px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+.form-input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);outline:none;transition:border-color .15s;background:white;}
+.form-input:focus{border-color:var(--accent);}
+.form-input:disabled,.form-input[readonly]{background:var(--bg);color:var(--soft);cursor:not-allowed;}
+.form-hint{font-size:11px;color:var(--xsoft);margin-top:5px;line-height:1.4;}
+
+/* ── PASSWORD SECTION ── */
+.pw-toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--accent);cursor:pointer;font-weight:500;padding:2px 0;margin-bottom:14px;width:fit-content;}
+.pw-toggle:hover{opacity:.8;}
+.pw-section{display:none;}
+.pw-section.open{display:block;}
+.pw-strength{height:4px;border-radius:2px;background:var(--border);margin-top:6px;overflow:hidden;}
+.pw-strength-bar{height:100%;border-radius:2px;transition:all .3s;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:9px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;}
+.btn-primary{background:var(--accent);color:white;}
+.btn-primary:hover{background:#0044cc;}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--soft);border:1.5px solid var(--border);}
+.btn-ghost:hover{background:var(--bg);color:var(--text);}
+.btn-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:20px;}
+
+/* ── BANNER ── */
+.banner{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:10px;font-size:12.5px;border:1px solid;margin-bottom:16px;line-height:1.5;}
+.banner.success{background:var(--green-l);color:var(--green);border-color:var(--green-b);}
+.banner.error{background:var(--red-l);color:var(--red);border-color:var(--red-b);}
+.banner.info{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+.banner-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+.banner-text{flex:1;}
+.banner{display:none;}
+.banner.show{display:flex;}
+
+/* ── DANGER ZONE ── */
+.danger-zone{border:1.5px solid var(--red-b);border-radius:var(--radius);padding:18px 20px;background:var(--red-l);}
+.danger-title{font-size:13px;font-weight:700;color:var(--red);margin-bottom:6px;}
+.danger-text{font-size:12.5px;color:#991b1b;line-height:1.5;margin-bottom:12px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#141820;color:white;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;transition:transform .3s;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{background:#14532d;}
+.toast.error{background:#7f1d1d;}
+
+/* ── LOADING ── */
+.loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100;flex-direction:column;gap:12px;}
+.loading-spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:var(--soft);}
+
+/* ── MOBILE ── */
+@media(max-width:560px){
+  .topbar{padding:0 14px;}
+  .page{padding:24px 14px 48px;}
+  .form-row{grid-template-columns:1fr;}
+  .card-body{padding:16px;}
+  .btn-row{flex-direction:column;}
+  .btn-row .btn{width:100%;justify-content:center;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Lade Profil…</div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <a class="back-btn" href="index.html">← Dashboard</a>
+    <div class="topbar-title">Mein Profil</div>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-user" id="topbar-user"></span>
+    <button class="topbar-logout" onclick="signOut()">⏻ Abmelden</button>
+  </div>
+</div>
+
+<!-- PAGE -->
+<div class="page" id="page" style="display:none;">
+
+  <!-- Kopfzeile -->
+  <div class="avatar-row">
+    <div class="avatar" id="avatar-initials">?</div>
+    <div class="avatar-info">
+      <div class="avatar-name" id="avatar-name">–</div>
+      <div class="avatar-role">
+        <span class="role-badge" id="role-badge">–</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Banner -->
+  <div class="banner" id="banner">
+    <div class="banner-icon" id="banner-icon"></div>
+    <div class="banner-text" id="banner-text"></div>
+  </div>
+
+  <!-- Persönliche Daten -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-header-icon">👤</span>
+      <span class="card-header-title">Persönliche Daten</span>
+    </div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">Vollständiger Name</label>
+        <input class="form-input" id="f-name" type="text" placeholder="Vor- und Nachname">
+      </div>
+      <div class="form-group">
+        <label class="form-label">E-Mail-Adresse</label>
+        <input class="form-input" id="f-email" type="email" readonly>
+        <div class="form-hint">E-Mail-Adresse kann nicht selbst geändert werden. Wende dich an einen Administrator.</div>
+      </div>
+      <div class="btn-row">
+        <span></span>
+        <button class="btn btn-primary" id="save-personal-btn" onclick="savePersonal()">💾 Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Team & Verein -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-header-icon">🏟</span>
+      <span class="card-header-title">Verein & Mannschaft</span>
+    </div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Verein</label>
+          <input class="form-input" id="f-verein" type="text" placeholder="z.B. HT Norderstedt">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mannschaft</label>
+          <input class="form-input" id="f-mannschaft" type="text" placeholder="z.B. 1. Damen">
+        </div>
+      </div>
+      <div class="btn-row">
+        <span></span>
+        <button class="btn btn-primary" id="save-team-btn" onclick="saveTeam()">💾 Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Passwort ändern -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-header-icon">🔑</span>
+      <span class="card-header-title">Passwort ändern</span>
+    </div>
+    <div class="card-body">
+      <div class="pw-toggle" onclick="togglePwSection()">
+        <span id="pw-toggle-icon">▸</span> Neues Passwort setzen
+      </div>
+      <div class="pw-section" id="pw-section">
+        <div class="form-group">
+          <label class="form-label">Neues Passwort</label>
+          <input class="form-input" id="f-pw-new" type="password" placeholder="Mindestens 8 Zeichen" oninput="checkPwStrength()">
+          <div class="pw-strength"><div class="pw-strength-bar" id="pw-strength-bar"></div></div>
+          <div class="form-hint" id="pw-strength-hint"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Passwort bestätigen</label>
+          <input class="form-input" id="f-pw-confirm" type="password" placeholder="Passwort wiederholen">
+        </div>
+        <div class="btn-row">
+          <span></span>
+          <button class="btn btn-primary" id="save-pw-btn" onclick="savePassword()">🔑 Passwort ändern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Konto-Info (read-only) -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-header-icon">ℹ️</span>
+      <span class="card-header-title">Konto-Information</span>
+      <span class="card-header-sub" id="account-status-badge"></span>
+    </div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rolle</label>
+          <input class="form-input" id="f-role-display" readonly>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Registriert am</label>
+          <input class="form-input" id="f-created" readonly>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:4px;">
+        <label class="form-label">Nutzer-ID</label>
+        <input class="form-input" id="f-uid" readonly style="font-family:'DM Mono',monospace;font-size:12px;">
+        <div class="form-hint">Wird für Support-Anfragen benötigt.</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA_URL = 'https://dlofjsmnkwltuutpxoer.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+
+// ── INIT ──
+supa.auth.getSession().then(async ({ data:{ session } }) => {
+  if(!session){
+    window.location.href = 'index.html';
+    return;
+  }
+  await onAuth(session.user);
+});
+
+supa.auth.onAuthStateChange((event, session) => {
+  if(event === 'SIGNED_OUT') window.location.href = 'index.html';
+});
+
+async function onAuth(user){
+  currentUser = user;
+
+  // Profil laden
+  const { data: profile } = await supa
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  currentProfile = profile;
+
+  if(!profile?.aktiv){
+    window.location.href = 'index.html';
+    return;
+  }
+
+  // Felder befüllen
+  fillForm(user, profile);
+
+  // Loading ausblenden
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('page').style.display = 'block';
+}
+
+function fillForm(user, profile){
+  // Avatar
+  const name = profile?.full_name || profile?.email || user.email || '';
+  const initials = name.split(' ').map(w => w[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '?';
+  document.getElementById('avatar-initials').textContent = initials;
+  document.getElementById('avatar-name').textContent = name || '–';
+
+  // Rolle
+  const role = profile?.role || 'trainer';
+  const roleEl = document.getElementById('role-badge');
+  const roleLabels = { admin:'👑 Admin', manager:'🔧 Manager', trainer:'🏋 Trainer' };
+  roleEl.textContent = roleLabels[role] || role;
+  roleEl.className = 'role-badge role-' + role;
+
+  // Topbar
+  document.getElementById('topbar-user').textContent = name || user.email;
+
+  // Felder
+  document.getElementById('f-name').value       = profile?.full_name || '';
+  document.getElementById('f-email').value       = user.email || '';
+  document.getElementById('f-verein').value      = profile?.verein || '';
+  document.getElementById('f-mannschaft').value  = profile?.mannschaft || '';
+
+  // Konto-Info (read-only)
+  document.getElementById('f-role-display').value = roleLabels[role] || role;
+  document.getElementById('f-uid').value           = user.id;
+  const created = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' })
+    : '–';
+  document.getElementById('f-created').value = created;
+
+  // Status-Badge
+  const statusEl = document.getElementById('account-status-badge');
+  if(profile?.aktiv){
+    statusEl.innerHTML = '<span style="color:#15803d;font-size:12px;font-weight:600;">● Aktiv</span>';
+  } else {
+    statusEl.innerHTML = '<span style="color:#dc2626;font-size:12px;font-weight:600;">○ Inaktiv</span>';
+  }
+}
+
+// ── SPEICHERN: Persönliche Daten ──
+async function savePersonal(){
+  const name = document.getElementById('f-name').value.trim();
+  const btn   = document.getElementById('save-personal-btn');
+  if(!name){ showBanner('error', '⚠️', 'Bitte gib deinen Namen ein.'); return; }
+
+  btn.textContent = '⏳…'; btn.disabled = true;
+  const { error } = await supa.from('profiles')
+    .update({ full_name: name })
+    .eq('id', currentUser.id);
+  btn.textContent = '💾 Speichern'; btn.disabled = false;
+
+  if(error){
+    showBanner('error', '❌', 'Fehler beim Speichern: ' + error.message);
+  } else {
+    currentProfile = { ...currentProfile, full_name: name };
+    fillForm(currentUser, currentProfile);
+    showToast('✅ Name gespeichert', 'success');
+  }
+}
+
+// ── SPEICHERN: Verein & Mannschaft ──
+async function saveTeam(){
+  const verein     = document.getElementById('f-verein').value.trim();
+  const mannschaft = document.getElementById('f-mannschaft').value.trim();
+  const btn        = document.getElementById('save-team-btn');
+
+  btn.textContent = '⏳…'; btn.disabled = true;
+  const { error } = await supa.from('profiles')
+    .update({ verein, mannschaft })
+    .eq('id', currentUser.id);
+  btn.textContent = '💾 Speichern'; btn.disabled = false;
+
+  if(error){
+    showBanner('error', '❌', 'Fehler beim Speichern: ' + error.message);
+  } else {
+    currentProfile = { ...currentProfile, verein, mannschaft };
+    showToast('✅ Vereinsdaten gespeichert', 'success');
+  }
+}
+
+// ── PASSWORT ──
+function togglePwSection(){
+  const section = document.getElementById('pw-section');
+  const icon    = document.getElementById('pw-toggle-icon');
+  const isOpen  = section.classList.toggle('open');
+  icon.textContent = isOpen ? '▾' : '▸';
+  if(isOpen) document.getElementById('f-pw-new').focus();
+}
+
+function checkPwStrength(){
+  const pw  = document.getElementById('f-pw-new').value;
+  const bar  = document.getElementById('pw-strength-bar');
+  const hint = document.getElementById('pw-strength-hint');
+  let score = 0;
+  if(pw.length >= 8)  score++;
+  if(/[A-Z]/.test(pw)) score++;
+  if(/[0-9]/.test(pw)) score++;
+  if(/[^A-Za-z0-9]/.test(pw)) score++;
+  const levels = [
+    { color:'#ef4444', label:'Zu kurz',   w:'20%'  },
+    { color:'#f97316', label:'Schwach',   w:'40%'  },
+    { color:'#eab308', label:'Mittel',    w:'65%'  },
+    { color:'#22c55e', label:'Gut',       w:'85%'  },
+    { color:'#15803d', label:'Sehr stark',w:'100%' },
+  ];
+  const l = levels[score] || levels[0];
+  bar.style.width    = pw.length ? l.w : '0';
+  bar.style.background = l.color;
+  hint.textContent   = pw.length ? l.label : '';
+  hint.style.color   = l.color;
+}
+
+async function savePassword(){
+  const pw1 = document.getElementById('f-pw-new').value;
+  const pw2 = document.getElementById('f-pw-confirm').value;
+  const btn  = document.getElementById('save-pw-btn');
+
+  if(!pw1 || pw1.length < 8){
+    showBanner('error', '⚠️', 'Das Passwort muss mindestens 8 Zeichen lang sein.');
+    return;
+  }
+  if(pw1 !== pw2){
+    showBanner('error', '⚠️', 'Die Passwörter stimmen nicht überein.');
+    return;
+  }
+
+  btn.textContent = '⏳…'; btn.disabled = true;
+  const { error } = await supa.auth.updateUser({ password: pw1 });
+  btn.textContent = '🔑 Passwort ändern'; btn.disabled = false;
+
+  if(error){
+    showBanner('error', '❌', 'Fehler: ' + error.message);
+  } else {
+    document.getElementById('f-pw-new').value     = '';
+    document.getElementById('f-pw-confirm').value = '';
+    document.getElementById('pw-section').classList.remove('open');
+    document.getElementById('pw-toggle-icon').textContent = '▸';
+    document.getElementById('pw-strength-bar').style.width = '0';
+    showToast('✅ Passwort geändert', 'success');
+  }
+}
+
+// ── ABMELDEN ──
+async function signOut(){
+  if(!confirm('Abmelden?')) return;
+  await supa.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+// ── HELPERS ──
+function showBanner(type, icon, msg){
+  const el = document.getElementById('banner');
+  el.className = 'banner ' + type + ' show';
+  document.getElementById('banner-icon').textContent = icon;
+  document.getElementById('banner-text').textContent = msg;
+  el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 5000);
+}
+
+function showToast(msg, type='info'){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type + ' show';
+  clearTimeout(t._t); t._t = setTimeout(() => { t.className = 'toast ' + type; }, 3000);
+}
+</script>
+</body>
+</html>
