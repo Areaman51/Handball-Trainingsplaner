@@ -23,26 +23,46 @@ html,body{overflow-x:hidden;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
 
 /* ── SIDEBAR ── */
-.sidebar{width:220px;min-height:100vh;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;}
-.sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;}
+/* ── SIDEBAR ── */
+.sidebar{width:220px;min-height:100vh;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;transition:transform .25s ease;}
+.sidebar.collapsed{transform:translateX(-220px);}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:19;}
+.sidebar-overlay.visible{display:block;}
+.sidebar-close-btn{background:none;border:none;color:rgba(255,255,255,.35);font-size:15px;cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1;transition:color .15s;flex-shrink:0;}
+.sidebar-close-btn:hover{color:white;}
+.sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;}
 .logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;color:white;flex-shrink:0;}
 .logo-text{color:white;font-size:14px;font-weight:600;letter-spacing:-.3px;}
 .logo-sub{color:rgba(255,255,255,.35);font-size:10px;margin-top:1px;}
 .sidebar-section{padding:14px 10px 4px;}
 .sidebar-label{font-size:9.5px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.25);text-transform:uppercase;padding:0 8px;margin-bottom:4px;}
-.sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;transition:all .15s;}
+.sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;transition:all .15s;text-decoration:none;}
 .sidebar-item:hover{background:var(--sidebar-h);color:rgba(255,255,255,.8);}
 .sidebar-item.active{background:rgba(0,87,255,.18);color:white;font-weight:500;}
 .sidebar-bottom{margin-top:auto;padding:12px 10px;border-top:1px solid rgba(255,255,255,.06);}
-.sidebar-link{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;color:rgba(255,255,255,.35);font-size:12px;cursor:pointer;transition:all .15s;text-decoration:none;}
-.sidebar-link:hover{color:rgba(255,255,255,.6);background:var(--sidebar-h);}
-
-/* ── MAIN ── */
-.main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;flex:1;}
-.topbar{background:white;border-bottom:1px solid var(--border);padding:0 26px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:15;}
-.topbar-title{font-size:13.5px;font-weight:500;color:var(--soft);}
-.topbar-title span{color:var(--text);font-weight:600;}
-.topbar-user{font-size:12px;color:var(--soft);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 12px;}
+/* ── MY TEAM WIDGET ── */
+.my-team-widget{margin:12px 10px 4px;background:rgba(0,87,255,.12);border:1px solid rgba(0,87,255,.22);border-radius:10px;padding:10px 12px;transition:background .15s;}
+.mt-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.mt-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);}
+.mt-cfg{font-size:11px;color:rgba(255,255,255,.3);transition:color .15s;text-decoration:none;}
+.mt-cfg:hover{color:rgba(255,255,255,.7);}
+.mt-name{font-size:13px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mt-name.empty{color:rgba(255,255,255,.3);font-weight:400;font-style:italic;}
+/* ── MAIN + TOPBAR ── */
+.main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;flex:1;transition:margin-left .25s ease;}
+#app.sidebar-collapsed .main{margin-left:0;}
+.burger-btn{background:none;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;color:rgba(255,255,255,.5);font-size:18px;line-height:1;display:none;align-items:center;justify-content:center;transition:color .15s;}
+.burger-btn:hover{color:white;}
+#app.sidebar-collapsed .burger-btn{display:flex;}
+@media(max-width:900px){.burger-btn{display:flex !important;}}
+.topbar{background:var(--sidebar);padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:15;}
+.topbar-left{display:flex;align-items:center;gap:10px;}
+.topbar-title{font-size:15px;font-weight:600;color:white;letter-spacing:-.2px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+.topbar-role{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(0,87,255,.25);color:#93c5fd;}
+.topbar-user-name{font-size:12px;color:rgba(255,255,255,.45);}
+.topbar-logout{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);border-radius:7px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;}
+.topbar-logout:hover{color:rgba(255,130,130,.8);border-color:rgba(255,100,100,.25);}
 .content{padding:26px;flex:1;}
 .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:12px;flex-wrap:wrap;}
 .page-title{font-size:20px;font-weight:700;letter-spacing:-.4px;}
@@ -105,20 +125,11 @@ tbody tr:hover{background:#fafbff;}
 .empty-text{font-size:14px;}
 
 /* ── AUTH SCREEN ── */
+/* ── AUTH REDIRECT ── */
 #auth-screen{position:fixed;inset:0;background:var(--sidebar);display:flex;align-items:center;justify-content:center;z-index:100;}
-.auth-box{background:white;border-radius:18px;padding:36px;width:100%;max-width:380px;box-shadow:var(--shadow-lg);}
-.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:24px;}
-.auth-logo-icon{width:40px;height:40px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
-.auth-logo-text{font-size:18px;font-weight:700;letter-spacing:-.4px;}
-.auth-logo-sub{font-size:12px;color:var(--soft);}
 .form-label{display:block;font-size:12px;font-weight:600;color:var(--soft);margin-bottom:5px;letter-spacing:.02em;}
 .form-input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);outline:none;transition:border-color .15s;margin-bottom:14px;}
 .form-input:focus{border-color:var(--accent);}
-.auth-btn{width:100%;padding:11px;border-radius:9px;background:var(--accent);color:white;border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s;}
-.auth-btn:hover{background:#0044cc;}
-.auth-btn:disabled{opacity:.6;cursor:not-allowed;}
-.auth-error{padding:10px 14px;border-radius:8px;font-size:12.5px;margin-bottom:12px;display:none;}
-.auth-error.show{display:block;}
 
 /* ── MODAL ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
@@ -172,57 +183,68 @@ input:checked+.toggle-slider:before{transform:translateX(20px);}
 </head>
 <body>
 
-<!-- AUTH SCREEN -->
-<div id="auth-screen">
-  <div class="auth-box">
-    <div class="auth-logo">
-      <div class="auth-logo-icon">👥</div>
-      <div>
-        <div class="auth-logo-text">Nutzerverwaltung</div>
-        <div class="auth-logo-sub">Handball Coaching Tools</div>
-      </div>
-    </div>
-    <div id="auth-error" class="auth-error"></div>
-    <div class="form-group">
-      <label class="form-label">E-Mail</label>
-      <input class="form-input" id="a-email" type="email" placeholder="email@beispiel.de" onkeydown="if(event.key==='Enter')login()">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Passwort</label>
-      <input class="form-input" id="a-pw" type="password" placeholder="Passwort" onkeydown="if(event.key==='Enter')login()">
-    </div>
-    <button class="auth-btn" id="auth-btn" onclick="login()">Anmelden</button>
+<!-- AUTH REDIRECT -->
+<div id="auth-screen" style="display:none;position:fixed;inset:0;background:var(--sidebar);z-index:999;
+  display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;color:rgba(255,255,255,.6);font-size:14px;">
+    <div style="font-size:28px;margin-bottom:12px;">👥</div>
+    Weiterleitung zum Dashboard…<br>
+    <a href="index.html" style="color:#93c5fd;font-weight:600;text-decoration:none;">Jetzt anmelden →</a>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app" style="display:none;flex:1;min-height:100vh;">
-  <aside class="sidebar">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <div class="logo-icon">👥</div>
-      <div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="logo-icon">👥</div>
         <div class="logo-text">Nutzerverwaltung</div>
-        <div class="logo-sub">Handball Coaching Tools</div>
       </div>
+      <button class="sidebar-close-btn" onclick="toggleSidebar()" title="Sidebar einklappen">✕</button>
     </div>
+
+    <!-- Mein Team Widget -->
+    <div class="my-team-widget" id="my-team-widget">
+      <div class="mt-top">
+        <div class="mt-label">Mein Team</div>
+        <a class="mt-cfg" href="mannschaftsverwaltung.html" title="Mannschaft verwalten">⚙</a>
+      </div>
+      <div class="mt-name empty" id="mt-name">Wird geladen…</div>
+    </div>
+
     <div class="sidebar-section">
-      <div class="sidebar-label">Verwaltung</div>
-      <div class="sidebar-item active"><span>👥</span> Alle Nutzer</div>
+      <div class="sidebar-label">Arbeitsbereich</div>
+      <div class="sidebar-item active"><span class="si-icon">👥</span> Alle Nutzer</div>
     </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Navigation</div>
+      <a class="sidebar-item" href="index.html"><span class="si-icon">🏠</span> Dashboard</a>
+      <a class="sidebar-item" href="kalender.html"><span class="si-icon">📅</span> Kalender</a>
+      <a class="sidebar-item" href="trainingsplaner.html"><span class="si-icon">📋</span> Trainingsplaner</a>
+      <a class="sidebar-item" href="handball-bank-statistik.html"><span class="si-icon">🤾</span> Bank-Statistik</a>
+      <a class="sidebar-item" href="mannschaftsverwaltung.html"><span class="si-icon">👥</span> Mannschaften</a>
+      <a class="sidebar-item" href="handball-taktikboard.html"><span class="si-icon">♟</span> Taktikboard</a>
+    </div>
+
     <div class="sidebar-bottom">
-      <a class="sidebar-link" href="index.html"><span>📅</span> Trainingsplaner</a>
-      <a class="sidebar-link" href="handball-bank-statistik.html"><span>📊</span> Bank-Statistik</a>
-      <a class="sidebar-link" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
-      <div class="sidebar-link" onclick="signOut()" style="color:rgba(255,100,100,.6);margin-top:4px;"><span>↩</span> Abmelden</div>
-    
-      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260503.1400</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2200</div>
     </div>
   </aside>
 
   <main class="main">
     <div class="topbar">
-      <div class="topbar-title">Handball Coaching Tools &rsaquo; <span>Nutzerverwaltung</span></div>
-      <div id="topbar-user" class="topbar-user"></div>
+      <div class="topbar-left">
+        <button class="burger-btn" id="burger-btn" onclick="toggleSidebar()" title="Menü ein-/ausblenden">☰</button>
+        <div class="topbar-title">Nutzerverwaltung</div>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-role" id="topbar-role" style="display:none;"></span>
+        <span class="topbar-user-name" id="topbar-user"></span>
+        <button class="topbar-logout" onclick="signOut()">⏻ Abmelden</button>
+      </div>
     </div>
     <div class="content">
 
@@ -391,33 +413,7 @@ let allUsers = [];
 let filteredUsers = [];
 let deleteTargetId = null;
 
-// ── AUTH ──
-async function login() {
-  const email = document.getElementById('a-email').value.trim();
-  const pw = document.getElementById('a-pw').value;
-  const btn = document.getElementById('auth-btn');
-  if (!email || !pw) { showAuthErr('Bitte E-Mail und Passwort eingeben.'); return; }
-  btn.textContent = '⏳…'; btn.disabled = true;
-  const { data, error } = await supa.auth.signInWithPassword({ email, password: pw });
-  btn.disabled = false; btn.textContent = 'Anmelden';
-  if (error) {
-    if (error.message.toLowerCase().includes('email not confirmed') || error.message.toLowerCase().includes('email_not_confirmed')) {
-      showAuthErr('📧 E-Mail-Adresse noch nicht bestätigt. Bitte prüfe dein Postfach.');
-    } else {
-      showAuthErr(error.message);
-    }
-    return;
-  }
-  await onAuth(data.user);
-}
-
-function showAuthErr(msg) {
-  const el = document.getElementById('auth-error');
-  el.textContent = msg;
-  el.style.cssText = 'display:block;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:8px;font-size:12.5px;margin-bottom:12px;';
-  el.classList.add('show');
-}
-
+// ── AUTH — kein eigener Login, Weiterleitung über index.html ──
 async function onAuth(user) {
   currentUser = user;
   const { data: profile } = await supa.from('profiles').select('*').eq('id', user.id).maybeSingle();
@@ -426,6 +422,8 @@ async function onAuth(user) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('topbar-user').textContent = profile?.full_name || profile?.email || user.email;
+  setTopbarRole(profile?.role);
+  initMyTeamWidget();
 
   if (!profile?.aktiv) {
     document.getElementById('access-denied').style.display = 'block';
@@ -447,7 +445,7 @@ async function onAuth(user) {
 async function signOut() {
   if (!confirm('Abmelden?')) return;
   await supa.auth.signOut();
-  location.reload();
+  window.location.href = 'index.html';
 }
 
 // ── LOAD USERS ──
@@ -628,13 +626,45 @@ function showToast(msg, type = 'success') {
   toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
+// ── SIDEBAR TOGGLE ──
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const app     = document.getElementById('app');
+  const collapsed = sidebar.classList.toggle('collapsed');
+  if (app) app.classList.toggle('sidebar-collapsed', collapsed);
+  if (overlay) overlay.classList.toggle('visible', !collapsed && window.innerWidth <= 900);
+  localStorage.setItem('sidebar_collapsed', collapsed ? '1' : '0');
+}
+// ── MY TEAM WIDGET ──
+function initMyTeamWidget() {
+  const name = localStorage.getItem('hbs_my_team') || '';
+  const el = document.getElementById('mt-name');
+  if (!el) return;
+  if (name) { el.textContent = name; el.classList.remove('empty'); }
+  else      { el.textContent = 'Kein Team gewählt'; el.classList.add('empty'); }
+}
+// ── TOPBAR ROLE ──
+function setTopbarRole(role) {
+  const labels = { admin:'👑 Admin', manager:'🔧 Manager', trainer:'🏋 Trainer' };
+  const badge = document.getElementById('topbar-role');
+  if (badge && labels[role]) { badge.textContent = labels[role]; badge.style.display = ''; }
+}
 // ── INIT ──
+(function(){
+  if (localStorage.getItem('sidebar_collapsed') === '1') {
+    document.getElementById('sidebar')?.classList.add('collapsed');
+    document.getElementById('app')?.classList.add('sidebar-collapsed');
+  }
+})();
+
 supa.auth.getSession().then(({ data: { session } }) => {
   if (session) onAuth(session.user);
+  else window.location.href = 'index.html';
 });
 supa.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' && session && !currentUser) onAuth(session.user);
-  if (event === 'SIGNED_OUT') location.reload();
+  if (event === 'SIGNED_OUT') window.location.href = 'index.html';
 });
 </script>
 </body>

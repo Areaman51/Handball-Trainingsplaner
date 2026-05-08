@@ -68,14 +68,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* ── MAIN ── (Definition oben bei Sidebar) */
 
 /* ── TOPBAR ── */
-.topbar{background:white;border-bottom:1px solid var(--border);padding:0 26px;height:54px;
+.topbar{background:var(--sidebar);padding:0 20px;height:54px;
   display:flex;align-items:center;justify-content:space-between;
   position:sticky;top:0;z-index:15;}
-.topbar-title{font-size:13.5px;font-weight:500;color:var(--soft);}
-.topbar-title span{color:var(--text);font-weight:600;}
+.topbar-left{display:flex;align-items:center;gap:8px;}
+.topbar-title{font-size:15px;font-weight:600;color:white;letter-spacing:-.2px;}
 .topbar-right{display:flex;gap:8px;align-items:center;}
-.topbar-user{font-size:12px;color:var(--soft);background:var(--bg);
-  border:1px solid var(--border);border-radius:20px;padding:4px 12px;}
+.topbar-role{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(0,87,255,.25);color:#93c5fd;}
+.topbar-user{font-size:12px;color:rgba(255,255,255,.45);}
+.topbar-logout{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);border-radius:7px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;}
+.topbar-logout:hover{color:rgba(255,130,130,.8);border-color:rgba(255,100,100,.25);}
 .status-dot{width:7px;height:7px;border-radius:50%;background:#9ca3af;display:inline-block;margin-right:4px;}
 .status-dot.ok{background:#22c55e;}
 .status-dot.err{background:#ef4444;}
@@ -354,27 +356,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .modal-footer{padding:12px 24px 18px;display:flex;gap:8px;justify-content:flex-end;
   border-top:1px solid var(--border);}
 
-/* ── AUTH SCREEN ── */
+/* ── AUTH REDIRECT ── */
 #auth-screen{position:fixed;inset:0;background:var(--sidebar);
   display:flex;align-items:center;justify-content:center;z-index:200;}
-.auth-box{background:white;border-radius:18px;padding:36px;width:100%;max-width:400px;
-  box-shadow:0 24px 64px rgba(0,0,0,.35);}
-.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
-.auth-logo-icon{width:40px;height:40px;background:var(--accent);border-radius:10px;
-  display:flex;align-items:center;justify-content:center;font-size:18px;color:white;}
-.auth-logo-text{font-size:18px;font-weight:700;letter-spacing:-.4px;}
-.auth-logo-sub{font-size:12px;color:var(--soft);}
-.auth-tabs{display:flex;gap:4px;background:var(--bg);border-radius:9px;padding:4px;margin-bottom:20px;}
-.auth-tab{flex:1;padding:7px;border-radius:6px;text-align:center;font-size:13px;
-  font-weight:500;cursor:pointer;color:var(--soft);transition:all .15s;}
-.auth-tab.active{background:white;color:var(--text);box-shadow:var(--shadow);}
-#auth-error{border-radius:8px;padding:10px 14px;font-size:12.5px;
-  margin-bottom:12px;display:none;}
-#auth-error.show{display:block;}
-.auth-btn{width:100%;padding:11px;border-radius:9px;background:var(--accent);
-  color:white;border:none;font-size:14px;font-weight:600;
-  font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;margin-top:4px;}
-.auth-btn:hover{background:#0044cc;}
 
 /* ── TOAST ── */
 .toast{position:fixed;bottom:20px;right:24px;padding:10px 18px;border-radius:9px;
@@ -495,45 +479,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <body>
 
 <!-- ════ AUTH SCREEN ════ -->
-<div id="auth-screen">
-  <div class="auth-box">
-    <div class="auth-logo">
-      <div class="auth-logo-icon">🤾</div>
-      <div>
-        <div class="auth-logo-text">Bank-Statistik</div>
-        <div class="auth-logo-sub">Handball Coaching Tools</div>
-      </div>
-    </div>
-    <div class="auth-tabs">
-      <div class="auth-tab active" id="tab-login" onclick="switchAuth('login')">Anmelden</div>
-      <div class="auth-tab" id="tab-register" onclick="switchAuth('register')">Registrieren</div>
-    </div>
-    <div id="auth-extra" style="display:none">
-      <div class="form-group">
-        <label class="form-label">Name</label>
-        <input class="form-input" id="a-name" type="text" placeholder="Dein Name">
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Verein</label>
-          <input class="form-input" id="a-verein" type="text" placeholder="Vereinsname">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Mannschaft</label>
-          <input class="form-input" id="a-mannschaft" type="text" placeholder="z.B. Damen 1">
-        </div>
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">E-Mail</label>
-      <input class="form-input" id="a-email" type="email" placeholder="email@beispiel.de">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Passwort</label>
-      <input class="form-input" id="a-pw" type="password" placeholder="Passwort">
-    </div>
-    <div id="auth-error"></div>
-    <button class="auth-btn" id="auth-btn" onclick="authSubmit()">Anmelden</button>
+<div id="auth-screen" style="display:none;position:fixed;inset:0;background:var(--sidebar);z-index:999;
+  display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;color:rgba(255,255,255,.6);font-size:14px;">
+    <div style="font-size:28px;margin-bottom:12px;">🤾</div>
+    Weiterleitung zum Dashboard…<br>
+    <a href="index.html" style="color:#93c5fd;font-weight:600;text-decoration:none;">Jetzt anmelden →</a>
   </div>
 </div>
 
@@ -591,38 +542,35 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
     </div>
 
+    <div class="sidebar-section">
+      <div class="sidebar-label">Navigation</div>
+      <a class="sidebar-item" href="index.html"><span class="si-icon">🏠</span> Dashboard</a>
+      <a class="sidebar-item" href="kalender.html"><span class="si-icon">📅</span> Kalender</a>
+      <a class="sidebar-item" href="trainingsplaner.html"><span class="si-icon">📋</span> Trainingsplaner</a>
+      <a class="sidebar-item" href="mannschaftsverwaltung.html"><span class="si-icon">👥</span> Mannschaften</a>
+      <a class="sidebar-item" href="handball-taktikboard.html"><span class="si-icon">♟</span> Taktikboard</a>
+    </div>
+
     <div class="sidebar-bottom">
-      <a class="sidebar-link" href="kalender.html">
-        <span>📅</span> Kalender
-      </a>
-      <a class="sidebar-link" href="index.html">
-        <span>🏋</span> Trainingsplaner
-      </a>
-      <a class="sidebar-link" href="mannschaftsverwaltung.html">
-        <span>👥</span> Mannschaftsverwaltung
-      </a>
-      <div class="sidebar-link" onclick="signOut()">
-        <span>↩</span> Abmelden
-      </div>
-      <div style="padding:8px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260510.1430</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2200</div>
     </div>
   </aside>
 
   <main class="main">
     <div class="topbar">
-      <div style="display:flex;align-items:center;gap:8px;">
+      <div class="topbar-left">
         <button class="burger-btn" id="burger-btn" onclick="toggleSidebar()" title="Menü ein-/ausblenden">☰</button>
-        <div class="topbar-title">
-          <span id="topbar-title-text">Meine Spiele</span>
-        </div>
+        <div class="topbar-title" id="topbar-title-text">Bank-Statistik</div>
       </div>
       <div class="topbar-right">
         <span id="status-indicator">
           <span class="status-dot" id="status-dot"></span>
-          <span id="status-text" style="font-size:11px;color:var(--soft)"></span>
+          <span id="status-text" style="font-size:11px;color:rgba(255,255,255,.4)"></span>
         </span>
-        <div class="topbar-user" id="topbar-user"></div>
+        <span class="topbar-role" id="topbar-role" style="display:none;"></span>
+        <span class="topbar-user" id="topbar-user"></span>
+        <button class="topbar-logout" onclick="signOut()">⏻ Abmelden</button>
       </div>
     </div>
 
@@ -1422,46 +1370,8 @@ const GEGNER_GOAL_TYPE='gegner_tor';
 const GEGNER_TYPES=new Set(['gegner_tor','gegner_2min','gegner_rot']);
 
 // ════════════════════════════════════════════════════════════
-// AUTH
+// AUTH — kein eigener Login, Weiterleitung über index.html
 // ════════════════════════════════════════════════════════════
-let authMode='login';
-function switchAuth(m){
-  authMode=m;
-  document.getElementById('tab-login').classList.toggle('active',m==='login');
-  document.getElementById('tab-register').classList.toggle('active',m==='register');
-  document.getElementById('auth-btn').textContent=m==='login'?'Anmelden':'Registrieren';
-  document.getElementById('auth-extra').style.display=m==='register'?'':'none';
-  document.getElementById('auth-error').classList.remove('show');
-}
-async function authSubmit(){
-  const email=document.getElementById('a-email').value.trim();
-  const pw=document.getElementById('a-pw').value;
-  const btn=document.getElementById('auth-btn');
-  if(!email||!pw){showAuthErr('Bitte E-Mail und Passwort eingeben.');return;}
-  btn.textContent='⏳…'; btn.disabled=true;
-  if(authMode==='register'){
-    const name=document.getElementById('a-name').value.trim();
-    const verein=document.getElementById('a-verein').value.trim();
-    const mann=document.getElementById('a-mannschaft').value.trim();
-    if(!verein||!mann){showAuthErr('Verein und Mannschaft sind Pflichtfelder.');btn.disabled=false;btn.textContent='Registrieren';return;}
-    const{data,error}=await supa.auth.signUp({email,password:pw,options:{data:{full_name:name,verein,mannschaft:mann}}});
-    btn.disabled=false;btn.textContent='Registrieren';
-    if(error){showAuthErr(error.message);return;}
-    if(!data.session){showAuthErr('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen.',false);return;}
-    await onAuth(data.session.user);
-  } else {
-    const{data,error}=await supa.auth.signInWithPassword({email,password:pw});
-    btn.disabled=false;btn.textContent='Anmelden';
-    if(error){showAuthErr(error.message);return;}
-    await onAuth(data.user);
-  }
-}
-function showAuthErr(msg,isErr=true){
-  const el=document.getElementById('auth-error');
-  el.textContent=msg;
-  el.style.cssText=`display:block;background:${isErr?'#fee2e2':'#dcfce7'};color:${isErr?'#dc2626':'#15803d'};padding:10px 14px;border-radius:8px;font-size:12.5px;margin-bottom:12px;`;
-  el.classList.add('show');
-}
 async function onAuth(user){
   currentUser=user;
   let{data:profile}=await supa.from('profiles').select('*').eq('id',user.id).maybeSingle();
@@ -1477,13 +1387,18 @@ async function onAuth(user){
   }
   currentProfile=profile;
   if(profile&&!profile.aktiv){
-    showAuthErr('Konto noch nicht aktiviert. Bitte wende dich an den Administrator.');
-    await supa.auth.signOut(); currentUser=null; return;
+    await supa.auth.signOut();
+    window.location.href='index.html?msg=not_active';
+    return;
   }
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').style.display='';
   initSidebarState();
   document.getElementById('topbar-user').textContent=profile?.full_name||profile?.email||user.email;
+  // Rolle anzeigen
+  const roleLabels={admin:'👑 Admin',manager:'🔧 Manager',trainer:'🏋 Trainer'};
+  const roleBadge=document.getElementById('topbar-role');
+  if(roleBadge&&roleLabels[profile?.role]){roleBadge.textContent=roleLabels[profile.role];roleBadge.style.display='';}
   await loadSpiele();
   initMyTeam();
 
@@ -1493,7 +1408,7 @@ async function onAuth(user){
 async function signOut(){
   if(!confirm('Abmelden?')) return;
   await supa.auth.signOut();
-  location.reload();
+  window.location.href='index.html';
 }
 
 // ════════════════════════════════════════════════════════════
@@ -4730,9 +4645,11 @@ function toast(msg,type='info'){
 // ════════════════════════════════════════════════════════════
 supa.auth.getSession().then(({data:{session}})=>{
   if(session) onAuth(session.user);
+  else window.location.href='index.html';
 });
-supa.auth.onAuthStateChange((event)=>{
-  if(event==='SIGNED_OUT') location.reload();
+supa.auth.onAuthStateChange((event,session)=>{
+  if(event==='SIGNED_IN'&&session&&!currentUser) onAuth(session.user);
+  if(event==='SIGNED_OUT') window.location.href='index.html';
 });
 </script>
 </body>
