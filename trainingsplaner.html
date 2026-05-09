@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260509.2500 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260509.2600 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -53,6 +53,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .mt-cfg:hover{color:rgba(255,255,255,.7);}
 .mt-name{font-size:13px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .mt-name.empty{color:rgba(255,255,255,.3);font-weight:400;font-style:italic;}
+.mt-switch-btn{padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:rgba(255,255,255,.5);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.mt-switch-btn:hover{background:rgba(255,255,255,.15);color:white;}
+.mt-switch-btn.active{background:rgba(0,87,255,.4);border-color:rgba(0,87,255,.6);color:white;}
 /* ── MAIN ── */
 .main{margin-left:220px;flex:1;min-height:100vh;display:flex;flex-direction:column;min-width:0;overflow-x:hidden;transition:margin-left .25s ease;}
 #app-wrapper.sidebar-collapsed .main{margin-left:0;}
@@ -768,6 +771,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <a class="mt-cfg" href="mannschaftsverwaltung.html" title="Mannschaft verwalten">⚙</a>
     </div>
     <div class="mt-name empty" id="mt-name">Wird geladen…</div>
+    <div id="mt-switcher" style="display:none;margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;"></div>
   </div>
 
   <div class="sidebar-section">
@@ -1626,6 +1630,7 @@ async function onAuthSuccess(user){
   console.log('Lade Mannschaften…');
   setLoadingText('Mannschaften laden…');
   await reloadMannschaften();
+  initMyTeamWidget();
   if(allMannschaften.length > 0) refreshAllFeeds();
 
   // ── URL-Parameter-Handler (Navigation von kalender.html) ──
@@ -4103,15 +4108,16 @@ async function loadHomeData(){
     }
   }
 
-  // ── Mannschafts-basierte Abfrage (allMannschaften als Quelle) ──
+  // ── Mannschafts-basierte Abfrage ──
   const activeTeamName=(localStorage.getItem('hbs_my_team')||'').trim();
-  const teams=allMannschaften; // bereits geladen in onAuthSuccess
+  const teams=allMannschaften;
+  console.log('[HomeData] allMannschaften:', teams.map(t=>t.name), '| aktiv:', activeTeamName);
 
-  // Aktive Mannschaft ermitteln
   const activeTeam=activeTeamName
     ? teams.find(m=>(m.name||'').trim()===activeTeamName)||teams[0]
     : teams[0]||null;
   const activeName=(activeTeam?.name||'').trim();
+  console.log('[HomeData] activeTeam:', activeName);
 
   // Nächste Einheit des aktiven Teams
   let activeNext=null;
@@ -4122,42 +4128,22 @@ async function loadHomeData(){
       .gte('date',todayStr).order('date',{ascending:true})
       .limit(1).maybeSingle();
     activeNext=ad||null;
-  } else {
-    // Kein Mannschaftsname: global erste kommende Einheit
+  }
+  if(!activeNext){
+    // Fallback ohne group_name-Filter
     const {data:ad}=await supa.from('einheiten')
       .select('id,name,date,time,group_name')
       .eq('user_id',currentUser.id).gte('date',todayStr)
       .order('date',{ascending:true}).limit(1).maybeSingle();
     activeNext=ad||null;
   }
-
-  // Andere Mannschaften: pro Team gezielt abfragen
-  const otherTeams=teams.filter(m=>(m.name||'').trim()!==activeName);
-  let otherNext=null, otherTeamObj=null;
-  for(const team of otherTeams){
-    // Bevorzugt: nächste zukünftige Einheit
-    const {data:nd}=await supa.from('einheiten')
-      .select('id,name,date,time,group_name')
-      .eq('user_id',currentUser.id).eq('group_name',team.name)
-      .gte('date',todayStr).order('date',{ascending:true})
-      .limit(1).maybeSingle();
-    if(nd){ otherNext=nd; otherTeamObj=team; break; }
-    // Fallback: letzte bearbeitete Einheit (egal wann)
-    const {data:ld}=await supa.from('einheiten')
-      .select('id,name,date,time,group_name')
-      .eq('user_id',currentUser.id).eq('group_name',team.name)
-      .order('updated_at',{ascending:false}).limit(1).maybeSingle();
-    if(ld){ otherNext=ld; otherTeamObj=team; break; }
-  }
+  console.log('[HomeData] activeNext:', activeNext?.name, activeNext?.group_name);
 
   homeNextEinheit=activeNext||null;
-  homeOtherTeamEinheit=otherNext||null;
 
-  // Unverplante Mannschaft für „Neue Einheit planen"-Kachel
+  // Unverplante Mannschaft
   homeTeamToPlan=null;
-  if(!activeNext){
-    homeTeamToPlan=activeTeam||null;
-  }
+  if(!activeNext && activeTeam) homeTeamToPlan=activeTeam;
 
   // ── Kachel 2: Nächste Einheit aktives Team ──
   const nextSub=document.getElementById('tile-next-sub');
@@ -4187,20 +4173,49 @@ async function loadHomeData(){
     }
   }
 
-  // ── Kachel 4: Einheit anderer Mannschaft ──
+  // ── Kachel 4: Andere Mannschaften ──
+  // Zeigt sich immer wenn mehr als 1 Mannschaft existiert
+  const otherTeams=teams.filter(m=>(m.name||'').trim()!==activeName);
+  console.log('[HomeData] otherTeams:', otherTeams.map(t=>t.name));
   const otherTile=document.getElementById('tile-other');
   const otherSub=document.getElementById('tile-other-sub');
   const otherTitle=document.getElementById('tile-other-title');
+
+  homeOtherTeamEinheit=null;
   if(otherTile){
-    if(otherNext){
+    if(otherTeams.length>0){
       otherTile.style.display='flex';
-      const displayTeam=otherTeamObj?.name||otherNext.group_name||'Andere Mannschaft';
-      if(otherTitle) otherTitle.textContent=`Einheit öffnen – ${displayTeam}`;
+      const firstOther=otherTeams[0];
+      // Nächste Einheit dieses Teams suchen
+      let otherNext=null;
+      const {data:od}=await supa.from('einheiten')
+        .select('id,name,date,time,group_name')
+        .eq('user_id',currentUser.id).eq('group_name',firstOther.name)
+        .gte('date',todayStr).order('date',{ascending:true}).limit(1).maybeSingle();
+      if(od) otherNext=od;
+      else {
+        // Letzte Einheit auch vergangener Termine
+        const {data:ld}=await supa.from('einheiten')
+          .select('id,name,date,time,group_name')
+          .eq('user_id',currentUser.id).eq('group_name',firstOther.name)
+          .order('updated_at',{ascending:false}).limit(1).maybeSingle();
+        if(ld) otherNext=ld;
+      }
+      console.log('[HomeData] otherNext:', otherNext?.name, '| team:', firstOther.name);
+      homeOtherTeamEinheit=otherNext||null;
+
+      if(otherTitle) otherTitle.textContent=otherTeams.length===1
+        ? `Mannschaft wechseln – ${firstOther.name}`
+        : `Andere Mannschaft – ${firstOther.name}`;
       if(otherSub){
-        const parts=[otherNext.name];
-        if(otherNext.date) parts.push(fmtDate(otherNext.date));
-        if(otherNext.time) parts.push(otherNext.time+' Uhr');
-        otherSub.textContent=parts.join(' · ');
+        if(otherNext){
+          const parts=[otherNext.name];
+          if(otherNext.date) parts.push(fmtDate(otherNext.date));
+          if(otherNext.time) parts.push(otherNext.time+' Uhr');
+          otherSub.textContent=parts.join(' · ');
+        } else {
+          otherSub.textContent=`${firstOther.name} – noch kein Training geplant`;
+        }
       }
     } else {
       otherTile.style.display='none';
@@ -4273,6 +4288,26 @@ function initMyTeamWidget(){
   if(!el) return;
   if(name){el.textContent=name;el.classList.remove('empty');}
   else{el.textContent='Kein Team gewählt';el.classList.add('empty');}
+
+  // Switcher-Buttons (nur wenn > 1 Mannschaft vorhanden)
+  const sw=document.getElementById('mt-switcher');
+  if(!sw) return;
+  if(allMannschaften.length>1){
+    sw.style.display='flex';
+    sw.innerHTML=allMannschaften.map(m=>`
+      <button class="mt-switch-btn${(m.name||'')===(name||'')?' active':''}"
+        onclick="switchActiveTeam(${JSON.stringify(m.name)})">${m.name}</button>
+    `).join('');
+  } else {
+    sw.style.display='none';
+  }
+}
+function switchActiveTeam(teamName){
+  localStorage.setItem('hbs_my_team',teamName);
+  initMyTeamWidget();
+  showToast(`✅ Team gewechselt: ${teamName}`,'success');
+  // Home-Daten neu laden damit Kacheln aktualisiert werden
+  if(currentView==='home') loadHomeData();
 }
 function setTopbarRole(role){
   const labels={admin:'👑 Admin',manager:'🔧 Manager',trainer:'🏋 Trainer'};
