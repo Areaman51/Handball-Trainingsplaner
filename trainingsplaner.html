@@ -3521,7 +3521,7 @@ let currentView = 'home';
 function showView(view) {
   currentView = view;
   const hv = document.getElementById('home-view');
-  if (hv) hv.style.display = view === 'home' ? '' : 'none';
+  if (hv) hv.style.display = view === 'home' ? 'block' : 'none';
   document.getElementById('plan-card').style.display = view === 'planer' ? '' : 'none';
   document.getElementById('kalender-view').style.display = view === 'kalender' ? '' : 'none';
   const sh = document.querySelector('.session-header');
