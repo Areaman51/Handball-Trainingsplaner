@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260508.1200 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260509.1200 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -378,8 +378,26 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* ── AUTH REDIRECT ── */
 .auth-screen{position:fixed;inset:0;background:var(--sidebar);z-index:999;display:flex;align-items:center;justify-content:center;}
 
+/* ── CONTENT TOOLBAR ── */
+.content-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.ctb-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;}
+.ctb-save{background:#15803d;color:white;}
+.ctb-save:hover{background:#166534;}
+.ctb-save:disabled{opacity:.6;cursor:not-allowed;}
+.ctb-save.saving{background:#1d4ed8;}
+.ctb-add{background:var(--accent);color:white;}
+.ctb-add:hover{background:#0044cc;}
+.ctb-ghost{background:white;color:var(--soft);border:1px solid var(--border);}
+.ctb-ghost:hover{background:var(--bg);color:var(--text);}
+.ctb-spacer{flex:1;}
+@media(max-width:600px){
+  .content-toolbar{gap:6px;}
+  .ctb-btn{font-size:12px;padding:7px 12px;}
+  .ctb-spacer{display:none;}
+}
+
 /* ── STATUS BAR ── */
-.status-bar{display:flex;align-items:center;gap:10px;padding:7px 14px;border-radius:9px;font-size:12.5px;margin-bottom:14px;border:1px solid;background:#f0fdf4;color:#15803d;border-color:#86efac;}
+.status-bar{display:flex;align-items:center;gap:10px;padding:7px 14px;border-radius:9px;font-size:12.5px;margin-bottom:14px;border:1px solid;background:#f0fdf4;color:#15803d;border-color:#86efac;transition:opacity .4s ease;}
 .status-bar.saving{background:#eff6ff;color:#1d4ed8;border-color:#93c5fd;}
 .status-bar.error{background:#fee2e2;color:#dc2626;border-color:#fca5a5;}
 .status-dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0;}
@@ -583,7 +601,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .drill-row{break-inside:avoid;}
   .total-bar{background:#141820!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 }
-/* Mehr-Menü Popup */
+/* Mehr-Menü Popup – global versteckt, nur auf Mobile per Klasse .open sichtbar */
+#mehr-menu { display: none; }
 @media (max-width: 600px) {
   #mehr-menu {
     position: fixed;
@@ -674,7 +693,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   <div class="sidebar-logo">
     <div style="display:flex;align-items:center;gap:10px;">
       <div class="logo-icon">HB</div>
-      <div class="logo-text">Handball Coaching</div>
+      <div class="logo-text">Trainingsplaner</div>
     </div>
     <button class="sidebar-close-btn" onclick="toggleSidebar()" title="Sidebar einklappen">✕</button>
   </div>
@@ -711,18 +730,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="sidebar-item" onclick="openAdmin('kategorien')"><span>🏷</span> Kategorien</div>
   </div>
 
-  <!-- Desktop: Aktionen -->
-  <div class="sidebar-actions hide-mobile">
-    <button class="sidebar-save-btn" id="sidebar-save-btn" onclick="saveAll()">💾 Speichern</button>
-    <button class="sidebar-add-btn" onclick="openAddModal(-1)">+ Übung hinzufügen</button>
-  </div>
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="display:flex;gap:6px;padding:4px 10px 0;">
-      <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;" onclick="window.print()"><span>🖨</span> Drucken</div>
-      <div class="sidebar-item" style="flex:1;font-size:11.5px;padding:6px 8px;" onclick="resetSession()"><span>↺</span> Reset</div>
-    </div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2200</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1200</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -754,8 +764,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <span class="topbar-role" id="topbar-role" style="display:none;"></span>
       <span class="topbar-user-name" id="topbar-user"></span>
       <button class="btn btn-ghost hide-mobile" id="admin-btn" onclick="openAdmin('freigabe')" style="display:none;">⚙️ Admin</button>
-      <button class="btn btn-primary hide-mobile" onclick="openAddModal(-1)">+ Übung</button>
-      <button class="btn btn-save" id="save-btn" onclick="saveAll()">💾</button>
       <button class="btn btn-ghost" id="admin-btn-mobile" onclick="openAdmin('freigabe')" style="display:none;" title="Admin">⚙️</button>
       <button class="topbar-logout" onclick="signOut()">⏻ Abmelden</button>
     </div>
@@ -764,10 +772,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   <div class="content">
     <div class="content-inner">
 
+      <!-- Content Toolbar -->
+      <div class="content-toolbar" id="content-toolbar">
+        <button class="ctb-btn ctb-save" id="save-btn" onclick="saveAll()">💾 Speichern</button>
+        <button class="ctb-btn ctb-add" onclick="openAddModal(-1)">+ Übung hinzufügen</button>
+        <div class="ctb-spacer"></div>
+        <button class="ctb-btn ctb-ghost" onclick="window.print()">🖨 Drucken</button>
+        <button class="ctb-btn ctb-ghost" onclick="resetSession()">↺ Reset</button>
+      </div>
+
       <!-- Status Bar -->
-      <div class="status-bar" id="status-bar">
+      <div class="status-bar" id="status-bar" style="display:none;">
         <div class="status-dot"></div>
-        <span id="status-text">Verbunden mit Supabase</span>
+        <span id="status-text"></span>
       </div>
 
 
@@ -1516,8 +1533,19 @@ function setStatus(type,msg){
   const bar=document.getElementById('status-bar');
   bar.className='status-bar'+(type!=='connected'?' '+type:'');
   document.getElementById('status-text').textContent=msg;
-  const ssb=document.getElementById('sidebar-save-btn');
-  if(ssb) ssb.className='sidebar-save-btn'+(type==='saving'?' saving':'');
+  bar.style.display='flex';
+  bar.style.opacity='1';
+  // Auto-Hide für Erfolgs-Meldungen nach 5 Sek.
+  clearTimeout(bar._hideTimer);
+  if(type==='connected'){
+    bar._hideTimer=setTimeout(()=>{
+      bar.style.opacity='0';
+      setTimeout(()=>{ bar.style.display='none'; bar.style.opacity=''; },420);
+    },5000);
+  }
+  // Save-Button Zustand
+  const ssb=document.getElementById('save-btn');
+  if(ssb) ssb.className='ctb-btn ctb-save'+(type==='saving'?' saving':'');
 }
 
 // ══════════════════════════════════════════
