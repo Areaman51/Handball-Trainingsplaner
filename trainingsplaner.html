@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260509.1700 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260509.1900 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -830,9 +830,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <div class="home-tile-arrow">›</div>
           </div>
           <div class="home-tile" id="tile-next" onclick="openNextEinheit()">
-            <div class="home-tile-icon">⏭</div>
+            <div class="home-tile-icon" id="tile-next-icon">⏭</div>
             <div class="home-tile-body">
-              <div class="home-tile-title">Nächste Einheit bearbeiten</div>
+              <div class="home-tile-title" id="tile-next-title">Nächste Einheit bearbeiten</div>
               <div class="home-tile-sub" id="tile-next-sub">Wird geladen…</div>
             </div>
             <div class="home-tile-arrow">›</div>
@@ -4014,7 +4014,7 @@ function expandSidebar(){
 }
 
 // ── HOME VIEW LOGIC ──
-let homeLastEinheit=null, homeNextEinheit=null;
+let homeLastEinheit=null, homeNextEinheit=null, homeTeamToPlan=null;
 
 function computeGreeting(){
   const h=new Date().getHours();
@@ -4028,7 +4028,11 @@ function showHomeView(){
   showView('home');
   collapseSidebar();
   const gr=document.getElementById('home-greeting');
-  if(gr) gr.textContent=computeGreeting();
+  if(gr){
+    const rawName=currentProfile?.full_name||currentProfile?.email||'';
+    const firstName=rawName.split(' ')[0]||'';
+    gr.textContent=computeGreeting()+(firstName?' '+firstName+'!':'');
+  }
   loadHomeData();
 }
 
@@ -4066,29 +4070,50 @@ async function loadHomeData(){
     }
   }
 
-  // Nächste Einheit (Datum >= heute, aufsteigend)
-  const {data:next}=await supa.from('einheiten')
+  // Nächste Einheiten — alle ab heute laden (für Team-Abgleich)
+  const {data:nextList}=await supa.from('einheiten')
     .select('id,name,date,time,group_name')
     .eq('user_id',currentUser.id)
     .gte('date',todayStr)
     .order('date',{ascending:true})
-    .limit(1).maybeSingle();
+    .limit(20);
+
+  const upcomingGroups=new Set((nextList||[]).map(e=>(e.group_name||'').trim()).filter(Boolean));
+  const next=(nextList||[])[0]||null;
   homeNextEinheit=next||null;
-  const nextSub=document.getElementById('tile-next-sub');
-  const nextTile=document.getElementById('tile-next');
-  if(nextSub){
-    if(next){
-      const parts=[next.name];
-      if(next.date) parts.push(fmtDate(next.date));
-      if(next.time) parts.push(next.time+' Uhr');
-      if(next.group_name) parts.push(next.group_name);
-      nextSub.textContent=parts.join(' · ');
-      if(nextTile) nextTile.classList.remove('tile-disabled');
-    } else {
-      nextSub.textContent='Keine bevorstehenden Einheiten gefunden';
-      if(nextTile) nextTile.classList.add('tile-disabled');
-    }
+
+  // Mannschaft ohne geplante Einheit finden
+  homeTeamToPlan=null;
+  if(allMannschaften.length){
+    const unplanned=allMannschaften.find(m=>!upcomingGroups.has((m.name||'').trim()));
+    if(unplanned) homeTeamToPlan=unplanned;
   }
+
+    const nextTitle=document.getElementById('tile-next-title');
+    if(nextSub){
+      if(next){
+        // Reguläre nächste Einheit
+        const parts=[next.name];
+        if(next.date) parts.push(fmtDate(next.date));
+        if(next.time) parts.push(next.time+' Uhr');
+        if(next.group_name) parts.push(next.group_name);
+        nextSub.textContent=parts.join(' · ');
+        if(nextTitle) nextTitle.textContent='Nächste Einheit bearbeiten';
+        if(nextTile) nextTile.classList.remove('tile-disabled');
+        if(nextIcon) nextIcon.textContent='⏭';
+      } else if(homeTeamToPlan){
+        // Kein Termin, aber Mannschaft vorhanden → Planung vorschlagen
+        nextSub.textContent=`Für ${homeTeamToPlan.name} ist kein Training geplant`;
+        if(nextTitle) nextTitle.textContent=`Neue Einheit planen`;
+        if(nextTile) nextTile.classList.remove('tile-disabled');
+        if(nextIcon) nextIcon.textContent='➕';
+      } else {
+        nextSub.textContent='Keine bevorstehenden Einheiten gefunden';
+        if(nextTitle) nextTitle.textContent='Nächste Einheit bearbeiten';
+        if(nextTile) nextTile.classList.add('tile-disabled');
+        if(nextIcon) nextIcon.textContent='⏭';
+      }
+    }
 }
 
 async function openLastEinheit(){
@@ -4097,9 +4122,29 @@ async function openLastEinheit(){
   else { newEinheit(); }
 }
 async function openNextEinheit(){
-  if(!homeNextEinheit) return;
-  expandSidebar();
-  await loadEinheit(homeNextEinheit.id);
+  if(homeNextEinheit){
+    expandSidebar();
+    await loadEinheit(homeNextEinheit.id);
+    return;
+  }
+  if(homeTeamToPlan){
+    const team=homeTeamToPlan;
+    const currentTeam=(localStorage.getItem('hbs_my_team')||'').trim();
+    const needsSwitch=currentTeam!==team.name.trim();
+    if(needsSwitch){
+      const ok=confirm(`Zu Mannschaft „${team.name}" wechseln?\n\nDie Mannschaft wird als aktives Team gesetzt, damit Anwesenheitslisten und Spielerdaten korrekt zugeordnet werden.`);
+      if(!ok) return;
+      localStorage.setItem('hbs_my_team',team.name);
+      initMyTeamWidget();
+      showToast(`✅ Mannschaft gewechselt: ${team.name}`,'success');
+    }
+    expandSidebar();
+    newEinheit();
+    sessionMeta.group=team.name;
+    const sg=document.getElementById('s-group');
+    if(sg) sg.textContent='Gruppe: '+team.name;
+    render();
+  }
 }
 function openFromKalender(){
   expandSidebar();
