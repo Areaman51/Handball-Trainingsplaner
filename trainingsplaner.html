@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260509.2100 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260509.2400 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -375,6 +375,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .toast.success{background:#15803d;color:white;}
 .toast.info{background:var(--sidebar);color:white;}
 
+/* ── LOADING SCREEN ── */
+#loading-screen{position:fixed;inset:0;background:var(--sidebar);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:1000;transition:opacity .35s ease;}
+#loading-screen.ls-hiding{opacity:0;pointer-events:none;}
+.ls-logo{width:52px;height:52px;background:var(--accent);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:white;letter-spacing:-.5px;margin-bottom:2px;}
+.ls-title{color:white;font-size:16px;font-weight:600;letter-spacing:-.2px;}
+.ls-sub{color:rgba(255,255,255,.35);font-size:12px;}
+.ls-spinner{width:26px;height:26px;border:2.5px solid rgba(255,255,255,.15);border-top-color:rgba(255,255,255,.7);border-radius:50%;animation:ls-spin .75s linear infinite;margin-top:4px;}
+@keyframes ls-spin{to{transform:rotate(360deg);}}
+
 /* ── AUTH REDIRECT ── */
 .auth-screen{position:fixed;inset:0;background:var(--sidebar);z-index:999;display:flex;align-items:center;justify-content:center;}
 
@@ -721,6 +730,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </style>
 </head>
 <body>
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <div class="ls-logo">HB</div>
+  <div class="ls-title">Handball Coaching</div>
+  <div class="ls-spinner"></div>
+  <div class="ls-sub" id="ls-text">Verbindung wird hergestellt…</div>
+</div>
 
 
 <!-- AUTH REDIRECT -->
@@ -1597,13 +1614,17 @@ async function onAuthSuccess(user){
   }
 
   console.log('Lade Kategorien…');
+  setLoadingText('Kategorien laden…');
   await loadKategorien();
   console.log('Lade Übungsdatenbank…');
+  setLoadingText('Übungsdatenbank laden…');
   await loadDBFromSupabase();
   console.log('Lade geteilte DB…');
+  setLoadingText('Geteilte Datenbank laden…');
   await loadGeteilteDB();
   if(profile?.role==='admin'||profile?.role==='manager') checkPending();
   console.log('Lade Mannschaften…');
+  setLoadingText('Mannschaften laden…');
   await reloadMannschaften();
   if(allMannschaften.length > 0) refreshAllFeeds();
 
@@ -1641,6 +1662,7 @@ async function onAuthSuccess(user){
   }
   render();
   console.log('App bereit ✅');
+  hideLoadingScreen();
 }
 async function signOut(){
   if(!confirm('Abmelden?')) return;
@@ -4089,13 +4111,26 @@ async function loadHomeData(){
     .gte('date',todayStr)
     .order('date',{ascending:true})
     .limit(30);
+  const all=nextList||[];
 
-  // Nächste Einheit des aktiven Teams (oder global falls kein Team gesetzt)
-  const activeNext=activeTeamName
-    ? (nextList||[]).find(e=>(e.group_name||'').trim()===activeTeamName)||null
-    : (nextList||[])[0]||null;
-  // Nächste Einheit eines anderen Teams
-  const otherNext=(nextList||[]).find(e=>(e.group_name||'').trim()!==activeTeamName&&(e.group_name||'').trim()!=='')||null;
+  // Aktives Team: bevorzugt nach localStorage-Wert, sonst erster Eintrag
+  const activeSessions=activeTeamName ? all.filter(e=>(e.group_name||'').trim()===activeTeamName) : [];
+  const activeNext=activeSessions[0]||all[0]||null;
+  // Gruppe des aktiven Teams (aus den echten Daten, nicht localStorage)
+  const activeGroupName=(activeNext?.group_name||'').trim();
+
+  // Andere Mannschaft: erste Einheit mit ANDEREM group_name als das aktive Team
+  // (inklusive leere group_names, falls die aktive Gruppe nicht leer ist)
+  let otherNext=all.find(e=>(e.group_name||'').trim()!==activeGroupName)||null;
+  // Fallback: alle Einheiten durchsuchen (auch vergangene), falls keine zukünftige gefunden
+  if(!otherNext){
+    const {data:fallback}=await supa.from('einheiten')
+      .select('id,name,date,time,group_name')
+      .eq('user_id',currentUser.id)
+      .order('updated_at',{ascending:false})
+      .limit(30);
+    otherNext=(fallback||[]).find(e=>(e.group_name||'').trim()!==activeGroupName)||null;
+  }
 
   homeNextEinheit=activeNext||null;
   homeOtherTeamEinheit=otherNext||null;
@@ -4241,6 +4276,17 @@ function setTopbarRole(role){
 updateDBCatOptions();
 render();
 setupMobile();
+
+function hideLoadingScreen(){
+  const el=document.getElementById('loading-screen');
+  if(!el) return;
+  el.classList.add('ls-hiding');
+  setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); },380);
+}
+function setLoadingText(txt){
+  const el=document.getElementById('ls-text');
+  if(el) el.textContent=txt;
+}
 
 // ── Session-Check: kein Login → zurück zum Dashboard ──
 supa.auth.getSession().then(({data:{session}})=>{
