@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260509.2400 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260509.2500 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -4103,46 +4103,60 @@ async function loadHomeData(){
     }
   }
 
-  // ── Alle bevorstehenden Einheiten laden ──
+  // ── Mannschafts-basierte Abfrage (allMannschaften als Quelle) ──
   const activeTeamName=(localStorage.getItem('hbs_my_team')||'').trim();
-  const {data:nextList}=await supa.from('einheiten')
-    .select('id,name,date,time,group_name')
-    .eq('user_id',currentUser.id)
-    .gte('date',todayStr)
-    .order('date',{ascending:true})
-    .limit(30);
-  const all=nextList||[];
+  const teams=allMannschaften; // bereits geladen in onAuthSuccess
 
-  // Aktives Team: bevorzugt nach localStorage-Wert, sonst erster Eintrag
-  const activeSessions=activeTeamName ? all.filter(e=>(e.group_name||'').trim()===activeTeamName) : [];
-  const activeNext=activeSessions[0]||all[0]||null;
-  // Gruppe des aktiven Teams (aus den echten Daten, nicht localStorage)
-  const activeGroupName=(activeNext?.group_name||'').trim();
+  // Aktive Mannschaft ermitteln
+  const activeTeam=activeTeamName
+    ? teams.find(m=>(m.name||'').trim()===activeTeamName)||teams[0]
+    : teams[0]||null;
+  const activeName=(activeTeam?.name||'').trim();
 
-  // Andere Mannschaft: erste Einheit mit ANDEREM group_name als das aktive Team
-  // (inklusive leere group_names, falls die aktive Gruppe nicht leer ist)
-  let otherNext=all.find(e=>(e.group_name||'').trim()!==activeGroupName)||null;
-  // Fallback: alle Einheiten durchsuchen (auch vergangene), falls keine zukünftige gefunden
-  if(!otherNext){
-    const {data:fallback}=await supa.from('einheiten')
+  // Nächste Einheit des aktiven Teams
+  let activeNext=null;
+  if(activeName){
+    const {data:ad}=await supa.from('einheiten')
       .select('id,name,date,time,group_name')
-      .eq('user_id',currentUser.id)
-      .order('updated_at',{ascending:false})
-      .limit(30);
-    otherNext=(fallback||[]).find(e=>(e.group_name||'').trim()!==activeGroupName)||null;
+      .eq('user_id',currentUser.id).eq('group_name',activeName)
+      .gte('date',todayStr).order('date',{ascending:true})
+      .limit(1).maybeSingle();
+    activeNext=ad||null;
+  } else {
+    // Kein Mannschaftsname: global erste kommende Einheit
+    const {data:ad}=await supa.from('einheiten')
+      .select('id,name,date,time,group_name')
+      .eq('user_id',currentUser.id).gte('date',todayStr)
+      .order('date',{ascending:true}).limit(1).maybeSingle();
+    activeNext=ad||null;
+  }
+
+  // Andere Mannschaften: pro Team gezielt abfragen
+  const otherTeams=teams.filter(m=>(m.name||'').trim()!==activeName);
+  let otherNext=null, otherTeamObj=null;
+  for(const team of otherTeams){
+    // Bevorzugt: nächste zukünftige Einheit
+    const {data:nd}=await supa.from('einheiten')
+      .select('id,name,date,time,group_name')
+      .eq('user_id',currentUser.id).eq('group_name',team.name)
+      .gte('date',todayStr).order('date',{ascending:true})
+      .limit(1).maybeSingle();
+    if(nd){ otherNext=nd; otherTeamObj=team; break; }
+    // Fallback: letzte bearbeitete Einheit (egal wann)
+    const {data:ld}=await supa.from('einheiten')
+      .select('id,name,date,time,group_name')
+      .eq('user_id',currentUser.id).eq('group_name',team.name)
+      .order('updated_at',{ascending:false}).limit(1).maybeSingle();
+    if(ld){ otherNext=ld; otherTeamObj=team; break; }
   }
 
   homeNextEinheit=activeNext||null;
   homeOtherTeamEinheit=otherNext||null;
 
-  // Unverplante Mannschaft (aktives Team ohne Einheit)
-  const upcomingGroups=new Set((nextList||[]).map(e=>(e.group_name||'').trim()).filter(Boolean));
+  // Unverplante Mannschaft für „Neue Einheit planen"-Kachel
   homeTeamToPlan=null;
-  if(allMannschaften.length && !activeNext){
-    const candidate=activeTeamName
-      ? allMannschaften.find(m=>(m.name||'').trim()===activeTeamName)
-      : allMannschaften.find(m=>!upcomingGroups.has((m.name||'').trim()));
-    if(candidate) homeTeamToPlan=candidate;
+  if(!activeNext){
+    homeTeamToPlan=activeTeam||null;
   }
 
   // ── Kachel 2: Nächste Einheit aktives Team ──
@@ -4166,7 +4180,7 @@ async function loadHomeData(){
       if(nextTile) nextTile.classList.remove('tile-disabled');
       if(nextIcon) nextIcon.textContent='➕';
     } else {
-      nextSub.textContent='Keine bevorstehenden Einheiten gefunden';
+      nextSub.textContent='Keine bevorstehenden Einheiten';
       if(nextTitle) nextTitle.textContent='Nächste Einheit bearbeiten';
       if(nextTile) nextTile.classList.add('tile-disabled');
       if(nextIcon) nextIcon.textContent='⏭';
@@ -4179,9 +4193,9 @@ async function loadHomeData(){
   const otherTitle=document.getElementById('tile-other-title');
   if(otherTile){
     if(otherNext){
-      otherTile.style.display='';
-      const teamName=otherNext.group_name||'Andere Mannschaft';
-      if(otherTitle) otherTitle.textContent=`Einheit öffnen – ${teamName}`;
+      otherTile.style.display='flex';
+      const displayTeam=otherTeamObj?.name||otherNext.group_name||'Andere Mannschaft';
+      if(otherTitle) otherTitle.textContent=`Einheit öffnen – ${displayTeam}`;
       if(otherSub){
         const parts=[otherNext.name];
         if(otherNext.date) parts.push(fmtDate(otherNext.date));
