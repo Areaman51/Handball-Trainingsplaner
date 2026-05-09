@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260509.1200 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260509.1400 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -377,6 +377,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* ── AUTH REDIRECT ── */
 .auth-screen{position:fixed;inset:0;background:var(--sidebar);z-index:999;display:flex;align-items:center;justify-content:center;}
+
+/* ── PLAYER PICKER ── */
+.pp-mode-row{display:flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:8px;}
+.pp-mode-btn{flex:1;text-align:center;padding:7px 4px;font-size:12px;font-weight:600;color:var(--soft);cursor:pointer;border:none;border-right:1.5px solid var(--border);background:white;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.pp-mode-btn:last-child{border-right:none;}
+.pp-mode-btn.active{background:var(--accent);color:white;}
+.pp-mode-btn:hover:not(.active){background:var(--bg);}
+.pp-section{display:none;}
+.pp-section.visible{display:block;}
+.pp-twfeld-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.pp-pos-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
+.pp-pos-block{display:flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;background:#f9fafb;}
+.pp-pos-lbl{font-size:11.5px;font-weight:700;color:var(--text);min-width:86px;flex-shrink:0;}
+.pp-num{width:38px;padding:4px 5px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;text-align:center;font-family:'DM Mono',monospace;background:white;outline:none;transition:border-color .15s;}
+.pp-num:focus{border-color:var(--accent);}
+.pp-sep{font-size:11px;color:var(--xsoft);flex-shrink:0;}
+@media(max-width:600px){
+  .pp-twfeld-grid{grid-template-columns:1fr;}
+  .pp-pos-grid{grid-template-columns:1fr;}
+  .pp-pos-lbl{min-width:72px;}
+}
 
 /* ── CONTENT TOOLBAR ── */
 .content-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
@@ -1080,9 +1101,35 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <label class="form-label">Dauer (Min) *</label>
           <input class="form-input" id="f-dur" type="number" min="1" max="90" placeholder="10">
         </div>
-        <div class="form-group">
-          <label class="form-label">Spieler (min – max)</label>
-          <input class="form-input" id="f-players" placeholder="z.B. 8 – 16">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Spieleranzahl</label>
+        <div class="player-picker" id="f-pp">
+          <div class="pp-mode-row">
+            <button type="button" class="pp-mode-btn active" data-mode="einfach" onclick="setPlayerPickerMode('f-pp',this,'einfach')">Gesamt</button>
+            <button type="button" class="pp-mode-btn" data-mode="tw_feld" onclick="setPlayerPickerMode('f-pp',this,'tw_feld')">TW + Feld</button>
+            <button type="button" class="pp-mode-btn" data-mode="positionen" onclick="setPlayerPickerMode('f-pp',this,'positionen')">Positionen</button>
+          </div>
+          <div class="pp-section visible" id="f-pp-einfach">
+            <input class="form-input" id="f-pp-e" placeholder="z.B. 8–16 oder beliebig">
+          </div>
+          <div class="pp-section" id="f-pp-twfeld">
+            <div class="pp-twfeld-grid">
+              <div class="pp-pos-block"><span class="pp-pos-lbl">🧤 Torhüter</span><input type="number" class="pp-num" id="f-pp-tw-min" min="0" max="4" placeholder="1"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-tw-max" min="0" max="4" placeholder="2"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">👥 Feldspieler</span><input type="number" class="pp-num" id="f-pp-f-min" min="0" max="20" placeholder="6"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-f-max" min="0" max="20" placeholder="14"></div>
+            </div>
+          </div>
+          <div class="pp-section" id="f-pp-positionen">
+            <div class="pp-pos-grid">
+              <div class="pp-pos-block"><span class="pp-pos-lbl">🧤 TW</span><input type="number" class="pp-num" id="f-pp-p-TW-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-TW-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ LA (Linksaußen)</span><input type="number" class="pp-num" id="f-pp-p-LA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-LA-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RL (Rückraum L)</span><input type="number" class="pp-num" id="f-pp-p-RL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RL-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RM (Rückraum M)</span><input type="number" class="pp-num" id="f-pp-p-RM-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RM-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RR (Rückraum R)</span><input type="number" class="pp-num" id="f-pp-p-RR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RR-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RA (Rechtsaußen)</span><input type="number" class="pp-num" id="f-pp-p-RA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RA-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ KR (Kreisläufer)</span><input type="number" class="pp-num" id="f-pp-p-KR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-KR-max" min="0" max="4" placeholder="0"></div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="form-group">
@@ -1172,9 +1219,35 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <label class="form-label">Dauer (Min)</label>
           <input class="form-input" id="db-f-dur" type="number" min="1" max="90" placeholder="15">
         </div>
-        <div class="form-group">
-          <label class="form-label">Spieler (min – max)</label>
-          <input class="form-input" id="db-f-players" placeholder="z.B. 10 – 16">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Spieleranzahl</label>
+        <div class="player-picker" id="db-f-pp">
+          <div class="pp-mode-row">
+            <button type="button" class="pp-mode-btn active" data-mode="einfach" onclick="setPlayerPickerMode('db-f-pp',this,'einfach')">Gesamt</button>
+            <button type="button" class="pp-mode-btn" data-mode="tw_feld" onclick="setPlayerPickerMode('db-f-pp',this,'tw_feld')">TW + Feld</button>
+            <button type="button" class="pp-mode-btn" data-mode="positionen" onclick="setPlayerPickerMode('db-f-pp',this,'positionen')">Positionen</button>
+          </div>
+          <div class="pp-section visible" id="db-f-pp-einfach">
+            <input class="form-input" id="db-f-pp-e" placeholder="z.B. 8–16 oder beliebig">
+          </div>
+          <div class="pp-section" id="db-f-pp-twfeld">
+            <div class="pp-twfeld-grid">
+              <div class="pp-pos-block"><span class="pp-pos-lbl">🧤 Torhüter</span><input type="number" class="pp-num" id="db-f-pp-tw-min" min="0" max="4" placeholder="1"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-tw-max" min="0" max="4" placeholder="2"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">👥 Feldspieler</span><input type="number" class="pp-num" id="db-f-pp-f-min" min="0" max="20" placeholder="6"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-f-max" min="0" max="20" placeholder="14"></div>
+            </div>
+          </div>
+          <div class="pp-section" id="db-f-pp-positionen">
+            <div class="pp-pos-grid">
+              <div class="pp-pos-block"><span class="pp-pos-lbl">🧤 TW</span><input type="number" class="pp-num" id="db-f-pp-p-TW-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-TW-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ LA (Linksaußen)</span><input type="number" class="pp-num" id="db-f-pp-p-LA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-LA-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RL (Rückraum L)</span><input type="number" class="pp-num" id="db-f-pp-p-RL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RL-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RM (Rückraum M)</span><input type="number" class="pp-num" id="db-f-pp-p-RM-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RM-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RR (Rückraum R)</span><input type="number" class="pp-num" id="db-f-pp-p-RR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RR-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RA (Rechtsaußen)</span><input type="number" class="pp-num" id="db-f-pp-p-RA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RA-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ KR (Kreisläufer)</span><input type="number" class="pp-num" id="db-f-pp-p-KR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-KR-max" min="0" max="4" placeholder="0"></div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="form-group">
@@ -1524,6 +1597,120 @@ async function loadKategorien(){
     if(CATS[k.phase]) CATS[k.phase].push({key:k.cat_key,label:k.label,color:k.color,id:k.id});
   });
   updateCatOptions(); updateDBCatOptions();
+}
+
+// ══════════════════════════════════════════
+// PLAYER PICKER — Spieleranzahl nach Typ
+// ══════════════════════════════════════════
+const PP_POSITIONS=['TW','LA','RL','RM','RR','RA','KR'];
+
+function parsePlayers(val){
+  if(!val) return {modus:'einfach',einfach:''};
+  try{
+    const o=JSON.parse(val);
+    if(o&&o.modus) return o;
+  }catch(e){}
+  return {modus:'einfach',einfach:val};
+}
+
+function formatPlayersDisplay(val){
+  const p=parsePlayers(val);
+  if(p.modus==='einfach'){
+    const v=p.einfach||'';
+    return v||'–';
+  }
+  if(p.modus==='tw_feld'){
+    const fmt=obj=>{
+      if(!obj||obj.min===undefined) return '?';
+      return obj.min===obj.max?String(obj.min):`${obj.min}–${obj.max}`;
+    };
+    const tw=fmt(p.tw);
+    const feld=fmt(p.feld);
+    return `🧤 ${tw} · 👥 ${feld}`;
+  }
+  if(p.modus==='positionen'){
+    const pos=p.positionen||{};
+    const parts=PP_POSITIONS
+      .filter(k=>pos[k]&&(pos[k].min>0||pos[k].max>0))
+      .map(k=>{
+        const v=pos[k];
+        const n=v.min===v.max?String(v.min):`${v.min}–${v.max}`;
+        return (k==='TW'?'🧤':'▲')+k+' '+n;
+      });
+    return parts.length?parts.join(' · '):'–';
+  }
+  return val||'–';
+}
+
+// Modus-Button wechseln
+function setPlayerPickerMode(pickerId,clickedBtn,mode){
+  const picker=document.getElementById(pickerId);
+  if(!picker) return;
+  picker.querySelectorAll('.pp-mode-btn').forEach(b=>b.classList.remove('active'));
+  clickedBtn.classList.add('active');
+  ['einfach','twfeld','positionen'].forEach(m=>{
+    const sec=document.getElementById(pickerId+'-'+m);
+    if(sec) sec.classList.toggle('visible',m===mode);
+  });
+}
+
+// Picker mit vorhandenem Wert initialisieren
+function initPlayerPicker(pickerId,val){
+  const p=parsePlayers(val);
+  const picker=document.getElementById(pickerId);
+  if(!picker) return;
+  // Reset alle Modi-Buttons + Sektionen
+  picker.querySelectorAll('.pp-mode-btn').forEach(b=>{
+    b.classList.toggle('active',b.dataset.mode===p.modus);
+  });
+  ['einfach','twfeld','positionen'].forEach(m=>{
+    const sec=document.getElementById(pickerId+'-'+m);
+    if(sec) sec.classList.toggle('visible',m===p.modus);
+  });
+  // Werte setzen
+  const ge=id=>{const el=document.getElementById(id);return el;};
+  const sv=(id,v)=>{const el=ge(id);if(el) el.value=v!==undefined&&v!==null?v:'';};
+  if(p.modus==='einfach'){
+    sv(pickerId+'-e',p.einfach||'');
+  } else if(p.modus==='tw_feld'){
+    sv(pickerId+'-tw-min',p.tw?.min??'');
+    sv(pickerId+'-tw-max',p.tw?.max??'');
+    sv(pickerId+'-f-min',p.feld?.min??'');
+    sv(pickerId+'-f-max',p.feld?.max??'');
+  } else if(p.modus==='positionen'){
+    PP_POSITIONS.forEach(pos=>{
+      const obj=p.positionen?.[pos]||{};
+      sv(pickerId+'-p-'+pos+'-min',obj.min??'');
+      sv(pickerId+'-p-'+pos+'-max',obj.max??'');
+    });
+  }
+}
+
+// Aktuellen Wert aus Picker lesen und serialisieren
+function getPlayerPickerValue(pickerId){
+  const picker=document.getElementById(pickerId);
+  if(!picker) return '';
+  const activeBtn=picker.querySelector('.pp-mode-btn.active');
+  const modus=activeBtn?activeBtn.dataset.mode:'einfach';
+  const gn=id=>{const el=document.getElementById(id);return el?parseInt(el.value)||0:0;};
+  if(modus==='einfach'){
+    const el=document.getElementById(pickerId+'-e');
+    return el?el.value.trim():'';
+  }
+  if(modus==='tw_feld'){
+    return JSON.stringify({modus:'tw_feld',
+      tw:{min:gn(pickerId+'-tw-min'),max:gn(pickerId+'-tw-max')},
+      feld:{min:gn(pickerId+'-f-min'),max:gn(pickerId+'-f-max')}
+    });
+  }
+  if(modus==='positionen'){
+    const pos={};
+    PP_POSITIONS.forEach(p=>{
+      pos[p]={min:gn(pickerId+'-p-'+p+'-min'),max:gn(pickerId+'-p-'+p+'-max')};
+    });
+    return JSON.stringify({modus:'positionen',positionen:pos});
+  }
+  return '';
 }
 
 // ══════════════════════════════════════════
@@ -1933,7 +2120,7 @@ function makeRow(drill,gi,offset){
       <div class="drill-name">${drill.name||'–'}</div>
       <div class="drill-sub" style="color:${cat.color}">${cat.label}${drill.augenmerk?' · '+drill.augenmerk:''}</div>
     </div>${firstImg}
-    <div class="drill-players">👥 ${drill.players||'–'}</div>
+    <div class="drill-players">👥 ${formatPlayersDisplay(drill.players)}</div>
     <div class="drill-dur"><div class="dur-num">${drill.duration||'–'}</div><div class="dur-lbl">MIN</div></div>
     <div class="row-actions">
       <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
@@ -1975,7 +2162,7 @@ function openDetail(idx){
   const cat=catMeta(d.phase,d.cat);
   document.getElementById('dm-name').textContent=d.name||'–';
   document.getElementById('dm-cat').textContent=PHASE_META[d.phase]?.label+' · '+cat.label;
-  document.getElementById('dm-players').textContent=d.players||'–';
+  document.getElementById('dm-players').textContent=formatPlayersDisplay(d.players);
   document.getElementById('dm-dur').textContent=d.duration||'–';
   document.getElementById('dm-time').textContent=sessionMeta.time?addMinutes(sessionMeta.time,off):'–';
   document.getElementById('dm-aufbau').textContent=d.aufbau||'–';
@@ -2034,7 +2221,7 @@ function openAddModal(idx){
     document.getElementById('f-cat').value=d.cat||CATS[d.phase][0].key;
     document.getElementById('f-name').value=d.name;
     document.getElementById('f-dur').value=d.duration;
-    document.getElementById('f-players').value=d.players;
+    initPlayerPicker('f-pp',d.players||'');
     document.getElementById('f-aufbau').value=d.aufbau||'';
     document.getElementById('f-ablauf').value=d.ablauf||'';
     document.getElementById('f-var').value=d.variationen||'';
@@ -2043,7 +2230,8 @@ function openAddModal(idx){
     fImages=d.bilder?d.bilder.map(b=>({filename:b,objectUrl:b})):[];
     previewYT('f-yt','f-yt-preview');
   } else {
-    ['f-name','f-dur','f-players','f-aufbau','f-ablauf','f-var','f-aug','f-yt'].forEach(id=>document.getElementById(id).value='');
+    ['f-name','f-dur','f-aufbau','f-ablauf','f-var','f-aug','f-yt'].forEach(id=>document.getElementById(id).value='');
+    initPlayerPicker('f-pp','');
     document.getElementById('f-phase').value='hauptteil';
     document.getElementById('f-yt-preview').style.display='none';
     fImages=[];updateCatOptions();
@@ -2089,7 +2277,7 @@ async function saveDrill(){
     cat:document.getElementById('f-cat').value,
     name:drillName,
     duration:document.getElementById('f-dur').value||'0',
-    players:document.getElementById('f-players').value.trim(),
+    players:getPlayerPickerValue('f-pp'),
     aufbau:document.getElementById('f-aufbau').value.trim(),
     ablauf:document.getElementById('f-ablauf').value.trim(),
     variationen:document.getElementById('f-var').value.trim(),
@@ -2220,7 +2408,7 @@ function renderDB(q='',phaseFilter='all'){
         el.innerHTML=thumb+
           `<div class="db-item-body" onclick="${dbActiveTab==='meine'?`addFromDB(${realIdx})`:''}">
             <div class="db-item-name">${item.name} ${statusBadge}</div>
-            <div class="db-item-meta">⏱ ${item.duration} Min · 👥 ${item.players||'–'} · 🎯 ${item.augenmerk||'–'}</div>
+            <div class="db-item-meta">⏱ ${item.duration} Min · 👥 ${formatPlayersDisplay(item.players)} · 🎯 ${item.augenmerk||'–'}</div>
           </div>
           <div class="db-item-actions">
             ${dbActiveTab==='meine'?`<button class="db-action-btn add" title="Zum Plan" onclick="addFromDB(${realIdx})">+</button>`:''}
@@ -2260,7 +2448,7 @@ function editDBItem(idx){
   document.getElementById('db-f-cat').value=d.cat||CATS[d.phase][0].key;
   document.getElementById('db-f-name').value=d.name;
   document.getElementById('db-f-dur').value=d.duration;
-  document.getElementById('db-f-players').value=d.players||'';
+  initPlayerPicker('db-f-pp',d.players||'');
   document.getElementById('db-f-aufbau').value=d.aufbau||'';
   document.getElementById('db-f-ablauf').value=d.ablauf||'';
   document.getElementById('db-f-var').value=d.variationen||'';
@@ -2276,7 +2464,8 @@ function openDBAdd(){
   editDBIdx=-1;
   document.getElementById('db-add-title').textContent='Neue Übung in Datenbank';
   updateDBCatOptions();
-  ['db-f-name','db-f-dur','db-f-players','db-f-aufbau','db-f-ablauf','db-f-var','db-f-aug','db-f-yt'].forEach(id=>document.getElementById(id).value='');
+  ['db-f-name','db-f-dur','db-f-aufbau','db-f-ablauf','db-f-var','db-f-aug','db-f-yt'].forEach(id=>document.getElementById(id).value='');
+  initPlayerPicker('db-f-pp','');
   dbfImages=[];document.getElementById('db-f-yt-preview').style.display='none';
   renderFormGallery('db-f-img-gallery',dbfImages,'db-f');
   document.getElementById('db-add-modal').classList.add('open');
@@ -2298,7 +2487,7 @@ async function saveDBExercise(){
     phase:document.getElementById('db-f-phase').value,
     cat:document.getElementById('db-f-cat').value,
     name:drillName,duration:document.getElementById('db-f-dur').value||'0',
-    players:document.getElementById('db-f-players').value.trim(),
+    players:getPlayerPickerValue('db-f-pp'),
     aufbau:document.getElementById('db-f-aufbau').value.trim(),
     ablauf:document.getElementById('db-f-ablauf').value.trim(),
     variationen:document.getElementById('db-f-var').value.trim(),
