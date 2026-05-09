@@ -4089,8 +4089,11 @@ async function loadHomeData(){
     if(unplanned) homeTeamToPlan=unplanned;
   }
 
-    const nextTitle=document.getElementById('tile-next-title');
-    if(nextSub){
+  const nextSub=document.getElementById('tile-next-sub');
+  const nextTile=document.getElementById('tile-next');
+  const nextIcon=document.getElementById('tile-next-icon');
+  const nextTitle=document.getElementById('tile-next-title');
+  if(nextSub){
       if(next){
         // Reguläre nächste Einheit
         const parts=[next.name];
