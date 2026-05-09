@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260509.1900 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260509.2100 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -393,6 +393,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .home-tile-sub{font-size:12.5px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .home-tile-arrow{font-size:22px;color:var(--xsoft);flex-shrink:0;line-height:1;transition:color .15s;}
 .home-tile:hover .home-tile-arrow{color:var(--accent);}
+.home-tile.tile-other-team{border-color:#e0e7ff;background:linear-gradient(135deg,#fff 80%,#eff2ff 100%);}
+.home-tile.tile-other-team:hover{border-color:#818cf8;box-shadow:0 4px 22px rgba(99,102,241,.13);}
 @media(max-width:600px){
   .home-hero{padding:28px 0 20px;}
   .home-greeting{font-size:21px;}
@@ -845,11 +847,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             </div>
             <div class="home-tile-arrow">›</div>
           </div>
+          <!-- 4. Kachel: Einheit anderer Mannschaft (nur wenn vorhanden) -->
+          <div class="home-tile tile-other-team" id="tile-other" onclick="openOtherTeamEinheit()" style="display:none;">
+            <div class="home-tile-icon" id="tile-other-icon">🤾</div>
+            <div class="home-tile-body">
+              <div class="home-tile-title" id="tile-other-title">Einheit anderer Mannschaft</div>
+              <div class="home-tile-sub" id="tile-other-sub">Wird geladen…</div>
+            </div>
+            <div class="home-tile-arrow">›</div>
+          </div>
         </div>
       </div>
 
       <!-- Content Toolbar -->
-      <div class="content-toolbar" id="content-toolbar">
+      <div class="content-toolbar" id="content-toolbar" style="display:none;">
         <button class="ctb-btn ctb-save" id="save-btn" onclick="saveAll()">💾 Speichern</button>
         <button class="ctb-btn ctb-add" onclick="openAddModal(-1)">+ Übung hinzufügen</button>
         <div class="ctb-spacer"></div>
@@ -866,7 +877,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 
       <!-- Session Header -->
-      <div class="session-header" onclick="openSessionEdit()" style="cursor:pointer;position:relative;" title="Einheit bearbeiten">
+      <div class="session-header" onclick="openSessionEdit()" style="cursor:pointer;position:relative;display:none;" title="Einheit bearbeiten">
         <div class="session-action-btns" style="position:absolute;top:14px;right:16px;display:flex;gap:6px;" onclick="event.stopPropagation()">
           <button onclick="shareEinheit()" title="Einheit teilen" style="background:none;border:1px solid var(--border);border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;" id="share-btn">🔗</button>
           <button onclick="deleteEinheit()" title="Einheit löschen" style="background:none;border:1px solid var(--border);border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:#dc2626;">🗑</button>
@@ -939,7 +950,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
 
       <!-- Plan Card -->
-      <div class="plan-card" id="plan-card">
+      <div class="plan-card" id="plan-card" style="display:none;">
         <div class="empty-state" id="empty-state">
           <div class="empty-icon">📋</div>
           <div class="empty-text">Noch keine Übungen geplant.<br>Klicke auf <strong>+ Übung hinzufügen</strong> oder öffne die <strong>Übungsdatenbank</strong>.</div>
@@ -4014,7 +4025,7 @@ function expandSidebar(){
 }
 
 // ── HOME VIEW LOGIC ──
-let homeLastEinheit=null, homeNextEinheit=null, homeTeamToPlan=null;
+let homeLastEinheit=null, homeNextEinheit=null, homeTeamToPlan=null, homeOtherTeamEinheit=null;
 
 function computeGreeting(){
   const h=new Date().getHours();
@@ -4070,53 +4081,82 @@ async function loadHomeData(){
     }
   }
 
-  // Nächste Einheiten — alle ab heute laden (für Team-Abgleich)
+  // ── Alle bevorstehenden Einheiten laden ──
+  const activeTeamName=(localStorage.getItem('hbs_my_team')||'').trim();
   const {data:nextList}=await supa.from('einheiten')
     .select('id,name,date,time,group_name')
     .eq('user_id',currentUser.id)
     .gte('date',todayStr)
     .order('date',{ascending:true})
-    .limit(20);
+    .limit(30);
 
+  // Nächste Einheit des aktiven Teams (oder global falls kein Team gesetzt)
+  const activeNext=activeTeamName
+    ? (nextList||[]).find(e=>(e.group_name||'').trim()===activeTeamName)||null
+    : (nextList||[])[0]||null;
+  // Nächste Einheit eines anderen Teams
+  const otherNext=(nextList||[]).find(e=>(e.group_name||'').trim()!==activeTeamName&&(e.group_name||'').trim()!=='')||null;
+
+  homeNextEinheit=activeNext||null;
+  homeOtherTeamEinheit=otherNext||null;
+
+  // Unverplante Mannschaft (aktives Team ohne Einheit)
   const upcomingGroups=new Set((nextList||[]).map(e=>(e.group_name||'').trim()).filter(Boolean));
-  const next=(nextList||[])[0]||null;
-  homeNextEinheit=next||null;
-
-  // Mannschaft ohne geplante Einheit finden
   homeTeamToPlan=null;
-  if(allMannschaften.length){
-    const unplanned=allMannschaften.find(m=>!upcomingGroups.has((m.name||'').trim()));
-    if(unplanned) homeTeamToPlan=unplanned;
+  if(allMannschaften.length && !activeNext){
+    const candidate=activeTeamName
+      ? allMannschaften.find(m=>(m.name||'').trim()===activeTeamName)
+      : allMannschaften.find(m=>!upcomingGroups.has((m.name||'').trim()));
+    if(candidate) homeTeamToPlan=candidate;
   }
 
+  // ── Kachel 2: Nächste Einheit aktives Team ──
   const nextSub=document.getElementById('tile-next-sub');
   const nextTile=document.getElementById('tile-next');
   const nextIcon=document.getElementById('tile-next-icon');
   const nextTitle=document.getElementById('tile-next-title');
   if(nextSub){
-      if(next){
-        // Reguläre nächste Einheit
-        const parts=[next.name];
-        if(next.date) parts.push(fmtDate(next.date));
-        if(next.time) parts.push(next.time+' Uhr');
-        if(next.group_name) parts.push(next.group_name);
-        nextSub.textContent=parts.join(' · ');
-        if(nextTitle) nextTitle.textContent='Nächste Einheit bearbeiten';
-        if(nextTile) nextTile.classList.remove('tile-disabled');
-        if(nextIcon) nextIcon.textContent='⏭';
-      } else if(homeTeamToPlan){
-        // Kein Termin, aber Mannschaft vorhanden → Planung vorschlagen
-        nextSub.textContent=`Für ${homeTeamToPlan.name} ist kein Training geplant`;
-        if(nextTitle) nextTitle.textContent=`Neue Einheit planen`;
-        if(nextTile) nextTile.classList.remove('tile-disabled');
-        if(nextIcon) nextIcon.textContent='➕';
-      } else {
-        nextSub.textContent='Keine bevorstehenden Einheiten gefunden';
-        if(nextTitle) nextTitle.textContent='Nächste Einheit bearbeiten';
-        if(nextTile) nextTile.classList.add('tile-disabled');
-        if(nextIcon) nextIcon.textContent='⏭';
-      }
+    if(activeNext){
+      const parts=[activeNext.name];
+      if(activeNext.date) parts.push(fmtDate(activeNext.date));
+      if(activeNext.time) parts.push(activeNext.time+' Uhr');
+      if(activeNext.group_name) parts.push(activeNext.group_name);
+      nextSub.textContent=parts.join(' · ');
+      if(nextTitle) nextTitle.textContent='Nächste Einheit bearbeiten';
+      if(nextTile) nextTile.classList.remove('tile-disabled');
+      if(nextIcon) nextIcon.textContent='⏭';
+    } else if(homeTeamToPlan){
+      nextSub.textContent=`Für ${homeTeamToPlan.name} ist kein Training geplant`;
+      if(nextTitle) nextTitle.textContent='Neue Einheit planen';
+      if(nextTile) nextTile.classList.remove('tile-disabled');
+      if(nextIcon) nextIcon.textContent='➕';
+    } else {
+      nextSub.textContent='Keine bevorstehenden Einheiten gefunden';
+      if(nextTitle) nextTitle.textContent='Nächste Einheit bearbeiten';
+      if(nextTile) nextTile.classList.add('tile-disabled');
+      if(nextIcon) nextIcon.textContent='⏭';
     }
+  }
+
+  // ── Kachel 4: Einheit anderer Mannschaft ──
+  const otherTile=document.getElementById('tile-other');
+  const otherSub=document.getElementById('tile-other-sub');
+  const otherTitle=document.getElementById('tile-other-title');
+  if(otherTile){
+    if(otherNext){
+      otherTile.style.display='';
+      const teamName=otherNext.group_name||'Andere Mannschaft';
+      if(otherTitle) otherTitle.textContent=`Einheit öffnen – ${teamName}`;
+      if(otherSub){
+        const parts=[otherNext.name];
+        if(otherNext.date) parts.push(fmtDate(otherNext.date));
+        if(otherNext.time) parts.push(otherNext.time+' Uhr');
+        otherSub.textContent=parts.join(' · ');
+      }
+    } else {
+      otherTile.style.display='none';
+    }
+  }
 }
 
 async function openLastEinheit(){
@@ -4152,6 +4192,20 @@ async function openNextEinheit(){
 function openFromKalender(){
   expandSidebar();
   showView('kalender');
+}
+async function openOtherTeamEinheit(){
+  if(!homeOtherTeamEinheit) return;
+  const teamName=(homeOtherTeamEinheit.group_name||'').trim();
+  const currentTeam=(localStorage.getItem('hbs_my_team')||'').trim();
+  if(teamName && teamName!==currentTeam){
+    const ok=confirm(`Zu Mannschaft „${teamName}" wechseln?\n\nDie Mannschaft wird als aktives Team gesetzt, damit Anwesenheitslisten und Spielerdaten korrekt zugeordnet werden.`);
+    if(!ok) return;
+    localStorage.setItem('hbs_my_team',teamName);
+    initMyTeamWidget();
+    showToast(`✅ Mannschaft gewechselt: ${teamName}`,'success');
+  }
+  expandSidebar();
+  await loadEinheit(homeOtherTeamEinheit.id);
 }
 
 // ── SIDEBAR TOGGLE ──
