@@ -115,18 +115,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 
 /* ── SPLIT / MERGE STRÄNGE ── */
-.split-header{display:flex;align-items:stretch;gap:0;border:2px dashed #cbd5e1;border-radius:10px 10px 0 0;margin:10px 0 0;background:#f8faff;overflow:visible;position:relative;padding-right:88px;}
-.split-track-header{flex:1;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:6px;border-right:2px dashed #cbd5e1;}
+/* Toolbar ABOVE the dashed box: label left, +/−/🗑 right */
+.split-ctrl-bar{display:flex;align-items:center;gap:6px;margin:12px 0 0;padding:4px 6px 4px 10px;background:#f0f4ff;border:2px dashed #cbd5e1;border-bottom:none;border-radius:10px 10px 0 0;}
+.split-ctrl-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);flex:1;}
+.split-ctrl-btn{background:white;border:1px solid var(--border);border-radius:5px;font-size:13px;line-height:1;cursor:pointer;padding:3px 7px;transition:all .12s;font-family:"DM Sans",sans-serif;}
+.split-ctrl-btn:hover{background:var(--bg);}
+.split-ctrl-btn.danger{color:#dc2626;border-color:#fca5a5;}
+.split-ctrl-btn.danger:hover{background:#fee2e2;}
+/* Header: pure track names, full width each, aligned with body tracks */
+.split-header{display:flex;align-items:stretch;border:2px dashed #cbd5e1;border-top:none;border-bottom:none;background:#f8faff;overflow:hidden;}
+.split-track-header{flex:1;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;border-right:2px dashed #cbd5e1;}
 .split-track-header:last-child{border-right:none;}
 .split-rename-input{background:none;border:none;font:inherit;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);outline:none;width:100%;cursor:text;}
-.split-body{display:flex;border:2px dashed #cbd5e1;border-top:none;border-radius:0 0 10px 10px;margin-bottom:0;overflow:hidden;}
+/* Body */
+.split-body{display:flex;border:2px dashed #cbd5e1;border-top:none;overflow:hidden;}
 .split-track{flex:1;border-right:2px dashed #cbd5e1;min-height:60px;min-width:0;}
 .split-track:last-child{border-right:none;}
+/* Rows inside tracks */
 .split-row{display:flex;flex-direction:column;border-bottom:1px solid var(--border);padding:10px 12px;gap:3px;background:white;transition:background .1s;}
 .split-row:hover{background:#f8f9ff;}
 .split-row-top{display:flex;align-items:center;gap:8px;}
 .split-row-name{flex:1;font-size:13px;font-weight:500;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
-.split-row-meta{font-size:11px;color:var(--xsoft);}
 .split-row-dur{display:flex;flex-direction:column;align-items:flex-end;font-family:"DM Mono",monospace;color:var(--text);flex-shrink:0;}
 .split-row-actions{display:flex;gap:3px;opacity:0;transition:opacity .15s;flex-shrink:0;}
 .split-row:hover .split-row-actions{opacity:1;}
@@ -136,12 +145,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .split-row-note textarea::placeholder{color:#d97706;}
 .split-add-btn{width:100%;padding:7px;font-size:11.5px;color:rgba(0,87,255,.6);background:rgba(0,87,255,.04);border:none;border-top:1px dashed #cbd5e1;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:500;transition:background .15s;}
 .split-add-btn:hover{background:rgba(0,87,255,.1);}
-.split-merge-row{display:flex;align-items:center;padding:6px 14px;background:#f0f4ff;border:2px dashed #cbd5e1;border-top:none;border-radius:0 0 10px 10px;margin-bottom:0;}
-.split-ctrl{position:absolute;right:0;top:0;bottom:0;width:88px;display:flex;gap:4px;align-items:center;justify-content:center;border-left:2px dashed #cbd5e1;background:#f0f4ff;border-radius:0 8px 0 0;}
-.split-ctrl button{font-size:15px;background:none;border:none;cursor:pointer;line-height:1;padding:2px 4px;border-radius:4px;transition:background .12s;}
-.split-ctrl button:hover{background:rgba(0,87,255,.1);}
-.split-ctrl button.del-track{color:#dc2626;}
-.split-ctrl button.del-track:hover{background:#fee2e2;}
+/* Merge footer */
+.split-merge-row{display:flex;align-items:center;padding:6px 12px;background:#f0f4ff;border:2px dashed #cbd5e1;border-top:none;border-radius:0 0 10px 10px;margin-bottom:0;}
+/* "Übung nach Block" button */
+.add-after-btn{width:100%;padding:7px 14px;font-size:11.5px;color:rgba(0,87,255,.6);background:rgba(0,87,255,.03);border:1px dashed #93c5fd;border-top:none;border-radius:0 0 8px 8px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:500;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s;}
+.add-after-btn:hover{background:rgba(0,87,255,.09);}
+/* "Strang teilen" global button */
 .add-split-btn{width:100%;padding:8px 14px;font-size:12px;color:rgba(0,87,255,.6);background:rgba(0,87,255,.04);border:1px dashed #93c5fd;border-radius:8px;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:500;margin:6px 0;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s;}
 .add-split-btn:hover{background:rgba(0,87,255,.09);}
 
@@ -169,10 +178,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .drill-sub{font-size:11.5px;color:var(--soft);margin-top:1px;}
 .drill-players{font-size:12px;color:var(--xsoft);flex-shrink:0;white-space:nowrap;}
 .drill-img-thumb{width:36px;height:36px;border-radius:6px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;}
-.drill-dur{text-align:right;flex-shrink:0;min-width:50px;width:auto;}
+.drill-dur{text-align:right;flex-shrink:0;width:46px;}
 .dur-num{font-size:20px;font-weight:700;color:var(--text);line-height:1;font-family:'DM Mono',monospace;}
 .dur-lbl{font-size:9.5px;font-weight:700;letter-spacing:.05em;color:var(--xsoft);text-transform:uppercase;}
-.dur-time{font-size:10px;color:var(--xsoft);font-family:'DM Mono',monospace;margin-top:3px;white-space:nowrap;}
 .row-actions{display:flex;gap:4px;opacity:0;transition:opacity .15s;flex-shrink:0;}
 .drill-row:hover .row-actions{opacity:1;}
 .action-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--soft);transition:all .15s;}
@@ -2103,7 +2111,7 @@ function showToast(msg,type='info'){
 }
 
 // ══════════════════════════════════════════
-// RENDER PLAN
+// RENDER PLAN  –  positional (Array-Reihenfolge)
 // ══════════════════════════════════════════
 function render(){
   updateTopbar();
@@ -2118,71 +2126,80 @@ function render(){
   if(sessionMeta.focus){ft.style.display='';ft.textContent=sessionMeta.focus;}else ft.style.display='none';
 
   const card=document.getElementById('plan-card');
-  card.querySelectorAll('.phase-separator,.cat-separator,.drill-row,.notes-area,.total-bar,.split-header,.split-body,.split-merge-row,.add-split-btn').forEach(e=>e.remove());
+  // Remove all dynamic elements (including new ctrl-bar and after-btn classes)
+  card.querySelectorAll(
+    '.phase-separator,.cat-separator,.drill-row,.notes-area,.total-bar,' +
+    '.split-ctrl-bar,.split-header,.split-body,.split-merge-row,' +
+    '.add-after-btn,.add-split-btn'
+  ).forEach(e=>e.remove());
+
   console.log('render() drills.length='+drills.length,'info');
   document.getElementById('empty-state').style.display=drills.length?'none':'';
   if(!drills.length) return;
 
-  let offset=0;
-  // Track which drills have been rendered
-  const rendered = new Set();
-  
-  // Split/Merge-Marker vorverarbeiten: alle splitId-Drills aus normalem Flow ausschließen
-  const inSplit = new Set(drills.filter(d=>d.splitId).map((_,i)=>drills.findIndex(x=>x===_)));
+  let offset  = 0;
+  let lastPhase = null;
+  let lastCat   = null;
   const splitsDone = new Set();
 
-  PHASES.forEach(phase=>{
-    const pd=drills.filter(d=>d.phase===phase&&!d.type&&!d.splitId);
-    if(!pd.length) return;
-    const pm=PHASE_META[phase];
-    const sep=document.createElement('div');sep.className='phase-separator';
-    sep.innerHTML=`<div class="phase-dot" style="background:${pm.color}"></div><span class="phase-name">${pm.label}</span><span class="phase-dur">${pd.reduce((s,d)=>s+(parseInt(d.duration)||0),0)} Min</span>`;
-    card.appendChild(sep);
-    CATS[phase]?.forEach(cat=>{
-      const cd=pd.filter(d=>d.cat===cat.key);
-      if(!cd.length) return;
-      const cs=document.createElement('div');cs.className='cat-separator';
-      cs.innerHTML=`<div class="cat-dot" style="background:${cat.color}"></div><span class="cat-name" style="color:${cat.color}">${cat.label}</span><span class="cat-dur">${cd.reduce((s,d)=>s+(parseInt(d.duration)||0),0)} Min</span>`;
-      card.appendChild(cs);
-      cd.forEach(drill=>{
-        const gi=drills.indexOf(drill);
-        rendered.add(gi);
-        card.appendChild(makeRow(drill,gi,offset));
-        offset+=parseInt(drill.duration)||0;
-      });
-    });
-    // Render drills with unknown category within this phase
-    pd.filter(d=>!(CATS[phase]||[]).find(cat=>cat.key===d.cat)).forEach(drill=>{
-      const gi=drills.indexOf(drill);
-      if(rendered.has(gi)) return;
-      rendered.add(gi);
-      console.log('Unknown cat render: "'+drill.name+'" cat='+drill.cat,'info');
-      card.appendChild(makeRow(drill,gi,offset));
-      offset+=parseInt(drill.duration)||0;
-    });
-  });
-  // Render Split-Marker + ihre Tracks
-  drills.forEach((drill,gi)=>{
-    if(rendered.has(gi)) return;
-    if(drill.type==='split' && !splitsDone.has(drill.id)){
+  drills.forEach((drill, gi)=>{
+    // ── split-track drills and merge markers are rendered inside their block ──
+    if(drill.splitId || drill.type==='merge') return;
+
+    // ── SPLIT BLOCK ──
+    if(drill.type==='split'){
+      if(splitsDone.has(drill.id)) return;
       splitsDone.add(drill.id);
-      rendered.add(gi);
-      // Merge-Marker auch als rendered markieren
-      const mi=drills.findIndex(d=>d.type==='merge'&&d.splitId===drill.id);
-      if(mi>=0) rendered.add(mi);
-      // Alle Track-Drills als rendered markieren
-      drills.forEach((d,i)=>{ if(d.splitId===drill.id) rendered.add(i); });
+      // After a split block phase/cat context resets so a separator is shown again
+      lastPhase = null; lastCat = null;
       const dur = renderSplitSection(card, drill, offset);
       offset += dur;
-    } else if(!drill.type && !drill.splitId && !rendered.has(gi)){
-      rendered.add(gi);
-      console.log('Fallback render: "'+drill.name+'"');
-      card.appendChild(makeRow(drill,gi,offset));
-      offset+=parseInt(drill.duration)||0;
-    } else {
-      rendered.add(gi);
+      return;
     }
+
+    // ── NORMAL DRILL: phase separator when phase changes ──
+    if(drill.phase !== lastPhase){
+      lastPhase = drill.phase;
+      lastCat   = null;
+      const pm  = PHASE_META[drill.phase];
+      if(pm){
+        const sep=document.createElement('div'); sep.className='phase-separator';
+        // Calculate duration of all consecutive non-split drills in this phase
+        // (from current position forward until phase changes or split encountered)
+        let pDur=0;
+        for(let k=gi; k<drills.length; k++){
+          const dk=drills[k];
+          if(dk.splitId || dk.type) break; // hit split or merge
+          if(dk.phase !== drill.phase) break;
+          pDur += parseInt(dk.duration)||0;
+        }
+        sep.innerHTML=`<div class="phase-dot" style="background:${pm.color}"></div><span class="phase-name">${pm.label}</span><span class="phase-dur">${pDur} Min</span>`;
+        card.appendChild(sep);
+      }
+    }
+
+    // ── category separator when cat changes within phase ──
+    if(drill.cat !== lastCat){
+      lastCat = drill.cat;
+      const cat = catMeta(drill.phase, drill.cat);
+      if(cat.label){
+        let cDur=0;
+        for(let k=gi; k<drills.length; k++){
+          const dk=drills[k];
+          if(dk.splitId || dk.type) break;
+          if(dk.phase !== drill.phase || dk.cat !== drill.cat) break;
+          cDur += parseInt(dk.duration)||0;
+        }
+        const cs=document.createElement('div'); cs.className='cat-separator';
+        cs.innerHTML=`<div class="cat-dot" style="background:${cat.color}"></div><span class="cat-name" style="color:${cat.color}">${cat.label}</span><span class="cat-dur">${cDur} Min</span>`;
+        card.appendChild(cs);
+      }
+    }
+
+    card.appendChild(makeRow(drill, gi, offset));
+    offset += parseInt(drill.duration)||0;
   });
+
   updateTopbar();
   // "Strang teilen"-Button vor Total-Bar
   if(drills.length){
@@ -2201,7 +2218,6 @@ function render(){
 function makeRow(drill,gi,offset){
   const row=document.createElement('div');row.className='drill-row';row.dataset.idx=gi;row.draggable=true;
   const tLabel=sessionMeta.time?addMinutes(sessionMeta.time,offset):'–:––';
-  const tEnd=sessionMeta.time?addMinutes(sessionMeta.time,offset+(parseInt(drill.duration)||0)):'';
   const cat=catMeta(drill.phase,drill.cat);
   const firstImg=drill.bilder&&drill.bilder.length?`<img class="drill-img-thumb" src="${drill.bilder[0]}" onerror="this.style.display='none'" alt="">`:'';
   const noteVal = drill.sessionNote || '';
@@ -2213,11 +2229,7 @@ function makeRow(drill,gi,offset){
       <div class="drill-sub" style="color:${cat.color}">${cat.label}${drill.augenmerk?' · '+drill.augenmerk:''}</div>
     </div>${firstImg}
     <div class="drill-players">👥 ${formatPlayersDisplay(drill.players)}</div>
-    <div class="drill-dur">
-      <div class="dur-num">${drill.duration||'–'}</div>
-      <div class="dur-lbl">MIN</div>
-      ${tEnd?`<div class="dur-time">${tLabel}–${tEnd}</div>`:''}
-    </div>
+    <div class="drill-dur"><div class="dur-num">${drill.duration||'–'}</div><div class="dur-lbl">MIN</div></div>
     <div class="row-actions">
       <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
       <button class="action-btn del" onclick="deleteDrill(${gi})">🗑</button>
@@ -3459,19 +3471,20 @@ function insertPendingDrill(drillObj){
   }
 }
 
+// ── render() Erweiterung: splitRenderSection ──
 function makeSplitRow(d, gi, tOffset){
   const row = document.createElement('div');
   row.className = 'split-row';
   const cat = catMeta(d.phase, d.cat);
   const tLabel = sessionMeta.time ? addMinutes(sessionMeta.time, tOffset) : '–:––';
-  const tEnd = sessionMeta.time ? addMinutes(sessionMeta.time, tOffset + (parseInt(d.duration)||0)) : '';
+  const tEnd   = sessionMeta.time ? addMinutes(sessionMeta.time, tOffset + (parseInt(d.duration)||0)) : '';
   const noteVal = d.sessionNote || '';
   row.innerHTML = `
     <div class="split-row-top">
       <div class="split-row-name" onclick="openDetail(${gi})">${d.name||'–'}</div>
       <div class="split-row-dur">
-        <div style="font-size:16px;font-weight:700;font-family:'DM Mono',monospace;line-height:1;">${d.duration||'–'}<span style="font-size:9px;font-weight:600;color:var(--xsoft);margin-left:2px;">MIN</span></div>
-        ${tEnd?`<div style="font-size:9.5px;color:var(--xsoft);font-family:'DM Mono',monospace;margin-top:2px;white-space:nowrap;">${tLabel}–${tEnd}</div>`:''}
+        <div style="font-size:16px;font-weight:700;line-height:1;">${d.duration||'–'}<span style="font-size:9px;font-weight:600;color:var(--xsoft);margin-left:2px;">MIN</span></div>
+        ${tEnd?`<div style="font-size:9.5px;color:var(--xsoft);margin-top:2px;white-space:nowrap;">${tLabel}–${tEnd}</div>`:''}
       </div>
       <div class="split-row-actions">
         <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
@@ -3493,68 +3506,62 @@ function renderSplitSection(card, splitMarker, offset){
     drills.map((d,gi)=>({d,gi})).filter(({d})=>d.splitId===id&&d.track===ti)
   );
 
-  // Header – track labels fill full width; controls sit absolutely on the right
+  // ── Control bar ABOVE the dashed box ──
+  const ctrlBar = document.createElement('div');
+  ctrlBar.className = 'split-ctrl-bar';
+  ctrlBar.innerHTML = `<span class="split-ctrl-label">⚡ Strang-Aufteilung</span>`;
+  const btnAdd = document.createElement('button'); btnAdd.className='split-ctrl-btn'; btnAdd.title='Strang hinzufügen'; btnAdd.textContent='＋ Strang'; btnAdd.onclick=()=>addTrack(id);
+  const btnRem = document.createElement('button'); btnRem.className='split-ctrl-btn'; btnRem.title='Letzten Strang entfernen'; btnRem.textContent='－ Strang'; btnRem.onclick=()=>removeTrack(id);
+  const btnDel = document.createElement('button'); btnDel.className='split-ctrl-btn danger'; btnDel.title='Aufteilung entfernen'; btnDel.textContent='🗑 Entfernen'; btnDel.onclick=()=>deleteSplit(id);
+  ctrlBar.appendChild(btnAdd); ctrlBar.appendChild(btnRem); ctrlBar.appendChild(btnDel);
+  card.appendChild(ctrlBar);
+
+  // ── Header: only track name inputs, full width each ──
   const hdr = document.createElement('div');
-  hdr.className='split-header';
+  hdr.className = 'split-header';
   hdr.innerHTML = labels.map((lbl,ti)=>`
     <div class="split-track-header">
       <input class="split-rename-input" value="${lbl}"
         oninput="renameSplitLabel('${id}',${ti},this.value)"
         title="Strang umbenennen">
     </div>`).join('');
-
-  // Controls – absolutely positioned so they don't shift track widths
-  const ctrl = document.createElement('div');
-  ctrl.className = 'split-ctrl';
-  const btnAdd = document.createElement('button');
-  btnAdd.title='Strang hinzufügen'; btnAdd.textContent='＋';
-  btnAdd.onclick=()=>addTrack(id);
-  const btnRem = document.createElement('button');
-  btnRem.title='Letzten Strang entfernen'; btnRem.textContent='－';
-  btnRem.onclick=()=>removeTrack(id);
-  const btnDel = document.createElement('button');
-  btnDel.title='Aufteilung entfernen'; btnDel.textContent='🗑'; btnDel.className='del-track';
-  btnDel.onclick=()=>deleteSplit(id);
-  ctrl.appendChild(btnAdd); ctrl.appendChild(btnRem); ctrl.appendChild(btnDel);
-  hdr.appendChild(ctrl);
   card.appendChild(hdr);
 
-  // Body – Tracks nebeneinander (same flex:1 structure as header → perfect alignment)
+  // ── Body: tracks side by side ──
   const body = document.createElement('div');
-  body.className='split-body';
+  body.className = 'split-body';
 
   let maxTrackDur = 0;
   labels.forEach((lbl,ti)=>{
     const col = document.createElement('div');
-    col.className='split-track';
+    col.className = 'split-track';
     let tOffset = offset;
     trackDrills[ti].forEach(({d,gi})=>{
-      col.appendChild(makeSplitRow(d,gi,tOffset));
+      col.appendChild(makeSplitRow(d, gi, tOffset));
       tOffset += parseInt(d.duration)||0;
     });
     maxTrackDur = Math.max(maxTrackDur, tOffset - offset);
     const addBtn = document.createElement('button');
-    addBtn.className='split-add-btn';
-    addBtn.textContent='+ Übung zu '+lbl;
-    addBtn.onclick=()=>addDrillToTrack(id,ti);
+    addBtn.className = 'split-add-btn';
+    addBtn.textContent = '+ Übung zu '+lbl;
+    addBtn.onclick = ()=>addDrillToTrack(id, ti);
     col.appendChild(addBtn);
     body.appendChild(col);
   });
   card.appendChild(body);
 
-  // Merge-Leiste (info only, no button inside)
-  const mergeIdx = drills.findIndex(d=>d.type==='merge'&&d.splitId===id);
+  // ── Merge footer ──
   const mergeRow = document.createElement('div');
-  mergeRow.className='split-merge-row';
-  mergeRow.innerHTML=`<span style="font-size:11px;color:var(--soft);">↕ Zusammenführen nach max. ${maxTrackDur} Min</span>`;
+  mergeRow.className = 'split-merge-row';
+  mergeRow.innerHTML = `<span style="font-size:11px;color:var(--soft);">↕ Zusammenführen nach max. ${maxTrackDur} Min</span>`;
   card.appendChild(mergeRow);
 
-  // "Übung nach Block" – eigenständiger Button wie "Strang hier aufteilen"
+  // ── "Übung nach Block" button – distinct from the global split button ──
+  const mergeIdx = drills.findIndex(d=>d.type==='merge'&&d.splitId===id);
   const afterBtn = document.createElement('button');
-  afterBtn.className='add-split-btn';
-  afterBtn.style.cssText='border-top:none;border-radius:0 0 8px 8px;margin-bottom:10px;';
-  afterBtn.innerHTML='⊕ Übung nach Block hinzufügen';
-  afterBtn.onclick=()=>{
+  afterBtn.className = 'add-after-btn';
+  afterBtn.innerHTML = '⊕ Übung nach Block hinzufügen';
+  afterBtn.onclick = ()=>{
     pendingInsert = {type:'after', afterIdx: mergeIdx};
     openDB();
     showToast('📋 Übung aus DB wählen oder neue erstellen','info');
