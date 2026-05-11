@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260508.1759 — Dashboard -->
+<!-- Handball Coaching Tools v1.260511.1100 — Dashboard -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -183,7 +183,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="dash-logo-icon">HB</div>
       <div>
         <div class="dash-logo-text">Handball Coaching</div>
-        <div class="dash-logo-sub">DHB-Standard · <span style="font-family:'DM Mono',monospace;letter-spacing:.02em;">v1.260508.1759</span></div>
+        <div class="dash-logo-sub">DHB-Standard</div>
       </div>
     </div>
     <div class="dash-user">
@@ -481,12 +481,26 @@ function showToast(msg, type='info'){
 }
 
 // ── INIT ──
-supa.auth.getSession().then(({ data:{ session } }) => {
+supa.auth.getSession().then(({ data:{ session }, error }) => {
+  if(error){ console.warn('[Auth] Session-Fehler:', error.message); return; }
   if(session) onAuthSuccess(session.user);
+}).catch(e => {
+  // Tritt auf wenn das Supabase-Projekt pausiert ist oder CORS-Probleme bestehen.
+  // Sicher ignorieren → Nutzer sieht Login-Screen.
+  console.warn('[Auth] Session konnte nicht geladen werden (Projekt pausiert oder kein Netz?):', e.message);
 });
+
 supa.auth.onAuthStateChange((event, session) => {
   if(event === 'SIGNED_IN' && session && !currentUser){
     onAuthSuccess(session.user);
+  }
+  if(event === 'TOKEN_REFRESH_FAILED'){
+    // Token abgelaufen und Refresh nicht möglich → sauber abmelden
+    console.warn('[Auth] Token-Refresh fehlgeschlagen — Sitzung wird beendet.');
+    currentUser = null;
+    supa.auth.signOut().catch(() => {});
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('auth-screen').style.display = '';
   }
 });
 </script>
