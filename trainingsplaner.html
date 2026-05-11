@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.2152 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260511.2204 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -799,7 +799,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.2152</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.2204</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1198,7 +1198,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <button type="button" class="pp-mode-btn" data-mode="positionen" onclick="setPlayerPickerMode('f-pp',this,'positionen')">Positionen</button>
           </div>
           <div class="pp-section visible" id="f-pp-einfach">
-            <input class="form-input" id="f-pp-e" placeholder="z.B. 8–16 oder beliebig">
+            <div class="pp-pos-block" style="margin-top:6px;">
+              <span class="pp-pos-lbl">👥 Gesamt</span>
+              <input type="number" class="pp-num" id="f-pp-e-min" min="0" max="99" placeholder="0">
+              <span class="pp-sep">–</span>
+              <input type="number" class="pp-num" id="f-pp-e-max" min="0" max="99" placeholder="0">
+            </div>
+            <div style="font-size:11px;color:var(--xsoft);margin-top:5px;padding-left:2px;">0 = beliebig (kein Minimum / Maximum)</div>
           </div>
           <div class="pp-section" id="f-pp-twfeld">
             <div class="pp-twfeld-grid">
@@ -1215,6 +1221,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RR (Rückraum R)</span><input type="number" class="pp-num" id="f-pp-p-RR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RR-max" min="0" max="4" placeholder="0"></div>
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RA (Rechtsaußen)</span><input type="number" class="pp-num" id="f-pp-p-RA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RA-max" min="0" max="4" placeholder="0"></div>
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ KR (Kreisläufer)</span><input type="number" class="pp-num" id="f-pp-p-KR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-KR-max" min="0" max="4" placeholder="0"></div>
+            </div>
+            <div style="font-size:11px;font-weight:600;color:var(--soft);margin:10px 0 6px;letter-spacing:.04em;text-transform:uppercase;">● Abwehr</div>
+            <div class="pp-pos-grid">
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● AL (Außen L)</span><input type="number" class="pp-num" id="f-pp-p-AL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-AL-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● HL (Halb L)</span><input type="number" class="pp-num" id="f-pp-p-HL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-HL-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● IL (Innen L)</span><input type="number" class="pp-num" id="f-pp-p-IL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-IL-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● IR (Innen R)</span><input type="number" class="pp-num" id="f-pp-p-IR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-IR-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● HR (Halb R)</span><input type="number" class="pp-num" id="f-pp-p-HR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-HR-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● AR (Außen R)</span><input type="number" class="pp-num" id="f-pp-p-AR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-AR-max" min="0" max="4" placeholder="0"></div>
             </div>
           </div>
         </div>
@@ -1316,7 +1331,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <button type="button" class="pp-mode-btn" data-mode="positionen" onclick="setPlayerPickerMode('db-f-pp',this,'positionen')">Positionen</button>
           </div>
           <div class="pp-section visible" id="db-f-pp-einfach">
-            <input class="form-input" id="db-f-pp-e" placeholder="z.B. 8–16 oder beliebig">
+            <div class="pp-pos-block" style="margin-top:6px;">
+              <span class="pp-pos-lbl">👥 Gesamt</span>
+              <input type="number" class="pp-num" id="db-f-pp-e-min" min="0" max="99" placeholder="0">
+              <span class="pp-sep">–</span>
+              <input type="number" class="pp-num" id="db-f-pp-e-max" min="0" max="99" placeholder="0">
+            </div>
+            <div style="font-size:11px;color:var(--xsoft);margin-top:5px;padding-left:2px;">0 = beliebig (kein Minimum / Maximum)</div>
           </div>
           <div class="pp-section" id="db-f-pp-twfeld">
             <div class="pp-twfeld-grid">
@@ -1333,6 +1354,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RR (Rückraum R)</span><input type="number" class="pp-num" id="db-f-pp-p-RR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RR-max" min="0" max="4" placeholder="0"></div>
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RA (Rechtsaußen)</span><input type="number" class="pp-num" id="db-f-pp-p-RA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RA-max" min="0" max="4" placeholder="0"></div>
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ KR (Kreisläufer)</span><input type="number" class="pp-num" id="db-f-pp-p-KR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-KR-max" min="0" max="4" placeholder="0"></div>
+            </div>
+            <div style="font-size:11px;font-weight:600;color:var(--soft);margin:10px 0 6px;letter-spacing:.04em;text-transform:uppercase;">● Abwehr</div>
+            <div class="pp-pos-grid">
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● AL (Außen L)</span><input type="number" class="pp-num" id="db-f-pp-p-AL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-AL-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● HL (Halb L)</span><input type="number" class="pp-num" id="db-f-pp-p-HL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-HL-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● IL (Innen L)</span><input type="number" class="pp-num" id="db-f-pp-p-IL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-IL-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● IR (Innen R)</span><input type="number" class="pp-num" id="db-f-pp-p-IR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-IR-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● HR (Halb R)</span><input type="number" class="pp-num" id="db-f-pp-p-HR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-HR-max" min="0" max="4" placeholder="0"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">● AR (Außen R)</span><input type="number" class="pp-num" id="db-f-pp-p-AR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-AR-max" min="0" max="4" placeholder="0"></div>
             </div>
           </div>
         </div>
@@ -1725,40 +1755,50 @@ async function loadKategorien(){
 // ══════════════════════════════════════════
 // PLAYER PICKER — Spieleranzahl nach Typ
 // ══════════════════════════════════════════
-const PP_POSITIONS=['TW','LA','RL','RM','RR','RA','KR'];
+const PP_POSITIONS    = ['TW','LA','RL','RM','RR','RA','KR'];
+const PP_POS_DEFENSE  = ['AL','HL','IL','IR','HR','AR'];
+const PP_POS_ALL      = [...PP_POSITIONS, ...PP_POS_DEFENSE];
 
 function parsePlayers(val){
-  if(!val) return {modus:'einfach',einfach:''};
+  if(!val) return {modus:'einfach',min:0,max:0};
   try{
     const o=JSON.parse(val);
     if(o&&o.modus) return o;
   }catch(e){}
-  return {modus:'einfach',einfach:val};
+  // Rückwärtskompatibilität: alter Freitext → versuche "8–16"-Pattern zu parsen
+  const m=(val||'').match(/^(\d+)\s*[-–]\s*(\d+)$/);
+  if(m) return {modus:'einfach',min:parseInt(m[1]),max:parseInt(m[2])};
+  if(/^\d+$/.test(val||'')) return {modus:'einfach',min:parseInt(val),max:parseInt(val)};
+  return {modus:'einfach',min:0,max:0};
 }
 
 function formatPlayersDisplay(val){
   const p=parsePlayers(val);
   if(p.modus==='einfach'){
-    const v=p.einfach||'';
-    return v||'–';
+    const min=p.min||0, max=p.max||0;
+    if(min===0&&max===0) return 'beliebig';
+    if(min===0) return 'max. '+max;
+    if(max===0) return 'min. '+min;
+    if(min===max) return String(min);
+    return min+'–'+max;
   }
   if(p.modus==='tw_feld'){
     const fmt=obj=>{
       if(!obj||obj.min===undefined) return '?';
+      if(obj.min===0&&obj.max===0) return 'bel.';
       return obj.min===obj.max?String(obj.min):`${obj.min}–${obj.max}`;
     };
-    const tw=fmt(p.tw);
-    const feld=fmt(p.feld);
-    return `🧤 ${tw} · 👥 ${feld}`;
+    return '🧤 '+fmt(p.tw)+' · 👥 '+fmt(p.feld);
   }
   if(p.modus==='positionen'){
     const pos=p.positionen||{};
-    const parts=PP_POSITIONS
+    const parts=PP_POS_ALL
       .filter(k=>pos[k]&&(pos[k].min>0||pos[k].max>0))
       .map(k=>{
         const v=pos[k];
         const n=v.min===v.max?String(v.min):`${v.min}–${v.max}`;
-        return (k==='TW'?'🧤':'▲')+k+' '+n;
+        const sym=k==='TW'?'🧤':PP_POS_DEFENSE.includes(k)?'●':'▲';
+        return sym+k+'\u202f'+n;
       });
     return parts.length?parts.join(' · '):'–';
   }
@@ -1794,14 +1834,15 @@ function initPlayerPicker(pickerId,val){
   const ge=id=>{const el=document.getElementById(id);return el;};
   const sv=(id,v)=>{const el=ge(id);if(el) el.value=v!==undefined&&v!==null?v:'';};
   if(p.modus==='einfach'){
-    sv(pickerId+'-e',p.einfach||'');
+    sv(pickerId+'-e-min', p.min!==undefined ? p.min : '');
+    sv(pickerId+'-e-max', p.max!==undefined ? p.max : '');
   } else if(p.modus==='tw_feld'){
     sv(pickerId+'-tw-min',p.tw?.min??'');
     sv(pickerId+'-tw-max',p.tw?.max??'');
     sv(pickerId+'-f-min',p.feld?.min??'');
     sv(pickerId+'-f-max',p.feld?.max??'');
   } else if(p.modus==='positionen'){
-    PP_POSITIONS.forEach(pos=>{
+    PP_POS_ALL.forEach(pos=>{
       const obj=p.positionen?.[pos]||{};
       sv(pickerId+'-p-'+pos+'-min',obj.min??'');
       sv(pickerId+'-p-'+pos+'-max',obj.max??'');
@@ -1817,8 +1858,7 @@ function getPlayerPickerValue(pickerId){
   const modus=activeBtn?activeBtn.dataset.mode:'einfach';
   const gn=id=>{const el=document.getElementById(id);return el?parseInt(el.value)||0:0;};
   if(modus==='einfach'){
-    const el=document.getElementById(pickerId+'-e');
-    return el?el.value.trim():'';
+    return JSON.stringify({modus:'einfach',min:gn(pickerId+'-e-min'),max:gn(pickerId+'-e-max')});
   }
   if(modus==='tw_feld'){
     return JSON.stringify({modus:'tw_feld',
@@ -1828,7 +1868,7 @@ function getPlayerPickerValue(pickerId){
   }
   if(modus==='positionen'){
     const pos={};
-    PP_POSITIONS.forEach(p=>{
+    PP_POS_ALL.forEach(p=>{
       pos[p]={min:gn(pickerId+'-p-'+p+'-min'),max:gn(pickerId+'-p-'+p+'-max')};
     });
     return JSON.stringify({modus:'positionen',positionen:pos});
@@ -2246,7 +2286,7 @@ function makeRow(drill,gi,offset){
     <div class="drill-players">👥 ${formatPlayersDisplay(drill.players)}</div>
     <div class="drill-dur"><div class="dur-num">${drill.duration||'–'}</div><div class="dur-lbl">MIN</div></div>
     <div class="row-actions">
-      <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
+      <button class="action-btn edit" title="Bearbeiten" onclick="openAddModal(${gi})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
       <button class="action-btn del" onclick="deleteDrill(${gi})">🗑</button>
     </div>
     <div style="grid-column:1/-1;padding:0;">
@@ -2380,13 +2420,6 @@ async function saveDrill(){
   const nameEl=document.getElementById('f-name');
   if(!nameEl.value.trim()){nameEl.classList.add('form-error');nameEl.focus();return;}
   nameEl.classList.remove('form-error');
-  const sn=document.getElementById('f-sname').value.trim();
-  if(sn){sessionMeta.name=sn;document.getElementById('s-title').innerText=sn;}
-  sessionMeta.group=document.getElementById('f-sgroup').value.trim()||sessionMeta.group;
-  sessionMeta.date=document.getElementById('f-date').value||sessionMeta.date;
-  sessionMeta.time=document.getElementById('f-time').value||sessionMeta.time;
-  sessionMeta.ort=document.getElementById('f-ort').value.trim()||sessionMeta.ort;
-  sessionMeta.focus=document.getElementById('f-sfocus').value.trim()||sessionMeta.focus;
 
   const drillName=nameEl.value.trim();
   const resolvedImages=[];
@@ -3572,7 +3605,7 @@ function makeSplitRow(d, gi, tOffset){
       <div class="split-row-name" onclick="openDetail(${gi})">${d.name||'–'}</div>
       <div class="split-row-dur">${d.duration||'–'}<span style="font-size:9px;font-weight:600;color:var(--xsoft);margin-left:2px;">MIN</span></div>
       <div class="split-row-actions">
-        <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
+        <button class="action-btn edit" title="Bearbeiten" onclick="openAddModal(${gi})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
         <button class="action-btn del" onclick="deleteDrill(${gi})">🗑</button>
       </div>
     </div>
