@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.1100 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260511.1200 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -46,16 +46,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sidebar-item:hover{background:var(--sidebar-hover);color:rgba(255,255,255,.8);}
 .sidebar-item.active{background:rgba(0,87,255,.18);color:white;font-weight:500;}
 /* ── MY TEAM WIDGET ── */
-.my-team-widget{margin:12px 10px 4px;background:rgba(0,87,255,.12);border:1px solid rgba(0,87,255,.22);border-radius:10px;padding:10px 12px;transition:background .15s;}
-.mt-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
-.mt-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);}
-.mt-cfg{font-size:11px;color:rgba(255,255,255,.3);transition:color .15s;text-decoration:none;}
+.my-team-widget{margin:10px 10px 4px;background:rgba(0,87,255,.1);border:1px solid rgba(0,87,255,.2);border-radius:10px;padding:10px 12px;transition:background .15s;}
+.mt-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.mt-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);}
+.mt-cfg{font-size:11px;color:rgba(255,255,255,.28);transition:color .15s;text-decoration:none;}
 .mt-cfg:hover{color:rgba(255,255,255,.7);}
-.mt-name{font-size:13px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mt-name.empty{color:rgba(255,255,255,.3);font-weight:400;font-style:italic;}
-.mt-switch-btn{padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:rgba(255,255,255,.5);cursor:pointer;transition:all .15s;white-space:nowrap;}
-.mt-switch-btn:hover{background:rgba(255,255,255,.15);color:white;}
-.mt-switch-btn.active{background:rgba(0,87,255,.4);border-color:rgba(0,87,255,.6);color:white;}
+/* Aktives Team */
+.mt-active-row{display:flex;align-items:center;gap:9px;}
+.mt-active-dot{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:white;flex-shrink:0;}
+.mt-active-name{font-size:16px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
+.mt-name.empty{font-size:13px;color:rgba(255,255,255,.3);font-weight:400;font-style:italic;}
+/* Trennlinie + andere Teams */
+.mt-divider{height:1px;background:rgba(255,255,255,.08);margin:8px 0 4px;}
+.mt-active-sub{font-size:11px;color:rgba(255,255,255,.32);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Chip-Stil für andere Teams (wie Index-Seite) */
+.mt-switch-label{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.22);margin-bottom:5px;padding:0 1px;}
+.mt-chips{display:flex;flex-wrap:wrap;gap:4px;}
+.mt-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 6px;border-radius:20px;font-size:11px;font-weight:500;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);color:rgba(255,255,255,.5);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap;line-height:1.65;}
+.mt-chip:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.92);}
+.mt-chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 /* ── MAIN ── */
 .main{margin-left:220px;flex:1;min-height:100vh;display:flex;flex-direction:column;min-width:0;overflow-x:hidden;transition:margin-left .25s ease;}
 #app-wrapper.sidebar-collapsed .main{margin-left:0;}
@@ -770,8 +779,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="mt-label">Mein Team</div>
       <a class="mt-cfg" href="mannschaftsverwaltung.html" title="Mannschaft verwalten">⚙</a>
     </div>
-    <div class="mt-name empty" id="mt-name">Wird geladen…</div>
-    <div id="mt-switcher" style="display:none;margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;"></div>
+    <div id="mt-active-area">
+      <div class="mt-name empty">Wird geladen…</div>
+    </div>
+    <div id="mt-switcher" style="display:none;"></div>
   </div>
 
   <div class="sidebar-section">
@@ -799,7 +810,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1100</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1200</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1642,17 +1653,31 @@ async function onAuthSuccess(user){
   const nameParam  = urlParams.get('name');
 
   if(einheitId){
+    // Einheit aus DB laden → zeigt Planungsansicht
+    await loadEinheit(einheitId).catch(()=>{});
     expandSidebar();
-    await loadEinheit(einheitId);
+    showView('planer');   // explizit setzen, unabhängig vom Erfolg von loadEinheit
+    render();
     history.replaceState(null,'',window.location.pathname);
   } else if(dateParam){
-    expandSidebar();
+    // iCal-Termin oder neues Datum vorbelegen → zeigt Planungsansicht
     newEinheit(dateParam);
-    if(groupParam){ sessionMeta.group=groupParam; }
+    if(groupParam){
+      sessionMeta.group=groupParam;
+      document.getElementById('s-group').textContent='Gruppe: '+groupParam;
+    }
     if(timeParam){  sessionMeta.time=timeParam; }
     if(nameParam){  sessionMeta.name=nameParam; document.getElementById('s-title').innerText=nameParam; }
+    // Aktives Team auf Mannschaft des Kalender-Events setzen
+    if(groupParam && groupParam !== (localStorage.getItem('hbs_my_team')||'').trim()){
+      localStorage.setItem('hbs_my_team', groupParam);
+      initMyTeamWidget();
+    }
     render();
+    expandSidebar();
+    showView('planer');   // explizit setzen
     if(groupParam||timeParam) showToast('📋 Datum & Team vorbelegt – jetzt Übungen hinzufügen','info');
+    else showToast('📋 Datum vorbelegt – Team und Übungen hinzufügen','info');
     history.replaceState(null,'',window.location.pathname);
   } else {
     // Standard: Home-Ansicht zeigen
@@ -4137,23 +4162,7 @@ async function loadHomeData(){
       .order('date',{ascending:true}).limit(1).maybeSingle();
     activeNext=ad||null;
   }
-  // iCal-Fallback: kein Supabase-Eintrag vorhanden → nächsten iCal-Termin des aktiven Teams suchen
-  if(!activeNext && activeName){
-    const todayDate=new Date(todayStr+'T00:00:00');
-    const nextIcal=icalEvents
-      .filter(ev=>ev.mannschaftName===activeName && ev.typ==='training' && ev.dtstart>=todayDate)
-      .sort((a,b)=>a.dtstart-b.dtstart)[0]||null;
-    if(nextIcal){
-      activeNext={
-        isIcal:true,
-        name:nextIcal.summary,
-        date:icalDateStr(nextIcal.dtstart),
-        time:String(nextIcal.dtstart.getHours()).padStart(2,'0')+':'+String(nextIcal.dtstart.getMinutes()).padStart(2,'0'),
-        group_name:nextIcal.mannschaftName,
-      };
-    }
-  }
-  console.log('[HomeData] activeNext:', activeNext?.name, activeNext?.group_name, activeNext?.isIcal?'(iCal)':'');
+  console.log('[HomeData] activeNext:', activeNext?.name, activeNext?.group_name);
 
   homeNextEinheit=activeNext||null;
 
@@ -4217,23 +4226,7 @@ async function loadHomeData(){
           .order('updated_at',{ascending:false}).limit(1).maybeSingle();
         if(ld) otherNext=ld;
       }
-      // iCal-Fallback: kein Supabase-Eintrag → nächsten iCal-Termin dieser Mannschaft suchen
-      if(!otherNext){
-        const todayDate=new Date(todayStr+'T00:00:00');
-        const nextIcal=icalEvents
-          .filter(ev=>ev.mannschaftName===firstOther.name && ev.typ==='training' && ev.dtstart>=todayDate)
-          .sort((a,b)=>a.dtstart-b.dtstart)[0]||null;
-        if(nextIcal){
-          otherNext={
-            isIcal:true,
-            name:nextIcal.summary,
-            date:icalDateStr(nextIcal.dtstart),
-            time:String(nextIcal.dtstart.getHours()).padStart(2,'0')+':'+String(nextIcal.dtstart.getMinutes()).padStart(2,'0'),
-            group_name:nextIcal.mannschaftName,
-          };
-        }
-      }
-      console.log('[HomeData] otherNext:', otherNext?.name, '| team:', firstOther.name, otherNext?.isIcal?'(iCal)':'');
+      console.log('[HomeData] otherNext:', otherNext?.name, '| team:', firstOther.name);
       homeOtherTeamEinheit=otherNext||null;
 
       if(otherTitle) otherTitle.textContent=otherTeams.length===1
@@ -4263,16 +4256,6 @@ async function openLastEinheit(){
 async function openNextEinheit(){
   if(homeNextEinheit){
     expandSidebar();
-    if(homeNextEinheit.isIcal){
-      // iCal-Event: neue Einheit mit vorausgefüllten Daten anlegen
-      newEinheit(homeNextEinheit.date);
-      sessionMeta.group=homeNextEinheit.group_name||'';
-      sessionMeta.time=homeNextEinheit.time||'';
-      sessionMeta.name=homeNextEinheit.name||'Training';
-      render();
-      showToast('📋 iCal-Termin vorbelegt – Übungen hinzufügen','info');
-      return;
-    }
     await loadEinheit(homeNextEinheit.id);
     return;
   }
@@ -4311,16 +4294,6 @@ async function openOtherTeamEinheit(){
     showToast(`✅ Mannschaft gewechselt: ${teamName}`,'success');
   }
   expandSidebar();
-  if(homeOtherTeamEinheit.isIcal){
-    // iCal-Event: neue Einheit mit vorausgefüllten Daten anlegen
-    newEinheit(homeOtherTeamEinheit.date);
-    sessionMeta.group=homeOtherTeamEinheit.group_name||'';
-    sessionMeta.time=homeOtherTeamEinheit.time||'';
-    sessionMeta.name=homeOtherTeamEinheit.name||'Training';
-    render();
-    showToast('📋 iCal-Termin vorbelegt – Übungen hinzufügen','info');
-    return;
-  }
   await loadEinheit(homeOtherTeamEinheit.id);
 }
 
@@ -4335,22 +4308,42 @@ function toggleSidebar(){
   localStorage.setItem('sidebar_collapsed',collapsed?'1':'0');
 }
 function initMyTeamWidget(){
-  const name=localStorage.getItem('hbs_my_team')||'';
-  const el=document.getElementById('mt-name');
-  if(!el) return;
-  if(name){el.textContent=name;el.classList.remove('empty');}
-  else{el.textContent='Kein Team gewählt';el.classList.add('empty');}
-
-  // Switcher-Buttons (nur wenn > 1 Mannschaft vorhanden)
+  const name=(localStorage.getItem('hbs_my_team')||'').trim();
+  const area=document.getElementById('mt-active-area');
   const sw=document.getElementById('mt-switcher');
+  if(!area) return;
+
+  // Aktives Team → groß darstellen
+  const activeTeam=allMannschaften.find(m=>(m.name||'').trim()===name);
+  const color=activeTeam?.farbe_geplant||'#0057ff';
+  const initial=(name||'T')[0].toUpperCase();
+  if(name){
+    const verein=activeTeam?.verein||'';
+    area.innerHTML=`<div class="mt-active-row">
+      <div class="mt-active-dot" style="background:${color};">${initial}</div>
+      <div style="min-width:0;flex:1;">
+        <div class="mt-active-name">${name}</div>
+        ${verein?`<div class="mt-active-sub">${verein}</div>`:''}
+      </div>
+    </div>`;
+  } else {
+    area.innerHTML='<div class="mt-name empty">Kein Team gewählt</div>';
+  }
+
+  // Andere Teams → Chips zum Wechseln (wie Index-Seite)
   if(!sw) return;
-  if(allMannschaften.length>1){
-    sw.style.display='flex';
-    sw.innerHTML=allMannschaften.map(m=>{
-      const safeName=(m.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-      const active=(m.name||'')===(name||'')?' active':'';
-      return `<button class="mt-switch-btn${active}" data-name="${safeName}" onclick="switchActiveTeam(this.dataset.name)">${m.name||''}</button>`;
-    }).join('');
+  const others=allMannschaften.filter(m=>(m.name||'').trim()!==name);
+  if(others.length>0){
+    sw.style.display='block';
+    sw.innerHTML=`<div class="mt-divider"></div>
+      <div class="mt-switch-label">Wechseln zu</div>
+      <div class="mt-chips">${others.map(m=>{
+        const c=m.farbe_geplant||'#94a3b8';
+        const safe=(m.name||'').replace(/'/g,"&#39;");
+        return `<button class="mt-chip" onclick="switchActiveTeam('${safe}')">
+          <span class="mt-chip-dot" style="background:${c};"></span>${m.name||''}
+        </button>`;
+      }).join('')}</div>`;
   } else {
     sw.style.display='none';
   }
