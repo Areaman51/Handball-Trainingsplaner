@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.1200 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260511.2152 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -799,7 +799,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1200</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.2152</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1514,6 +1514,40 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
   </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════
+     BILD-RESIZE BESTÄTIGUNGS-MODAL
+════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="img-resize-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">🖼 Bild zu groß</div>
+        <div class="modal-subtitle" id="img-resize-filename" style="font-size:12px;color:var(--soft);margin-top:2px;"></div>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:20px 26px;">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12.5px;color:var(--soft);">Aktuelle Größe</span>
+          <span id="img-resize-current-size" style="font-size:13px;font-weight:600;color:#ef4444;"></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:12.5px;color:var(--soft);">Nach Verkleinerung (ca.)</span>
+          <span id="img-resize-est-size" style="font-size:13px;font-weight:600;color:#10b981;"></span>
+        </div>
+      </div>
+      <div style="font-size:12.5px;color:var(--soft);line-height:1.6;">
+        Das Bild wird auf <strong style="color:var(--text);">max. 1200 px Breite</strong> skaliert und als <strong style="color:var(--text);">JPEG mit 80 % Qualität</strong> gespeichert. Das Original bleibt unverändert auf deinem Gerät.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="_imgResizeDecision('cancel')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="_imgResizeDecision('resize')">Verkleinern &amp; verwenden</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPA_URL = 'https://dlofjsmnkwltuutpxoer.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
@@ -3049,34 +3083,107 @@ async function sendInvite(){
 }
 
 // ══════════════════════════════════════════
-// BILD-UPLOAD
+// BILD-UPLOAD  (mit Größenprüfung + Resize)
 // ══════════════════════════════════════════
+const IMG_MAX_BYTES  = 500 * 1024;                              // 500 KB Hard Limit
+const IMG_ALLOWED    = ['image/jpeg','image/png','image/webp']; // erlaubte Formate
+const IMG_RESIZE_W   = 1200;                                    // max. Breite nach Resize
+const IMG_RESIZE_Q   = 0.80;                                    // JPEG-Qualität
+
 function getImgArr(p){return p==='f'?fImages:dbfImages;}
 function setImgArr(p,a){if(p==='f') fImages=a; else dbfImages=a;}
+
+// ── Promise-basiertes Resize-Modal ──────────────────────
+let _imgResolveFn = null;
+function _imgResizeDecision(choice){
+  document.getElementById('img-resize-modal').classList.remove('open');
+  if(_imgResolveFn){ _imgResolveFn(choice); _imgResolveFn=null; }
+}
+function _showResizeModal(file){
+  return new Promise(resolve=>{
+    _imgResolveFn = resolve;
+    const kb = (file.size/1024).toFixed(0);
+    // Schätzung: JPEG 80% ist typischerweise 25–40% der PNG-Größe, ca. 60% einer JPEG-Quelle
+    const estKb = Math.round(file.size * 0.30 / 1024);
+    document.getElementById('img-resize-filename').textContent = file.name;
+    document.getElementById('img-resize-current-size').textContent = kb+' KB';
+    document.getElementById('img-resize-est-size').textContent = '~'+estKb+' – '+(estKb*2)+' KB';
+    document.getElementById('img-resize-modal').classList.add('open');
+  });
+}
+
+// ── Canvas-Resize ────────────────────────────────────────
+function _resizeFile(file){
+  return new Promise(resolve=>{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      URL.revokeObjectURL(url);
+      let w=img.naturalWidth, h=img.naturalHeight;
+      if(w>IMG_RESIZE_W){ h=Math.round(h*IMG_RESIZE_W/w); w=IMG_RESIZE_W; }
+      const canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      canvas.toBlob(blob=>{
+        const name = file.name.replace(/\.[^.]+$/,'.jpg');
+        resolve(new File([blob],name,{type:'image/jpeg'}));
+      },'image/jpeg',IMG_RESIZE_Q);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(file); }; // Fallback
+    img.src = url;
+  });
+}
+
+// ── Kernfunktion: Dateien validieren, ggf. verkleinern ──
+async function _processImageFiles(files, prefix){
+  const arr = getImgArr(prefix);
+  for(const file of files){
+    // Formatprüfung
+    if(!IMG_ALLOWED.includes(file.type)){
+      showToast(`❌ "${file.name}" – nur JPEG, PNG oder WebP erlaubt`,'info');
+      continue;
+    }
+    let ready = file;
+    // Größenprüfung
+    if(file.size > IMG_MAX_BYTES){
+      const choice = await _showResizeModal(file);
+      if(choice === 'cancel') continue;           // Nutzer hat abgelehnt
+      ready = await _resizeFile(file);
+      showToast(`✅ Verkleinert: ${(ready.size/1024).toFixed(0)} KB`,'info');
+    }
+    arr.push({filename:ready.name, objectUrl:URL.createObjectURL(ready), _file:ready});
+  }
+  setImgArr(prefix,arr);
+  renderFormGallery(prefix+'-img-gallery',arr,prefix);
+}
+
+// ── Öffentliche Handler ───────────────────────────────────
 function handleImgUpload(event,prefix){
-  const arr=getImgArr(prefix);
-  Array.from(event.target.files).forEach(file=>{arr.push({filename:file.name,objectUrl:URL.createObjectURL(file),_file:file});});
-  setImgArr(prefix,arr);renderFormGallery(prefix+'-img-gallery',arr,prefix);
-  event.target.value='';
-  showToast('📎 Bild bereit – wird beim Speichern hochgeladen','info');
+  const files = Array.from(event.target.files);
+  event.target.value = '';
+  if(!files.length) return;
+  _processImageFiles(files,prefix).then(()=>{
+    if(getImgArr(prefix).length) showToast('📎 Bild bereit – wird beim Speichern hochgeladen','info');
+  });
 }
 function handleImgDrop(event,prefix){
-  event.preventDefault();event.currentTarget.classList.remove('drag-active');
-  const arr=getImgArr(prefix);
-  Array.from(event.dataTransfer.files).filter(f=>f.type.startsWith('image/')).forEach(file=>{arr.push({filename:file.name,objectUrl:URL.createObjectURL(file),_file:file});});
-  setImgArr(prefix,arr);renderFormGallery(prefix+'-img-gallery',arr,prefix);
+  event.preventDefault(); event.currentTarget.classList.remove('drag-active');
+  const files = Array.from(event.dataTransfer.files).filter(f=>f.type.startsWith('image/'));
+  if(!files.length) return;
+  _processImageFiles(files,prefix);
 }
+
 function renderFormGallery(galleryId,imgs,prefix){
-  const g=document.getElementById(galleryId);g.innerHTML='';
+  const g=document.getElementById(galleryId); g.innerHTML='';
   imgs.forEach((img,i)=>{
     const src=img.objectUrl||img;
-    const th=document.createElement('div');th.className='img-thumb';
+    const th=document.createElement('div'); th.className='img-thumb';
     th.innerHTML=`<img src="${src}" alt="Bild ${i+1}"><button class="img-thumb-del" onclick="removeImg('${prefix}',${i})">✕</button>`;
     g.appendChild(th);
   });
 }
 function removeImg(prefix,idx){
-  const arr=getImgArr(prefix);arr.splice(idx,1);setImgArr(prefix,arr);
+  const arr=getImgArr(prefix); arr.splice(idx,1); setImgArr(prefix,arr);
   renderFormGallery(prefix+'-img-gallery',arr,prefix);
 }
 
