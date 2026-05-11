@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.1200 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260511.1230 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -46,25 +46,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sidebar-item:hover{background:var(--sidebar-hover);color:rgba(255,255,255,.8);}
 .sidebar-item.active{background:rgba(0,87,255,.18);color:white;font-weight:500;}
 /* ── MY TEAM WIDGET ── */
-.my-team-widget{margin:10px 10px 4px;background:rgba(0,87,255,.1);border:1px solid rgba(0,87,255,.2);border-radius:10px;padding:10px 12px;transition:background .15s;}
-.mt-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
-.mt-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);}
-.mt-cfg{font-size:11px;color:rgba(255,255,255,.28);transition:color .15s;text-decoration:none;}
+.my-team-widget{margin:12px 10px 4px;background:rgba(0,87,255,.12);border:1px solid rgba(0,87,255,.22);border-radius:10px;padding:10px 12px;transition:background .15s;}
+.mt-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.mt-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);}
+.mt-cfg{font-size:11px;color:rgba(255,255,255,.3);transition:color .15s;text-decoration:none;}
 .mt-cfg:hover{color:rgba(255,255,255,.7);}
-/* Aktives Team */
-.mt-active-row{display:flex;align-items:center;gap:9px;}
-.mt-active-dot{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:white;flex-shrink:0;}
-.mt-active-name{font-size:16px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
-.mt-name.empty{font-size:13px;color:rgba(255,255,255,.3);font-weight:400;font-style:italic;}
-/* Trennlinie + andere Teams */
-.mt-divider{height:1px;background:rgba(255,255,255,.08);margin:8px 0 4px;}
-.mt-active-sub{font-size:11px;color:rgba(255,255,255,.32);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-/* Chip-Stil für andere Teams (wie Index-Seite) */
-.mt-switch-label{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.22);margin-bottom:5px;padding:0 1px;}
-.mt-chips{display:flex;flex-wrap:wrap;gap:4px;}
-.mt-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 6px;border-radius:20px;font-size:11px;font-weight:500;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);color:rgba(255,255,255,.5);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap;line-height:1.65;}
-.mt-chip:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.92);}
-.mt-chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.mt-name{font-size:13px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mt-name.empty{color:rgba(255,255,255,.3);font-weight:400;font-style:italic;}
+.mt-switch-btn{padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:rgba(255,255,255,.5);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.mt-switch-btn:hover{background:rgba(255,255,255,.15);color:white;}
+.mt-switch-btn.active{background:rgba(0,87,255,.4);border-color:rgba(0,87,255,.6);color:white;}
 /* ── MAIN ── */
 .main{margin-left:220px;flex:1;min-height:100vh;display:flex;flex-direction:column;min-width:0;overflow-x:hidden;transition:margin-left .25s ease;}
 #app-wrapper.sidebar-collapsed .main{margin-left:0;}
@@ -439,6 +430,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .pp-num{width:38px;padding:4px 5px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;text-align:center;font-family:'DM Mono',monospace;background:white;outline:none;transition:border-color .15s;}
 .pp-num:focus{border-color:var(--accent);}
 .pp-sep{font-size:11px;color:var(--xsoft);flex-shrink:0;}
+.pp-einfach-grid{display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;background:#f9fafb;}
+.pp-einfach-hint{font-size:11px;color:var(--xsoft);margin-top:4px;padding-left:2px;}
+.pp-toggle-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.pp-toggle-btn{padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;background:white;font-size:12.5px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--soft);cursor:pointer;transition:all .15s;text-align:center;}
+.pp-toggle-btn:hover{border-color:#93c5fd;color:var(--accent);background:#f0f6ff;}
+.pp-toggle-btn.active{background:var(--accent);border-color:var(--accent);color:white;}
 @media(max-width:600px){
   .pp-twfeld-grid{grid-template-columns:1fr;}
   .pp-pos-grid{grid-template-columns:1fr;}
@@ -779,10 +776,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="mt-label">Mein Team</div>
       <a class="mt-cfg" href="mannschaftsverwaltung.html" title="Mannschaft verwalten">⚙</a>
     </div>
-    <div id="mt-active-area">
-      <div class="mt-name empty">Wird geladen…</div>
-    </div>
-    <div id="mt-switcher" style="display:none;"></div>
+    <div class="mt-name empty" id="mt-name">Wird geladen…</div>
+    <div id="mt-switcher" style="display:none;margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;"></div>
   </div>
 
   <div class="sidebar-section">
@@ -810,7 +805,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1200</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1230</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1209,13 +1204,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <button type="button" class="pp-mode-btn" data-mode="positionen" onclick="setPlayerPickerMode('f-pp',this,'positionen')">Positionen</button>
           </div>
           <div class="pp-section visible" id="f-pp-einfach">
-            <input class="form-input" id="f-pp-e" placeholder="z.B. 8–16 oder beliebig">
+            <div class="pp-einfach-grid">
+              <span class="pp-pos-lbl">👥 Gesamt</span>
+              <input type="number" class="pp-num" id="f-pp-e-min" min="1" max="30" placeholder="mind.">
+              <span class="pp-sep">–</span>
+              <input type="number" class="pp-num" id="f-pp-e-max" min="1" max="30" placeholder="max.">
+            </div>
+            <div class="pp-einfach-hint">Leer lassen = beliebig</div>
           </div>
           <div class="pp-section" id="f-pp-twfeld">
             <div class="pp-twfeld-grid">
-              <div class="pp-pos-block"><span class="pp-pos-lbl">🧤 Torhüter</span><input type="number" class="pp-num" id="f-pp-tw-min" min="0" max="4" placeholder="1"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-tw-max" min="0" max="4" placeholder="2"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">👥 Feldspieler</span><input type="number" class="pp-num" id="f-pp-f-min" min="0" max="20" placeholder="6"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-f-max" min="0" max="20" placeholder="14"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">🧤 Torhüter</span><input type="number" class="pp-num" id="f-pp-tw-min" min="0" max="4" placeholder="mind."><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-tw-max" min="0" max="4" placeholder="max."></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">👥 Feldspieler</span><input type="number" class="pp-num" id="f-pp-f-min" min="0" max="20" placeholder="mind."><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-f-max" min="0" max="20" placeholder="max."></div>
             </div>
+            <div class="pp-einfach-hint">Leer lassen = beliebig</div>
           </div>
           <div class="pp-section" id="f-pp-positionen">
             <div class="pp-pos-grid">
@@ -1327,13 +1329,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <button type="button" class="pp-mode-btn" data-mode="positionen" onclick="setPlayerPickerMode('db-f-pp',this,'positionen')">Positionen</button>
           </div>
           <div class="pp-section visible" id="db-f-pp-einfach">
-            <input class="form-input" id="db-f-pp-e" placeholder="z.B. 8–16 oder beliebig">
+            <div class="pp-einfach-grid">
+              <span class="pp-pos-lbl">👥 Gesamt</span>
+              <input type="number" class="pp-num" id="db-f-pp-e-min" min="1" max="30" placeholder="mind.">
+              <span class="pp-sep">–</span>
+              <input type="number" class="pp-num" id="db-f-pp-e-max" min="1" max="30" placeholder="max.">
+            </div>
+            <div class="pp-einfach-hint">Leer lassen = beliebig</div>
           </div>
           <div class="pp-section" id="db-f-pp-twfeld">
             <div class="pp-twfeld-grid">
-              <div class="pp-pos-block"><span class="pp-pos-lbl">🧤 Torhüter</span><input type="number" class="pp-num" id="db-f-pp-tw-min" min="0" max="4" placeholder="1"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-tw-max" min="0" max="4" placeholder="2"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">👥 Feldspieler</span><input type="number" class="pp-num" id="db-f-pp-f-min" min="0" max="20" placeholder="6"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-f-max" min="0" max="20" placeholder="14"></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">🧤 Torhüter</span><input type="number" class="pp-num" id="db-f-pp-tw-min" min="0" max="4" placeholder="mind."><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-tw-max" min="0" max="4" placeholder="max."></div>
+              <div class="pp-pos-block"><span class="pp-pos-lbl">👥 Feldspieler</span><input type="number" class="pp-num" id="db-f-pp-f-min" min="0" max="20" placeholder="mind."><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-f-max" min="0" max="20" placeholder="max."></div>
             </div>
+            <div class="pp-einfach-hint">Leer lassen = beliebig</div>
           </div>
           <div class="pp-section" id="db-f-pp-positionen">
             <div class="pp-pos-grid">
@@ -1653,31 +1662,17 @@ async function onAuthSuccess(user){
   const nameParam  = urlParams.get('name');
 
   if(einheitId){
-    // Einheit aus DB laden → zeigt Planungsansicht
-    await loadEinheit(einheitId).catch(()=>{});
     expandSidebar();
-    showView('planer');   // explizit setzen, unabhängig vom Erfolg von loadEinheit
-    render();
+    await loadEinheit(einheitId);
     history.replaceState(null,'',window.location.pathname);
   } else if(dateParam){
-    // iCal-Termin oder neues Datum vorbelegen → zeigt Planungsansicht
+    expandSidebar();
     newEinheit(dateParam);
-    if(groupParam){
-      sessionMeta.group=groupParam;
-      document.getElementById('s-group').textContent='Gruppe: '+groupParam;
-    }
+    if(groupParam){ sessionMeta.group=groupParam; }
     if(timeParam){  sessionMeta.time=timeParam; }
     if(nameParam){  sessionMeta.name=nameParam; document.getElementById('s-title').innerText=nameParam; }
-    // Aktives Team auf Mannschaft des Kalender-Events setzen
-    if(groupParam && groupParam !== (localStorage.getItem('hbs_my_team')||'').trim()){
-      localStorage.setItem('hbs_my_team', groupParam);
-      initMyTeamWidget();
-    }
     render();
-    expandSidebar();
-    showView('planer');   // explizit setzen
     if(groupParam||timeParam) showToast('📋 Datum & Team vorbelegt – jetzt Übungen hinzufügen','info');
-    else showToast('📋 Datum vorbelegt – Team und Übungen hinzufügen','info');
     history.replaceState(null,'',window.location.pathname);
   } else {
     // Standard: Home-Ansicht zeigen
@@ -1719,28 +1714,44 @@ async function loadKategorien(){
 const PP_POSITIONS=['TW','LA','RL','RM','RR','RA','KR'];
 
 function parsePlayers(val){
-  if(!val) return {modus:'einfach',einfach:''};
+  if(!val) return {modus:'einfach',min:null,max:null};
   try{
     const o=JSON.parse(val);
-    if(o&&o.modus) return o;
+    if(o&&o.modus){
+      // Altes einfach-Format (string) normalisieren
+      if(o.modus==='einfach'&&o.einfach!==undefined){
+        return {modus:'einfach',min:null,max:null};
+      }
+      // Altes tw_feld-Format (hatte Boolean tw/feld) → zurück in min/max
+      if(o.modus==='tw_feld'&&typeof o.tw==='boolean'){
+        return {modus:'tw_feld',tw:{min:null,max:null},feld:{min:null,max:null}};
+      }
+      return o;
+    }
   }catch(e){}
-  return {modus:'einfach',einfach:val};
+  return {modus:'einfach',min:null,max:null};
 }
 
 function formatPlayersDisplay(val){
   const p=parsePlayers(val);
   if(p.modus==='einfach'){
-    const v=p.einfach||'';
-    return v||'–';
+    const mn=p.min,mx=p.max;
+    if(!mn&&!mx) return 'beliebig';
+    if(mn&&mx&&mn===mx) return String(mn);
+    if(mn&&mx) return `${mn}–${mx}`;
+    if(mn) return `ab ${mn}`;
+    if(mx) return `bis ${mx}`;
+    return 'beliebig';
   }
   if(p.modus==='tw_feld'){
     const fmt=obj=>{
-      if(!obj||obj.min===undefined) return '?';
-      return obj.min===obj.max?String(obj.min):`${obj.min}–${obj.max}`;
+      if(!obj||(!obj.min&&!obj.max)) return 'beliebig';
+      if(obj.min&&obj.max&&obj.min===obj.max) return String(obj.min);
+      if(obj.min&&obj.max) return `${obj.min}–${obj.max}`;
+      if(obj.min) return `ab ${obj.min}`;
+      return `bis ${obj.max}`;
     };
-    const tw=fmt(p.tw);
-    const feld=fmt(p.feld);
-    return `🧤 ${tw} · 👥 ${feld}`;
+    return `🧤 ${fmt(p.tw)} · 👥 ${fmt(p.feld)}`;
   }
   if(p.modus==='positionen'){
     const pos=p.positionen||{};
@@ -1754,6 +1765,11 @@ function formatPlayersDisplay(val){
     return parts.length?parts.join(' · '):'–';
   }
   return val||'–';
+}
+
+// Toggle-Button für TW + Feld
+function togglePpBtn(btn){
+  btn.classList.toggle('active');
 }
 
 // Modus-Button wechseln
@@ -1782,10 +1798,11 @@ function initPlayerPicker(pickerId,val){
     if(sec) sec.classList.toggle('visible',m===p.modus);
   });
   // Werte setzen
-  const ge=id=>{const el=document.getElementById(id);return el;};
-  const sv=(id,v)=>{const el=ge(id);if(el) el.value=v!==undefined&&v!==null?v:'';};
+  const sv=(id,v)=>{const el=document.getElementById(id);if(el) el.value=v!==undefined&&v!==null&&v!==0?v:'';};
+  const st=(id,v)=>{const el=document.getElementById(id);if(el) el.classList.toggle('active',!!v);};
   if(p.modus==='einfach'){
-    sv(pickerId+'-e',p.einfach||'');
+    sv(pickerId+'-e-min',p.min||'');
+    sv(pickerId+'-e-max',p.max||'');
   } else if(p.modus==='tw_feld'){
     sv(pickerId+'-tw-min',p.tw?.min??'');
     sv(pickerId+'-tw-max',p.tw?.max??'');
@@ -1806,10 +1823,13 @@ function getPlayerPickerValue(pickerId){
   if(!picker) return '';
   const activeBtn=picker.querySelector('.pp-mode-btn.active');
   const modus=activeBtn?activeBtn.dataset.mode:'einfach';
-  const gn=id=>{const el=document.getElementById(id);return el?parseInt(el.value)||0:0;};
+  const gn=id=>{const el=document.getElementById(id);return el&&el.value!==''?parseInt(el.value)||null:null;};
+  const gb=id=>{const el=document.getElementById(id);return el?el.classList.contains('active'):false;};
   if(modus==='einfach'){
-    const el=document.getElementById(pickerId+'-e');
-    return el?el.value.trim():'';
+    const mn=gn(pickerId+'-e-min');
+    const mx=gn(pickerId+'-e-max');
+    // Beide leer = beliebig → min=0 in DB
+    return JSON.stringify({modus:'einfach',min:mn||0,max:mx||0});
   }
   if(modus==='tw_feld'){
     return JSON.stringify({modus:'tw_feld',
@@ -1820,7 +1840,7 @@ function getPlayerPickerValue(pickerId){
   if(modus==='positionen'){
     const pos={};
     PP_POSITIONS.forEach(p=>{
-      pos[p]={min:gn(pickerId+'-p-'+p+'-min'),max:gn(pickerId+'-p-'+p+'-max')};
+      pos[p]={min:gn(pickerId+'-p-'+p+'-min')??0,max:gn(pickerId+'-p-'+p+'-max')??0};
     });
     return JSON.stringify({modus:'positionen',positionen:pos});
   }
@@ -4308,42 +4328,22 @@ function toggleSidebar(){
   localStorage.setItem('sidebar_collapsed',collapsed?'1':'0');
 }
 function initMyTeamWidget(){
-  const name=(localStorage.getItem('hbs_my_team')||'').trim();
-  const area=document.getElementById('mt-active-area');
+  const name=localStorage.getItem('hbs_my_team')||'';
+  const el=document.getElementById('mt-name');
+  if(!el) return;
+  if(name){el.textContent=name;el.classList.remove('empty');}
+  else{el.textContent='Kein Team gewählt';el.classList.add('empty');}
+
+  // Switcher-Buttons (nur wenn > 1 Mannschaft vorhanden)
   const sw=document.getElementById('mt-switcher');
-  if(!area) return;
-
-  // Aktives Team → groß darstellen
-  const activeTeam=allMannschaften.find(m=>(m.name||'').trim()===name);
-  const color=activeTeam?.farbe_geplant||'#0057ff';
-  const initial=(name||'T')[0].toUpperCase();
-  if(name){
-    const verein=activeTeam?.verein||'';
-    area.innerHTML=`<div class="mt-active-row">
-      <div class="mt-active-dot" style="background:${color};">${initial}</div>
-      <div style="min-width:0;flex:1;">
-        <div class="mt-active-name">${name}</div>
-        ${verein?`<div class="mt-active-sub">${verein}</div>`:''}
-      </div>
-    </div>`;
-  } else {
-    area.innerHTML='<div class="mt-name empty">Kein Team gewählt</div>';
-  }
-
-  // Andere Teams → Chips zum Wechseln (wie Index-Seite)
   if(!sw) return;
-  const others=allMannschaften.filter(m=>(m.name||'').trim()!==name);
-  if(others.length>0){
-    sw.style.display='block';
-    sw.innerHTML=`<div class="mt-divider"></div>
-      <div class="mt-switch-label">Wechseln zu</div>
-      <div class="mt-chips">${others.map(m=>{
-        const c=m.farbe_geplant||'#94a3b8';
-        const safe=(m.name||'').replace(/'/g,"&#39;");
-        return `<button class="mt-chip" onclick="switchActiveTeam('${safe}')">
-          <span class="mt-chip-dot" style="background:${c};"></span>${m.name||''}
-        </button>`;
-      }).join('')}</div>`;
+  if(allMannschaften.length>1){
+    sw.style.display='flex';
+    sw.innerHTML=allMannschaften.map(m=>{
+      const safeName=(m.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+      const active=(m.name||'')===(name||'')?' active':'';
+      return `<button class="mt-switch-btn${active}" data-name="${safeName}" onclick="switchActiveTeam(this.dataset.name)">${m.name||''}</button>`;
+    }).join('');
   } else {
     sw.style.display='none';
   }
