@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.1200 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260511.1400 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -188,6 +188,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .action-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--soft);transition:all .15s;}
 .action-btn.edit:hover{background:#e6eeff;border-color:var(--accent);color:var(--accent);}
 .action-btn.del:hover{background:#fee2e2;border-color:#fca5a5;color:#dc2626;}
+.action-btn.move:hover{background:#f1f5f9;border-color:#94a3b8;color:var(--text);}
+.action-btn:disabled{opacity:.25;cursor:default;pointer-events:none;}
 /* ── NOTE AREA (eigene Zeile) ── */
 .drill-note-area{background:#fffbf0;border-top:1px solid #fde68a;padding:5px 22px 7px;}
 .drill-note-input{width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:11.5px;color:#92400e;resize:none;outline:none;padding:0;min-height:20px;}
@@ -600,8 +602,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .drill-img-thumb { width: 28px; height: 28px; }
   .dur-num { font-size: 16px; }
   .dur-lbl { font-size: 8px; }
-  .row-actions { opacity: 1; gap: 3px; }
+  .row-actions { opacity: 1; gap: 2px; }
   .action-btn { width: 27px; height: 27px; font-size: 12px; }
+  .action-btn.move { font-size: 10px; }
 
   /* Notes */
   .notes-area { padding: 10px 12px; }
@@ -821,7 +824,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1200</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1400</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -2217,6 +2220,8 @@ function makeRow(drill,gi,offset){
         ${timeSub?`<div class="dur-time-sub">${timeSub}</div>`:''}
       </div>
       <div class="row-actions">
+        <button class="action-btn move" onclick="moveDrill(${gi},-1)" title="Nach oben" ${gi===0?'disabled':''}>▲</button>
+        <button class="action-btn move" onclick="moveDrill(${gi},+1)" title="Nach unten" ${gi===drills.length-1?'disabled':''}>▼</button>
         <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
         <button class="action-btn del" onclick="deleteDrill(${gi})">🗑</button>
       </div>
@@ -2401,6 +2406,16 @@ async function saveDrill(){
 function deleteDrill(idx){
   if(!confirm(`"${drills[idx].name}" löschen?`)) return;
   drills.splice(idx,1);render();
+}
+function moveDrill(idx, dir){
+  const target = idx + dir;
+  // Abschnitts-Marker können auch verschoben werden — section/split/merge überspringen
+  if(target < 0 || target >= drills.length) return;
+  const tmp = drills[idx];
+  drills[idx] = drills[target];
+  drills[target] = tmp;
+  render();
+  setTimeout(()=>{ if(currentEinheitId) saveAll(); }, 300);
 }
 function resetSession(){
   if(!confirm('Zurück zur Startseite?')) return;
