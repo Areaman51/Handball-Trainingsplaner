@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.1230 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260511.1300 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -805,7 +805,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1230</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1300</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1778,9 +1778,11 @@ function setPlayerPickerMode(pickerId,clickedBtn,mode){
   if(!picker) return;
   picker.querySelectorAll('.pp-mode-btn').forEach(b=>b.classList.remove('active'));
   clickedBtn.classList.add('active');
-  ['einfach','twfeld','positionen'].forEach(m=>{
-    const sec=document.getElementById(pickerId+'-'+m);
-    if(sec) sec.classList.toggle('visible',m===mode);
+  // Sektion-IDs verwenden keinen Unterstrich (twfeld), Modus-Strings schon (tw_feld)
+  const modeToSec={einfach:'einfach',tw_feld:'twfeld',positionen:'positionen'};
+  Object.entries(modeToSec).forEach(([modeKey,secSuffix])=>{
+    const sec=document.getElementById(pickerId+'-'+secSuffix);
+    if(sec) sec.classList.toggle('visible',modeKey===mode);
   });
 }
 
@@ -1793,9 +1795,10 @@ function initPlayerPicker(pickerId,val){
   picker.querySelectorAll('.pp-mode-btn').forEach(b=>{
     b.classList.toggle('active',b.dataset.mode===p.modus);
   });
-  ['einfach','twfeld','positionen'].forEach(m=>{
-    const sec=document.getElementById(pickerId+'-'+m);
-    if(sec) sec.classList.toggle('visible',m===p.modus);
+  const modeToSec={einfach:'einfach',tw_feld:'twfeld',positionen:'positionen'};
+  Object.entries(modeToSec).forEach(([modeKey,secSuffix])=>{
+    const sec=document.getElementById(pickerId+'-'+secSuffix);
+    if(sec) sec.classList.toggle('visible',modeKey===p.modus);
   });
   // Werte setzen
   const sv=(id,v)=>{const el=document.getElementById(id);if(el) el.value=v!==undefined&&v!==null&&v!==0?v:'';};
