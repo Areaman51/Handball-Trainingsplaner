@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.1100 — Dashboard -->
+<!-- Handball Coaching Tools v1.260511.1200 — Dashboard -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -86,6 +86,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .tile.t-bank::before{background:#ef4444;}
 .tile.t-gegner::before{background:#6b7280;}
 .tile.t-profil::before{background:#0ea5e9;}
+.tile.t-meine-mannschaft::before{background:#10b981;}
+
+/* ── MEINE-MANNSCHAFT-TILE ── */
+.mm-aktive-wrap{margin:6px 0 0;}
+.mm-aktive-name{font-size:20px;font-weight:700;letter-spacing:-.4px;color:var(--text);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mm-aktive-verein{font-size:11.5px;color:var(--soft);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mm-switch-row{margin-top:10px;padding-top:10px;border-top:1.5px solid var(--border);}
+.mm-switch-label{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--xsoft);margin-bottom:6px;}
+.mm-chips{display:flex;gap:5px;flex-wrap:wrap;}
+.mm-chip{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;background:var(--bg);border:1.5px solid var(--border);color:var(--soft);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap;line-height:1.6;}
+.mm-chip:hover{background:#eff6ff;border-color:#bfdbfe;color:var(--accent);}
+.mm-empty{font-size:12px;color:var(--xsoft);font-style:italic;margin-top:4px;}
 
 /* ── ADMIN SECTION ── */
 .admin-section{margin-top:8px;}
@@ -260,7 +272,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     </div>
 
-    <!-- Profil-Kachel (immer sichtbar) -->
+    <!-- Mein Bereich -->
     <div class="tile-section-label">Mein Bereich</div>
     <div class="tile-grid" style="grid-template-columns:repeat(3,1fr);">
 
@@ -272,6 +284,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
         <div class="tile-arrow">→</div>
       </a>
+
+      <div class="tile t-meine-mannschaft" id="tile-meine-mannschaft" onclick="navigateMeineMannschaft()" style="cursor:pointer;">
+        <div class="tile-icon">🏃</div>
+        <div class="tile-body">
+          <div class="tile-name">Meine Mannschaft</div>
+          <div class="mm-aktive-wrap">
+            <div class="mm-aktive-name" id="mm-aktive-name">–</div>
+            <div class="mm-aktive-verein" id="mm-aktive-verein"></div>
+          </div>
+          <div id="mm-switch-container" style="display:none;">
+            <div class="mm-switch-row">
+              <div class="mm-switch-label">Wechseln zu:</div>
+              <div class="mm-chips" id="mm-chips"></div>
+            </div>
+          </div>
+          <div class="mm-empty" id="mm-empty" style="display:none;">Keine weiteren Mannschaften</div>
+        </div>
+        <div class="tile-arrow">→</div>
+      </div>
 
     </div>
 
@@ -447,6 +478,9 @@ async function onAuthSuccess(user){
     document.getElementById('admin-section').style.display = '';
     checkPending(role);
   }
+
+  // Mannschafts-Kachel laden
+  loadMeineMannschaft();
 }
 
 // ── PENDING CHECK ──
@@ -462,6 +496,83 @@ async function checkPending(role){
     }
   } catch(e){ /* ignore */ }
 }
+
+// ── MEINE MANNSCHAFT ──
+let alleMannschaften = [];
+let aktiveMannschaftId = localStorage.getItem('aktive_mannschaft_id') || null;
+
+async function loadMeineMannschaft(){
+  try {
+    const { data } = await supa
+      .from('mannschaften')
+      .select('id,name,verein,farbe_geplant')
+      .order('sort_order', { ascending: true })
+      .order('created_at',  { ascending: true });
+    alleMannschaften = data || [];
+
+    // Erste Mannschaft als Standard, wenn noch nichts gespeichert
+    if(!aktiveMannschaftId && alleMannschaften.length > 0){
+      const erste = alleMannschaften[0];
+      aktiveMannschaftId = String(erste.id);
+      _speicherAktiveMannschaft(erste.id, erste.name);
+    }
+    renderMannschaftTile();
+  } catch(e){
+    console.warn('[MeineMannschaft] Fehler:', e.message);
+  }
+}
+
+function renderMannschaftTile(){
+  const aktive = alleMannschaften.find(m => String(m.id) === String(aktiveMannschaftId));
+  const andere  = alleMannschaften.filter(m => String(m.id) !== String(aktiveMannschaftId));
+
+  const nameEl      = document.getElementById('mm-aktive-name');
+  const vereinEl    = document.getElementById('mm-aktive-verein');
+  const container   = document.getElementById('mm-switch-container');
+  const chipsEl     = document.getElementById('mm-chips');
+  const emptyEl     = document.getElementById('mm-empty');
+  if(!nameEl) return;
+
+  // Aktive Mannschaft anzeigen
+  nameEl.textContent   = aktive ? aktive.name   : '—';
+  vereinEl.textContent = aktive ? (aktive.verein || '') : '';
+
+  // Andere Mannschaften als Chips
+  if(andere.length > 0){
+    chipsEl.innerHTML = andere.map(m =>
+      `<button class="mm-chip"
+         onclick="event.stopPropagation();wechsleMannschaft('${String(m.id).replace(/'/g,"\\'")}','${m.name.replace(/'/g,"\\'")}')"
+       >${_esc(m.name)}</button>`
+    ).join('');
+    container.style.display = '';
+    emptyEl.style.display   = 'none';
+  } else {
+    container.style.display = 'none';
+    emptyEl.style.display   = alleMannschaften.length === 0 ? '' : 'none';
+  }
+}
+
+function wechsleMannschaft(id, name){
+  aktiveMannschaftId = String(id);
+  _speicherAktiveMannschaft(id, name);
+  renderMannschaftTile();
+  showToast('Mannschaft: ' + name, 'success');
+}
+
+function navigateMeineMannschaft(){
+  const ziel = aktiveMannschaftId
+    ? `mannschaftsverwaltung.html?team=${encodeURIComponent(aktiveMannschaftId)}`
+    : 'mannschaftsverwaltung.html';
+  window.location.href = ziel;
+}
+
+function _speicherAktiveMannschaft(id, name){
+  localStorage.setItem('aktive_mannschaft_id',   String(id));
+  localStorage.setItem('aktive_mannschaft_name',  name);
+  localStorage.setItem('hbs_my_team',             name); // Sync → Mannschaftsverwaltung-Sidebar
+}
+
+function _esc(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
 
 // ── SIGN OUT ──
 async function signOut(){

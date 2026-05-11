@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260507.1115 -->
+<!-- Handball Coaching Tools v1.260511.1200 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -403,7 +403,14 @@ async function onAuth(user){
   document.getElementById('topbar-user').textContent=profile?.full_name||profile?.email||user.email||'';
   setTopbarRole(profile?.role);
   initMyTeamWidget();
-  await loadTeams();showOverview();
+  await loadTeams();
+  // Aus dem Dashboard per ?team=ID direkt zur Mannschaft springen
+  const teamParam = new URLSearchParams(window.location.search).get('team');
+  if(teamParam && allTeams.find(t => String(t.id) === String(teamParam))){
+    await showTeamDetail(teamParam);
+  } else {
+    showOverview();
+  }
 }
 async function logout(){if(!confirm('Abmelden?')) return; await supa.auth.signOut();location.href='index.html';}
 
