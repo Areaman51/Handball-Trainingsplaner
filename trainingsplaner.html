@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260509.2600 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260511.1100 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -4294,10 +4294,11 @@ function initMyTeamWidget(){
   if(!sw) return;
   if(allMannschaften.length>1){
     sw.style.display='flex';
-    sw.innerHTML=allMannschaften.map(m=>`
-      <button class="mt-switch-btn${(m.name||'')===(name||'')?' active':''}"
-        onclick="switchActiveTeam(${JSON.stringify(m.name)})">${m.name}</button>
-    `).join('');
+    sw.innerHTML=allMannschaften.map(m=>{
+      const safeName=(m.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+      const active=(m.name||'')===(name||'')?' active':'';
+      return `<button class="mt-switch-btn${active}" data-name="${safeName}" onclick="switchActiveTeam(this.dataset.name)">${m.name||''}</button>`;
+    }).join('');
   } else {
     sw.style.display='none';
   }
