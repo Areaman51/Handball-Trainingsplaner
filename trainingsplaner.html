@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.2204 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260511.1200 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -799,7 +799,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.2204</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1200</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1198,13 +1198,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <button type="button" class="pp-mode-btn" data-mode="positionen" onclick="setPlayerPickerMode('f-pp',this,'positionen')">Positionen</button>
           </div>
           <div class="pp-section visible" id="f-pp-einfach">
-            <div class="pp-pos-block" style="margin-top:6px;">
-              <span class="pp-pos-lbl">👥 Gesamt</span>
-              <input type="number" class="pp-num" id="f-pp-e-min" min="0" max="99" placeholder="0">
-              <span class="pp-sep">–</span>
-              <input type="number" class="pp-num" id="f-pp-e-max" min="0" max="99" placeholder="0">
-            </div>
-            <div style="font-size:11px;color:var(--xsoft);margin-top:5px;padding-left:2px;">0 = beliebig (kein Minimum / Maximum)</div>
+            <input class="form-input" id="f-pp-e" placeholder="z.B. 8–16 oder beliebig">
           </div>
           <div class="pp-section" id="f-pp-twfeld">
             <div class="pp-twfeld-grid">
@@ -1221,15 +1215,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RR (Rückraum R)</span><input type="number" class="pp-num" id="f-pp-p-RR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RR-max" min="0" max="4" placeholder="0"></div>
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RA (Rechtsaußen)</span><input type="number" class="pp-num" id="f-pp-p-RA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RA-max" min="0" max="4" placeholder="0"></div>
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ KR (Kreisläufer)</span><input type="number" class="pp-num" id="f-pp-p-KR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-KR-max" min="0" max="4" placeholder="0"></div>
-            </div>
-            <div style="font-size:11px;font-weight:600;color:var(--soft);margin:10px 0 6px;letter-spacing:.04em;text-transform:uppercase;">● Abwehr</div>
-            <div class="pp-pos-grid">
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● AL (Außen L)</span><input type="number" class="pp-num" id="f-pp-p-AL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-AL-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● HL (Halb L)</span><input type="number" class="pp-num" id="f-pp-p-HL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-HL-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● IL (Innen L)</span><input type="number" class="pp-num" id="f-pp-p-IL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-IL-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● IR (Innen R)</span><input type="number" class="pp-num" id="f-pp-p-IR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-IR-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● HR (Halb R)</span><input type="number" class="pp-num" id="f-pp-p-HR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-HR-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● AR (Außen R)</span><input type="number" class="pp-num" id="f-pp-p-AR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-AR-max" min="0" max="4" placeholder="0"></div>
             </div>
           </div>
         </div>
@@ -1331,13 +1316,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <button type="button" class="pp-mode-btn" data-mode="positionen" onclick="setPlayerPickerMode('db-f-pp',this,'positionen')">Positionen</button>
           </div>
           <div class="pp-section visible" id="db-f-pp-einfach">
-            <div class="pp-pos-block" style="margin-top:6px;">
-              <span class="pp-pos-lbl">👥 Gesamt</span>
-              <input type="number" class="pp-num" id="db-f-pp-e-min" min="0" max="99" placeholder="0">
-              <span class="pp-sep">–</span>
-              <input type="number" class="pp-num" id="db-f-pp-e-max" min="0" max="99" placeholder="0">
-            </div>
-            <div style="font-size:11px;color:var(--xsoft);margin-top:5px;padding-left:2px;">0 = beliebig (kein Minimum / Maximum)</div>
+            <input class="form-input" id="db-f-pp-e" placeholder="z.B. 8–16 oder beliebig">
           </div>
           <div class="pp-section" id="db-f-pp-twfeld">
             <div class="pp-twfeld-grid">
@@ -1354,15 +1333,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RR (Rückraum R)</span><input type="number" class="pp-num" id="db-f-pp-p-RR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RR-max" min="0" max="4" placeholder="0"></div>
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RA (Rechtsaußen)</span><input type="number" class="pp-num" id="db-f-pp-p-RA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RA-max" min="0" max="4" placeholder="0"></div>
               <div class="pp-pos-block"><span class="pp-pos-lbl">▲ KR (Kreisläufer)</span><input type="number" class="pp-num" id="db-f-pp-p-KR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-KR-max" min="0" max="4" placeholder="0"></div>
-            </div>
-            <div style="font-size:11px;font-weight:600;color:var(--soft);margin:10px 0 6px;letter-spacing:.04em;text-transform:uppercase;">● Abwehr</div>
-            <div class="pp-pos-grid">
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● AL (Außen L)</span><input type="number" class="pp-num" id="db-f-pp-p-AL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-AL-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● HL (Halb L)</span><input type="number" class="pp-num" id="db-f-pp-p-HL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-HL-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● IL (Innen L)</span><input type="number" class="pp-num" id="db-f-pp-p-IL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-IL-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● IR (Innen R)</span><input type="number" class="pp-num" id="db-f-pp-p-IR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-IR-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● HR (Halb R)</span><input type="number" class="pp-num" id="db-f-pp-p-HR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-HR-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">● AR (Außen R)</span><input type="number" class="pp-num" id="db-f-pp-p-AR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-AR-max" min="0" max="4" placeholder="0"></div>
             </div>
           </div>
         </div>
@@ -1544,40 +1514,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
   </div>
 </div>
-
-<!-- ═══════════════════════════════════════════════════════
-     BILD-RESIZE BESTÄTIGUNGS-MODAL
-════════════════════════════════════════════════════════ -->
-<div class="modal-overlay" id="img-resize-modal">
-  <div class="modal modal-sm">
-    <div class="modal-header">
-      <div>
-        <div class="modal-title">🖼 Bild zu groß</div>
-        <div class="modal-subtitle" id="img-resize-filename" style="font-size:12px;color:var(--soft);margin-top:2px;"></div>
-      </div>
-    </div>
-    <div class="modal-body" style="padding:20px 26px;">
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <span style="font-size:12.5px;color:var(--soft);">Aktuelle Größe</span>
-          <span id="img-resize-current-size" style="font-size:13px;font-weight:600;color:#ef4444;"></span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12.5px;color:var(--soft);">Nach Verkleinerung (ca.)</span>
-          <span id="img-resize-est-size" style="font-size:13px;font-weight:600;color:#10b981;"></span>
-        </div>
-      </div>
-      <div style="font-size:12.5px;color:var(--soft);line-height:1.6;">
-        Das Bild wird auf <strong style="color:var(--text);">max. 1200 px Breite</strong> skaliert und als <strong style="color:var(--text);">JPEG mit 80 % Qualität</strong> gespeichert. Das Original bleibt unverändert auf deinem Gerät.
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="_imgResizeDecision('cancel')">Abbrechen</button>
-      <button class="btn btn-primary" onclick="_imgResizeDecision('resize')">Verkleinern &amp; verwenden</button>
-    </div>
-  </div>
-</div>
-
 <script>
 const SUPA_URL = 'https://dlofjsmnkwltuutpxoer.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
@@ -1755,50 +1691,40 @@ async function loadKategorien(){
 // ══════════════════════════════════════════
 // PLAYER PICKER — Spieleranzahl nach Typ
 // ══════════════════════════════════════════
-const PP_POSITIONS    = ['TW','LA','RL','RM','RR','RA','KR'];
-const PP_POS_DEFENSE  = ['AL','HL','IL','IR','HR','AR'];
-const PP_POS_ALL      = [...PP_POSITIONS, ...PP_POS_DEFENSE];
+const PP_POSITIONS=['TW','LA','RL','RM','RR','RA','KR'];
 
 function parsePlayers(val){
-  if(!val) return {modus:'einfach',min:0,max:0};
+  if(!val) return {modus:'einfach',einfach:''};
   try{
     const o=JSON.parse(val);
     if(o&&o.modus) return o;
   }catch(e){}
-  // Rückwärtskompatibilität: alter Freitext → versuche "8–16"-Pattern zu parsen
-  const m=(val||'').match(/^(\d+)\s*[-–]\s*(\d+)$/);
-  if(m) return {modus:'einfach',min:parseInt(m[1]),max:parseInt(m[2])};
-  if(/^\d+$/.test(val||'')) return {modus:'einfach',min:parseInt(val),max:parseInt(val)};
-  return {modus:'einfach',min:0,max:0};
+  return {modus:'einfach',einfach:val};
 }
 
 function formatPlayersDisplay(val){
   const p=parsePlayers(val);
   if(p.modus==='einfach'){
-    const min=p.min||0, max=p.max||0;
-    if(min===0&&max===0) return 'beliebig';
-    if(min===0) return 'max. '+max;
-    if(max===0) return 'min. '+min;
-    if(min===max) return String(min);
-    return min+'–'+max;
+    const v=p.einfach||'';
+    return v||'–';
   }
   if(p.modus==='tw_feld'){
     const fmt=obj=>{
       if(!obj||obj.min===undefined) return '?';
-      if(obj.min===0&&obj.max===0) return 'bel.';
       return obj.min===obj.max?String(obj.min):`${obj.min}–${obj.max}`;
     };
-    return '🧤 '+fmt(p.tw)+' · 👥 '+fmt(p.feld);
+    const tw=fmt(p.tw);
+    const feld=fmt(p.feld);
+    return `🧤 ${tw} · 👥 ${feld}`;
   }
   if(p.modus==='positionen'){
     const pos=p.positionen||{};
-    const parts=PP_POS_ALL
+    const parts=PP_POSITIONS
       .filter(k=>pos[k]&&(pos[k].min>0||pos[k].max>0))
       .map(k=>{
         const v=pos[k];
         const n=v.min===v.max?String(v.min):`${v.min}–${v.max}`;
-        const sym=k==='TW'?'🧤':PP_POS_DEFENSE.includes(k)?'●':'▲';
-        return sym+k+'\u202f'+n;
+        return (k==='TW'?'🧤':'▲')+k+' '+n;
       });
     return parts.length?parts.join(' · '):'–';
   }
@@ -1834,15 +1760,14 @@ function initPlayerPicker(pickerId,val){
   const ge=id=>{const el=document.getElementById(id);return el;};
   const sv=(id,v)=>{const el=ge(id);if(el) el.value=v!==undefined&&v!==null?v:'';};
   if(p.modus==='einfach'){
-    sv(pickerId+'-e-min', p.min!==undefined ? p.min : '');
-    sv(pickerId+'-e-max', p.max!==undefined ? p.max : '');
+    sv(pickerId+'-e',p.einfach||'');
   } else if(p.modus==='tw_feld'){
     sv(pickerId+'-tw-min',p.tw?.min??'');
     sv(pickerId+'-tw-max',p.tw?.max??'');
     sv(pickerId+'-f-min',p.feld?.min??'');
     sv(pickerId+'-f-max',p.feld?.max??'');
   } else if(p.modus==='positionen'){
-    PP_POS_ALL.forEach(pos=>{
+    PP_POSITIONS.forEach(pos=>{
       const obj=p.positionen?.[pos]||{};
       sv(pickerId+'-p-'+pos+'-min',obj.min??'');
       sv(pickerId+'-p-'+pos+'-max',obj.max??'');
@@ -1858,7 +1783,8 @@ function getPlayerPickerValue(pickerId){
   const modus=activeBtn?activeBtn.dataset.mode:'einfach';
   const gn=id=>{const el=document.getElementById(id);return el?parseInt(el.value)||0:0;};
   if(modus==='einfach'){
-    return JSON.stringify({modus:'einfach',min:gn(pickerId+'-e-min'),max:gn(pickerId+'-e-max')});
+    const el=document.getElementById(pickerId+'-e');
+    return el?el.value.trim():'';
   }
   if(modus==='tw_feld'){
     return JSON.stringify({modus:'tw_feld',
@@ -1868,7 +1794,7 @@ function getPlayerPickerValue(pickerId){
   }
   if(modus==='positionen'){
     const pos={};
-    PP_POS_ALL.forEach(p=>{
+    PP_POSITIONS.forEach(p=>{
       pos[p]={min:gn(pickerId+'-p-'+p+'-min'),max:gn(pickerId+'-p-'+p+'-max')};
     });
     return JSON.stringify({modus:'positionen',positionen:pos});
@@ -2286,7 +2212,7 @@ function makeRow(drill,gi,offset){
     <div class="drill-players">👥 ${formatPlayersDisplay(drill.players)}</div>
     <div class="drill-dur"><div class="dur-num">${drill.duration||'–'}</div><div class="dur-lbl">MIN</div></div>
     <div class="row-actions">
-      <button class="action-btn edit" title="Bearbeiten" onclick="openAddModal(${gi})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+      <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
       <button class="action-btn del" onclick="deleteDrill(${gi})">🗑</button>
     </div>
     <div style="grid-column:1/-1;padding:0;">
@@ -2420,6 +2346,13 @@ async function saveDrill(){
   const nameEl=document.getElementById('f-name');
   if(!nameEl.value.trim()){nameEl.classList.add('form-error');nameEl.focus();return;}
   nameEl.classList.remove('form-error');
+  const sn=document.getElementById('f-sname').value.trim();
+  if(sn){sessionMeta.name=sn;document.getElementById('s-title').innerText=sn;}
+  sessionMeta.group=document.getElementById('f-sgroup').value.trim()||sessionMeta.group;
+  sessionMeta.date=document.getElementById('f-date').value||sessionMeta.date;
+  sessionMeta.time=document.getElementById('f-time').value||sessionMeta.time;
+  sessionMeta.ort=document.getElementById('f-ort').value.trim()||sessionMeta.ort;
+  sessionMeta.focus=document.getElementById('f-sfocus').value.trim()||sessionMeta.focus;
 
   const drillName=nameEl.value.trim();
   const resolvedImages=[];
@@ -3116,107 +3049,34 @@ async function sendInvite(){
 }
 
 // ══════════════════════════════════════════
-// BILD-UPLOAD  (mit Größenprüfung + Resize)
+// BILD-UPLOAD
 // ══════════════════════════════════════════
-const IMG_MAX_BYTES  = 500 * 1024;                              // 500 KB Hard Limit
-const IMG_ALLOWED    = ['image/jpeg','image/png','image/webp']; // erlaubte Formate
-const IMG_RESIZE_W   = 1200;                                    // max. Breite nach Resize
-const IMG_RESIZE_Q   = 0.80;                                    // JPEG-Qualität
-
 function getImgArr(p){return p==='f'?fImages:dbfImages;}
 function setImgArr(p,a){if(p==='f') fImages=a; else dbfImages=a;}
-
-// ── Promise-basiertes Resize-Modal ──────────────────────
-let _imgResolveFn = null;
-function _imgResizeDecision(choice){
-  document.getElementById('img-resize-modal').classList.remove('open');
-  if(_imgResolveFn){ _imgResolveFn(choice); _imgResolveFn=null; }
-}
-function _showResizeModal(file){
-  return new Promise(resolve=>{
-    _imgResolveFn = resolve;
-    const kb = (file.size/1024).toFixed(0);
-    // Schätzung: JPEG 80% ist typischerweise 25–40% der PNG-Größe, ca. 60% einer JPEG-Quelle
-    const estKb = Math.round(file.size * 0.30 / 1024);
-    document.getElementById('img-resize-filename').textContent = file.name;
-    document.getElementById('img-resize-current-size').textContent = kb+' KB';
-    document.getElementById('img-resize-est-size').textContent = '~'+estKb+' – '+(estKb*2)+' KB';
-    document.getElementById('img-resize-modal').classList.add('open');
-  });
-}
-
-// ── Canvas-Resize ────────────────────────────────────────
-function _resizeFile(file){
-  return new Promise(resolve=>{
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = ()=>{
-      URL.revokeObjectURL(url);
-      let w=img.naturalWidth, h=img.naturalHeight;
-      if(w>IMG_RESIZE_W){ h=Math.round(h*IMG_RESIZE_W/w); w=IMG_RESIZE_W; }
-      const canvas=document.createElement('canvas');
-      canvas.width=w; canvas.height=h;
-      canvas.getContext('2d').drawImage(img,0,0,w,h);
-      canvas.toBlob(blob=>{
-        const name = file.name.replace(/\.[^.]+$/,'.jpg');
-        resolve(new File([blob],name,{type:'image/jpeg'}));
-      },'image/jpeg',IMG_RESIZE_Q);
-    };
-    img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(file); }; // Fallback
-    img.src = url;
-  });
-}
-
-// ── Kernfunktion: Dateien validieren, ggf. verkleinern ──
-async function _processImageFiles(files, prefix){
-  const arr = getImgArr(prefix);
-  for(const file of files){
-    // Formatprüfung
-    if(!IMG_ALLOWED.includes(file.type)){
-      showToast(`❌ "${file.name}" – nur JPEG, PNG oder WebP erlaubt`,'info');
-      continue;
-    }
-    let ready = file;
-    // Größenprüfung
-    if(file.size > IMG_MAX_BYTES){
-      const choice = await _showResizeModal(file);
-      if(choice === 'cancel') continue;           // Nutzer hat abgelehnt
-      ready = await _resizeFile(file);
-      showToast(`✅ Verkleinert: ${(ready.size/1024).toFixed(0)} KB`,'info');
-    }
-    arr.push({filename:ready.name, objectUrl:URL.createObjectURL(ready), _file:ready});
-  }
-  setImgArr(prefix,arr);
-  renderFormGallery(prefix+'-img-gallery',arr,prefix);
-}
-
-// ── Öffentliche Handler ───────────────────────────────────
 function handleImgUpload(event,prefix){
-  const files = Array.from(event.target.files);
-  event.target.value = '';
-  if(!files.length) return;
-  _processImageFiles(files,prefix).then(()=>{
-    if(getImgArr(prefix).length) showToast('📎 Bild bereit – wird beim Speichern hochgeladen','info');
-  });
+  const arr=getImgArr(prefix);
+  Array.from(event.target.files).forEach(file=>{arr.push({filename:file.name,objectUrl:URL.createObjectURL(file),_file:file});});
+  setImgArr(prefix,arr);renderFormGallery(prefix+'-img-gallery',arr,prefix);
+  event.target.value='';
+  showToast('📎 Bild bereit – wird beim Speichern hochgeladen','info');
 }
 function handleImgDrop(event,prefix){
-  event.preventDefault(); event.currentTarget.classList.remove('drag-active');
-  const files = Array.from(event.dataTransfer.files).filter(f=>f.type.startsWith('image/'));
-  if(!files.length) return;
-  _processImageFiles(files,prefix);
+  event.preventDefault();event.currentTarget.classList.remove('drag-active');
+  const arr=getImgArr(prefix);
+  Array.from(event.dataTransfer.files).filter(f=>f.type.startsWith('image/')).forEach(file=>{arr.push({filename:file.name,objectUrl:URL.createObjectURL(file),_file:file});});
+  setImgArr(prefix,arr);renderFormGallery(prefix+'-img-gallery',arr,prefix);
 }
-
 function renderFormGallery(galleryId,imgs,prefix){
-  const g=document.getElementById(galleryId); g.innerHTML='';
+  const g=document.getElementById(galleryId);g.innerHTML='';
   imgs.forEach((img,i)=>{
     const src=img.objectUrl||img;
-    const th=document.createElement('div'); th.className='img-thumb';
+    const th=document.createElement('div');th.className='img-thumb';
     th.innerHTML=`<img src="${src}" alt="Bild ${i+1}"><button class="img-thumb-del" onclick="removeImg('${prefix}',${i})">✕</button>`;
     g.appendChild(th);
   });
 }
 function removeImg(prefix,idx){
-  const arr=getImgArr(prefix); arr.splice(idx,1); setImgArr(prefix,arr);
+  const arr=getImgArr(prefix);arr.splice(idx,1);setImgArr(prefix,arr);
   renderFormGallery(prefix+'-img-gallery',arr,prefix);
 }
 
@@ -3605,7 +3465,7 @@ function makeSplitRow(d, gi, tOffset){
       <div class="split-row-name" onclick="openDetail(${gi})">${d.name||'–'}</div>
       <div class="split-row-dur">${d.duration||'–'}<span style="font-size:9px;font-weight:600;color:var(--xsoft);margin-left:2px;">MIN</span></div>
       <div class="split-row-actions">
-        <button class="action-btn edit" title="Bearbeiten" onclick="openAddModal(${gi})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+        <button class="action-btn edit" onclick="openAddModal(${gi})">✏</button>
         <button class="action-btn del" onclick="deleteDrill(${gi})">🗑</button>
       </div>
     </div>
