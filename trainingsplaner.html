@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.1400 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260511.1500 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -159,11 +159,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .section-divider{display:flex;align-items:center;gap:9px;padding:8px 22px;background:#f7f8fa;border-bottom:1px solid var(--border);border-top:2px solid var(--border);}
 .section-divider-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .section-divider-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
-.section-divider-right{margin-left:auto;display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:11px;color:var(--soft);}
+.section-divider-right{margin-left:auto;display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:11px;color:var(--soft);text-align:right;}
 .section-divider-dur{font-weight:600;color:var(--text);}
 .section-divider-time{color:var(--xsoft);}
-.section-divider-del{background:none;border:none;color:var(--xsoft);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px;line-height:1;transition:all .15s;margin-left:2px;}
-.section-divider-del:hover{color:#dc2626;background:#fee2e2;}
+.section-divider-actions{display:flex;align-items:center;gap:2px;margin-left:8px;}
+.section-divider-btn{background:none;border:1px solid transparent;color:var(--xsoft);cursor:pointer;font-size:11px;padding:2px 5px;border-radius:4px;line-height:1;transition:all .15s;}
+.section-divider-btn:hover{background:#f1f5f9;border-color:#94a3b8;color:var(--text);}
+.section-divider-btn.del:hover{color:#dc2626;background:#fee2e2;border-color:#fca5a5;}
+.section-divider-btn:disabled{opacity:.2;cursor:default;pointer-events:none;}
 
 /* ── DRILL ROW ── */
 .drill-row{display:flex;flex-direction:column;border-bottom:1px solid var(--border);position:relative;}
@@ -676,7 +679,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 @media print{
   .sidebar,.topbar,.topbar-actions,.row-actions,.drag-handle,
   .db-panel,.db-overlay,.modal-overlay,.btn,.info-banner{display:none!important;}
-  .section-divider-del{display:none!important;}
+  .section-divider-btn{display:none!important;}
   .main{margin-left:0;}
   body{background:white;}
   .content{padding:0;}
@@ -824,7 +827,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1400</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1500</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -3400,6 +3403,8 @@ function getSectionDuration(sectionGi){
 function makeSectionDivider(drill,gi,dur,startTime,endTime){
   const pm=PHASE_META[drill.phase]||{label:drill.phase||'Abschnitt',color:'#9ca3af'};
   const timeStr=startTime&&endTime?`${startTime} – ${endTime}`:'';
+  const isFirst = gi===0;
+  const isLast  = gi===drills.length-1;
   const div=document.createElement('div');
   div.className='section-divider';
   div.dataset.idx=gi;
@@ -3410,7 +3415,11 @@ function makeSectionDivider(drill,gi,dur,startTime,endTime){
       <span class="section-divider-dur">${dur} Min</span>
       ${timeStr?`<span class="section-divider-time">${timeStr}</span>`:''}
     </div>
-    <button class="section-divider-del" onclick="deleteSection(${gi})" title="${pm.label} entfernen">✕</button>`;
+    <div class="section-divider-actions">
+      <button class="section-divider-btn" onclick="moveDrill(${gi},-1)" title="Nach oben" ${isFirst?'disabled':''}>▲</button>
+      <button class="section-divider-btn" onclick="moveDrill(${gi},+1)" title="Nach unten" ${isLast?'disabled':''}>▼</button>
+      <button class="section-divider-btn del" onclick="deleteSection(${gi})" title="${pm.label} entfernen">✕</button>
+    </div>`;
   return div;
 }
 
