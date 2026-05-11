@@ -799,7 +799,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260509.1200</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1100</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -4137,7 +4137,23 @@ async function loadHomeData(){
       .order('date',{ascending:true}).limit(1).maybeSingle();
     activeNext=ad||null;
   }
-  console.log('[HomeData] activeNext:', activeNext?.name, activeNext?.group_name);
+  // iCal-Fallback: kein Supabase-Eintrag vorhanden → nächsten iCal-Termin des aktiven Teams suchen
+  if(!activeNext && activeName){
+    const todayDate=new Date(todayStr+'T00:00:00');
+    const nextIcal=icalEvents
+      .filter(ev=>ev.mannschaftName===activeName && ev.typ==='training' && ev.dtstart>=todayDate)
+      .sort((a,b)=>a.dtstart-b.dtstart)[0]||null;
+    if(nextIcal){
+      activeNext={
+        isIcal:true,
+        name:nextIcal.summary,
+        date:icalDateStr(nextIcal.dtstart),
+        time:String(nextIcal.dtstart.getHours()).padStart(2,'0')+':'+String(nextIcal.dtstart.getMinutes()).padStart(2,'0'),
+        group_name:nextIcal.mannschaftName,
+      };
+    }
+  }
+  console.log('[HomeData] activeNext:', activeNext?.name, activeNext?.group_name, activeNext?.isIcal?'(iCal)':'');
 
   homeNextEinheit=activeNext||null;
 
@@ -4201,7 +4217,23 @@ async function loadHomeData(){
           .order('updated_at',{ascending:false}).limit(1).maybeSingle();
         if(ld) otherNext=ld;
       }
-      console.log('[HomeData] otherNext:', otherNext?.name, '| team:', firstOther.name);
+      // iCal-Fallback: kein Supabase-Eintrag → nächsten iCal-Termin dieser Mannschaft suchen
+      if(!otherNext){
+        const todayDate=new Date(todayStr+'T00:00:00');
+        const nextIcal=icalEvents
+          .filter(ev=>ev.mannschaftName===firstOther.name && ev.typ==='training' && ev.dtstart>=todayDate)
+          .sort((a,b)=>a.dtstart-b.dtstart)[0]||null;
+        if(nextIcal){
+          otherNext={
+            isIcal:true,
+            name:nextIcal.summary,
+            date:icalDateStr(nextIcal.dtstart),
+            time:String(nextIcal.dtstart.getHours()).padStart(2,'0')+':'+String(nextIcal.dtstart.getMinutes()).padStart(2,'0'),
+            group_name:nextIcal.mannschaftName,
+          };
+        }
+      }
+      console.log('[HomeData] otherNext:', otherNext?.name, '| team:', firstOther.name, otherNext?.isIcal?'(iCal)':'');
       homeOtherTeamEinheit=otherNext||null;
 
       if(otherTitle) otherTitle.textContent=otherTeams.length===1
@@ -4231,6 +4263,16 @@ async function openLastEinheit(){
 async function openNextEinheit(){
   if(homeNextEinheit){
     expandSidebar();
+    if(homeNextEinheit.isIcal){
+      // iCal-Event: neue Einheit mit vorausgefüllten Daten anlegen
+      newEinheit(homeNextEinheit.date);
+      sessionMeta.group=homeNextEinheit.group_name||'';
+      sessionMeta.time=homeNextEinheit.time||'';
+      sessionMeta.name=homeNextEinheit.name||'Training';
+      render();
+      showToast('📋 iCal-Termin vorbelegt – Übungen hinzufügen','info');
+      return;
+    }
     await loadEinheit(homeNextEinheit.id);
     return;
   }
@@ -4269,6 +4311,16 @@ async function openOtherTeamEinheit(){
     showToast(`✅ Mannschaft gewechselt: ${teamName}`,'success');
   }
   expandSidebar();
+  if(homeOtherTeamEinheit.isIcal){
+    // iCal-Event: neue Einheit mit vorausgefüllten Daten anlegen
+    newEinheit(homeOtherTeamEinheit.date);
+    sessionMeta.group=homeOtherTeamEinheit.group_name||'';
+    sessionMeta.time=homeOtherTeamEinheit.time||'';
+    sessionMeta.name=homeOtherTeamEinheit.name||'Training';
+    render();
+    showToast('📋 iCal-Termin vorbelegt – Übungen hinzufügen','info');
+    return;
+  }
   await loadEinheit(homeOtherTeamEinheit.id);
 }
 

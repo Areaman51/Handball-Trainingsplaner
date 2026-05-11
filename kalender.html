@@ -247,7 +247,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2200</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1100</div>
     </div>
   </aside>
 
@@ -582,7 +582,7 @@ async function renderKalender(){
     cell.appendChild(dayNum);
 
     // Klick auf leeren Tag → neue Einheit anlegen
-    cell.onclick=()=>{ window.location.href=`index.html?date=${dateStr}`; };
+    cell.onclick=()=>{ window.location.href=`trainingsplaner.html?date=${dateStr}`; };
 
     const einheiten = einheitenMap[day]||[];
     const spiele    = spieleMap[day]||[];
@@ -804,16 +804,16 @@ function renderLegend(teams){
 // NAVIGATION
 // ════════════════════════════════════════════════════════════
 function navigateToTraining(id){
-  window.location.href = `index.html?einheit_id=${id}`;
+  window.location.href = `trainingsplaner.html?einheit_id=${id}`;
 }
 
 function navigateToIcalTraining(ev, dateStr){
-  if(!ev){window.location.href=`index.html?date=${dateStr}`;return;}
+  if(!ev){window.location.href=`trainingsplaner.html?date=${dateStr}`;return;}
   const params = new URLSearchParams({date:dateStr});
   if(ev.mannschaftName) params.set('group',ev.mannschaftName);
   if(ev.dtstart) params.set('time',toTimeStr(ev.dtstart));
   if(ev.summary) params.set('name',ev.summary);
-  window.location.href = `index.html?${params}`;
+  window.location.href = `trainingsplaner.html?${params}`;
 }
 
 function navigateToIcalTrainingInline(el, dateStr){
@@ -823,8 +823,8 @@ function navigateToIcalTrainingInline(el, dateStr){
     if(ev.mannschaftName) params.set('group',ev.mannschaftName);
     if(ev.time) params.set('time',ev.time);
     if(ev.summary) params.set('name',ev.summary);
-    window.location.href=`index.html?${params}`;
-  }catch(e){window.location.href=`index.html?date=${dateStr}`;}
+    window.location.href=`trainingsplaner.html?${params}`;
+  }catch(e){window.location.href=`trainingsplaner.html?date=${dateStr}`;}
 }
 
 function navigateToSpiel(s){
