@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.1600 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260512.1400 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -125,19 +125,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .split-ctrl-bar-btns button.del{color:#dc2626;border-color:#fca5a5;}
 .split-ctrl-bar-btns button.del:hover{background:#fee2e2;}
 .split-header{display:flex;align-items:center;gap:0;border:2px dashed #cbd5e1;border-top:1px solid #dde5f4;border-radius:0;margin:0;background:#f8faff;overflow:hidden;}
-.split-track-header{flex:1;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:6px;border-right:2px dashed #cbd5e1;}
+.split-track-header{flex:1;min-width:0;overflow:hidden;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:6px;border-right:2px dashed #cbd5e1;}
 .split-track-header:last-child{border-right:none;}
 .split-rename-input{background:none;border:none;font:inherit;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);outline:none;width:100%;cursor:text;}
 .split-body{display:flex;border:2px dashed #cbd5e1;border-top:none;border-radius:0 0 10px 10px;margin-bottom:0;overflow:hidden;}
-.split-track{flex:1;border-right:2px dashed #cbd5e1;min-height:60px;}
+.split-track{flex:1;min-width:0;overflow:hidden;border-right:2px dashed #cbd5e1;min-height:60px;}
 .split-track:last-child{border-right:none;}
-.split-row{display:flex;flex-direction:column;border-bottom:1px solid var(--border);padding:10px 12px;gap:3px;background:white;transition:background .1s;}
+.split-row{display:flex;flex-direction:column;border-bottom:1px solid var(--border);padding:10px 12px;gap:3px;background:white;transition:background .1s;position:relative;}
 .split-row:hover{background:#f8f9ff;}
 .split-row-top{display:flex;align-items:center;gap:8px;}
 .split-row-name{flex:1;font-size:13px;font-weight:500;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
-.split-row-meta{font-size:11px;color:var(--xsoft);}
+.split-row-meta{font-size:11px;color:var(--xsoft);white-space:nowrap;flex-shrink:0;}
 .split-row-dur{font-size:16px;font-weight:700;font-family:"DM Mono",monospace;color:var(--text);flex-shrink:0;}
-.split-row-actions{display:flex;gap:3px;opacity:0;transition:opacity .15s;flex-shrink:0;}
+.split-row-actions{display:flex;gap:3px;opacity:0;transition:opacity .15s;position:absolute;right:6px;top:50%;transform:translateY(-50%);background:white;border-radius:6px;padding:0 2px;box-shadow:-4px 0 8px rgba(255,255,255,.9);}
 .split-row:hover .split-row-actions{opacity:1;}
 .split-row-sub{font-size:11px;color:var(--soft);}
 .split-row-note{background:#fffbf0;border-top:1px solid #fde68a;margin:4px -12px -10px;padding:4px 12px;}
