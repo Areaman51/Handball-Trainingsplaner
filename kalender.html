@@ -247,7 +247,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260513.1430</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260513.1530</div>
     </div>
   </aside>
 
@@ -286,6 +286,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
       <!-- LEGEND -->
       <div class="kal-legend" id="kal-legend" style="display:none;"></div>
+
+      <!-- DIAGNOSE (nur sichtbar wenn Daten vorhanden) -->
+      <div id="kal-diag" style="display:none;background:#fffbeb;border:1px solid #fde68a;
+        border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;
+        color:#92400e;line-height:1.8;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <b>🔍 Feed-Diagnose (Zeitzonenformat)</b>
+          <button onclick="document.getElementById('kal-diag').style.display='none'"
+            style="background:none;border:none;cursor:pointer;font-size:13px;color:#92400e;">✕</button>
+        </div>
+        <div id="kal-diag-body"></div>
+        <div style="margin-top:8px;font-size:11px;color:#a16207;">
+          Dieses Panel hilft bei der Diagnose von Zeitzonenproblemen. Nach Abschluss schließen.
+        </div>
+      </div>
 
       <!-- LIST -->
       <div class="kal-list-card">
@@ -343,6 +358,7 @@ let allMannschaften = [];
 let mannschaftKalender = {};   // mannschaft_id → [{url,typ,name}]
 let icalEvents  = [];           // geparste iCal-Events (gecacht)
 let icalLoaded  = false;
+let lastDiagLines = [];         // Diagnose: rohe DTSTART-Zeilen pro Feed
 
 const WOCHENTAGE = ['So','Mo','Di','Mi','Do','Fr','Sa'];
 const MONATE = ['Januar','Februar','März','April','Mai','Juni',
@@ -408,7 +424,7 @@ async function fetchICalFeed(url){
       if(!res.ok) throw new Error('HTTP '+res.status);
       const text = await res.text();
       if(!text.includes('BEGIN:VCALENDAR')) throw new Error('Kein iCal');
-      return parseICal(text);
+      return { events: parseICal(text), rawText: text };
     }catch(e){console.warn('Proxy fehlgeschlagen:',e.message);}
   }
   throw new Error('Feed nicht abrufbar');
@@ -544,6 +560,7 @@ async function syncFeeds(){
   const icon = document.getElementById('sync-icon');
   if(btn) btn.classList.add('spinning');
   const newEvents = [];
+  const diagLines = [];   // Diagnose: rohe DTSTART-Zeilen pro Feed
   let ok=0, fail=0;
   for(const t of allMannschaften){
     const feeds = (mannschaftKalender[t.id]||[]);
@@ -554,8 +571,18 @@ async function syncFeeds(){
     const allFeeds = feeds.length ? feeds : legacyFeeds;
     for(const f of allFeeds){
       try{
-        const evs = await fetchICalFeed(f.url);
+        const {events: evs, rawText} = await fetchICalFeed(f.url);
         const isSpiel = (f.typ==='spiel'||f.typ==='spiele');
+
+        // ── Diagnose: erste DTSTART-Zeile + VTIMEZONE-TZID aus dem Feed extrahieren ──
+        const unfolded = rawText.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+        const firstDtstart = unfolded.split('\n').find(l=>l.toUpperCase().startsWith('DTSTART')) || '(nicht gefunden)';
+        const vtimezoneMatch = unfolded.match(/BEGIN:VTIMEZONE[\s\S]*?TZID:([^\r\n]+)/);
+        const vtimezoneTzid = vtimezoneMatch ? vtimezoneMatch[1].trim() : '(kein VTIMEZONE)';
+        diagLines.push(`<b>${t.name} · ${f.name}</b><br>
+          DTSTART-Zeile: <code>${firstDtstart}</code><br>
+          VTIMEZONE TZID: <code>${vtimezoneTzid}</code>`);
+
         evs.forEach(e=>newEvents.push({
           ...e,
           mannschaftId:   t.id,
@@ -571,12 +598,14 @@ async function syncFeeds(){
   }
   icalEvents = newEvents;
   icalLoaded = true;
+  lastDiagLines = diagLines;   // global speichern
   if(btn) btn.classList.remove('spinning');
   const total = newEvents.length;
   if(allMannschaften.length){
     toast(fail>0 ? `⚠ ${ok} Feeds geladen, ${fail} Fehler` : `✅ ${total} Termine geladen`, fail>0?'info':'success');
   }
   renderKalender();
+  renderDiag();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -889,6 +918,14 @@ function renderLegend(teams){
     <div class="kal-leg-item"><div class="kal-leg-dot" style="background:${t.farbe_ungeplant||'#94a3b8'};"></div>${t.name} – ungeplant</div>
     <div class="kal-leg-item"><div class="kal-leg-dot" style="background:#d97706;"></div>Spiel</div>
   `).join('');
+}
+
+function renderDiag(){
+  const panel = document.getElementById('kal-diag');
+  const body  = document.getElementById('kal-diag-body');
+  if(!lastDiagLines.length){ panel.style.display='none'; return; }
+  panel.style.display='block';
+  body.innerHTML = lastDiagLines.join('<hr style="border:none;border-top:1px solid #fde68a;margin:6px 0;">');
 }
 
 // ════════════════════════════════════════════════════════════
