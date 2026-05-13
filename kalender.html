@@ -247,7 +247,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260513.1130</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260513.1430</div>
     </div>
   </aside>
 
@@ -414,6 +414,46 @@ async function fetchICalFeed(url){
   throw new Error('Feed nicht abrufbar');
 }
 
+// ── TZID-Namen → IANA-Zeitzone (häufigste Werte in deutschen Sport-Feeds) ──
+const ICAL_TZ_MAP = {
+  'europe/berlin':                   'Europe/Berlin',
+  'w. europe standard time':         'Europe/Berlin',
+  'central european standard time':  'Europe/Berlin',
+  'central european time':           'Europe/Berlin',
+  'central europe standard time':    'Europe/Berlin',
+  'cet':                             'Europe/Berlin',
+  'cest':                            'Europe/Berlin',
+  'gmt+0100':                        'Europe/Berlin',
+  'gmt+0200':                        'Europe/Berlin',
+};
+
+function resolveIana(tzid){
+  return ICAL_TZ_MAP[tzid.toLowerCase()] || null;
+}
+
+// Gibt den UTC-Offset einer IANA-Zeitzone in Millisekunden zurück,
+// gemessen am übergebenen UTC-Zeitpunkt (korrekte Sommerzeit-Behandlung).
+function getIanaTzOffsetMs(ianaZone, utcDateMs){
+  try{
+    const d = new Date(utcDateMs);
+    const fmt = new Intl.DateTimeFormat('en-US',{
+      timeZone:ianaZone,
+      year:'numeric',month:'2-digit',day:'2-digit',
+      hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
+    });
+    const p = Object.fromEntries(fmt.formatToParts(d).map(x=>[x.type,x.value]));
+    // 24:00 → 00:00 des Folgetages – Intl-Eigenheit abfangen
+    const hh = parseInt(p.hour) % 24;
+    const mm = parseInt(p.minute);
+    const ss = parseInt(p.second);
+    // Rekonstruiere den IANA-Lokalzeitpunkt als pseudo-UTC-Timestamp
+    const ianaAsUtcMs = Date.UTC(
+      parseInt(p.year), parseInt(p.month)-1, parseInt(p.day), hh, mm, ss
+    );
+    return ianaAsUtcMs - utcDateMs; // positiv = östlich von UTC (z.B. +7200000 für CEST)
+  }catch(e){ return 0; }
+}
+
 function parseICal(text){
   const unfolded = text.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
   const events = [];
@@ -423,11 +463,15 @@ function parseICal(text){
     const ev = {};
     block.split('\n').forEach(line=>{
       const sep = line.indexOf(':'); if(sep<0) return;
-      const key = line.slice(0,sep).split(';')[0].trim().toUpperCase();
-      const val = line.slice(sep+1).trim();
+      const keyPart = line.slice(0,sep);           // z.B. "DTSTART;TZID=Europe/Berlin"
+      const key     = keyPart.split(';')[0].trim().toUpperCase();
+      const val     = line.slice(sep+1).trim();
+      // TZID-Parameter aus der Schlüsselseite lesen
+      const tzidM   = keyPart.match(/TZID=([^;:]+)/i);
+      const tzid    = tzidM ? tzidM[1].trim() : null;
       if(key==='SUMMARY')  ev.summary  = val.replace(/\\n/g,' ').replace(/\\,/g,',');
-      if(key==='DTSTART')  ev.dtstart  = parseICalDate(val);
-      if(key==='DTEND')    ev.dtend    = parseICalDate(val);
+      if(key==='DTSTART')  ev.dtstart  = parseICalDate(val, tzid);
+      if(key==='DTEND')    ev.dtend    = parseICalDate(val, tzid);
       if(key==='UID')      ev.uid      = val;
       if(key==='LOCATION') ev.location = val.replace(/\\n/g,', ').replace(/\\,/g,',');
       if(key==='URL')      ev.url      = val.trim();
@@ -437,21 +481,46 @@ function parseICal(text){
   return events;
 }
 
-function parseICalDate(s){
-  // Z-Suffix (UTC) merken BEVOR wir ihn entfernen.
-  // Wenn Z vorhanden → ISO-String mit Z erzeugen, damit new Date()
-  // die Zeit als UTC interpretiert und getHours() korrekte Lokalzeit liefert.
-  // Ohne Z (TZID-Variante oder floating) → Lokalzeit annehmen.
+// tzid: optionaler TZID-String aus dem iCal (z.B. "Europe/Berlin" oder "W. Europe Standard Time")
+function parseICalDate(s, tzid){
   const hasZ = s.endsWith('Z');
   const base  = s.replace('Z','');
-  if(base.includes('T')){
-    const iso = `${base.slice(0,4)}-${base.slice(4,6)}-${base.slice(6,8)}`
-              + `T${base.slice(9,11)}:${base.slice(11,13)}:00`
-              + (hasZ ? 'Z' : '');
-    return new Date(iso);
+
+  if(!base.includes('T')){
+    // Ganztägiger Termin → Mitternacht Lokalzeit
+    return new Date(`${base.slice(0,4)}-${base.slice(4,6)}-${base.slice(6,8)}T00:00:00`);
   }
-  // Ganztägige Termine (kein T) → Mitternacht Lokalzeit
-  return new Date(`${base.slice(0,4)}-${base.slice(4,6)}-${base.slice(6,8)}T00:00:00`);
+
+  const y   = parseInt(base.slice(0,4));
+  const mo  = parseInt(base.slice(4,6)) - 1;
+  const d   = parseInt(base.slice(6,8));
+  const h   = parseInt(base.slice(9,11));
+  const min = parseInt(base.slice(11,13));
+
+  if(hasZ){
+    // UTC-Timestamp → korrekt als UTC parsen
+    return new Date(Date.UTC(y, mo, d, h, min, 0));
+  }
+
+  if(tzid){
+    const iana = resolveIana(tzid);
+    if(iana){
+      // TZID-Lokale Zeit → UTC umrechnen via Intl
+      // Methode: Behandle die Lokalzeit zunächst als UTC (approxUtcMs),
+      // ermittle dann den echten Offset der IANA-Zone an diesem Punkt
+      // und korrigiere: realUTC = lokaleZeit − Offset
+      const approxUtcMs = Date.UTC(y, mo, d, h, min, 0);
+      const offsetMs    = getIanaTzOffsetMs(iana, approxUtcMs);
+      return new Date(approxUtcMs - offsetMs);
+    }
+    // Unbekannter TZID → als Lokalzeit behandeln (Fallback)
+  }
+
+  // Floating time (kein Z, kein TZID) → Lokalzeit des Browsers
+  return new Date(
+    `${String(y).padStart(4,'0')}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    + `T${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`
+  );
 }
 
 function toDateStr(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
