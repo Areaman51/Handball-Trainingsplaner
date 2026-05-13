@@ -247,7 +247,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1100</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260513.1130</div>
     </div>
   </aside>
 
@@ -438,11 +438,20 @@ function parseICal(text){
 }
 
 function parseICalDate(s){
-  s = s.replace('Z','');
-  if(s.includes('T')){
-    return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(9,11)}:${s.slice(11,13)}:00`);
+  // Z-Suffix (UTC) merken BEVOR wir ihn entfernen.
+  // Wenn Z vorhanden → ISO-String mit Z erzeugen, damit new Date()
+  // die Zeit als UTC interpretiert und getHours() korrekte Lokalzeit liefert.
+  // Ohne Z (TZID-Variante oder floating) → Lokalzeit annehmen.
+  const hasZ = s.endsWith('Z');
+  const base  = s.replace('Z','');
+  if(base.includes('T')){
+    const iso = `${base.slice(0,4)}-${base.slice(4,6)}-${base.slice(6,8)}`
+              + `T${base.slice(9,11)}:${base.slice(11,13)}:00`
+              + (hasZ ? 'Z' : '');
+    return new Date(iso);
   }
-  return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);
+  // Ganztägige Termine (kein T) → Mitternacht Lokalzeit
+  return new Date(`${base.slice(0,4)}-${base.slice(4,6)}-${base.slice(6,8)}T00:00:00`);
 }
 
 function toDateStr(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
@@ -619,8 +628,15 @@ async function renderKalender(){
       const time = ev.dtstart?toTimeStr(ev.dtstart):'';
 
       if(!isSpiel){
-        // Trainings-iCal: Supabase-Einheit gleicher Mannschaft vorhanden?
-        const exists = einheiten.find(e=>e.group_name===ev.mannschaftName);
+        // Trainings-iCal: Supabase-Einheit gleicher Mannschaft + gleicher Zeit vorhanden?
+        // Zeitbasierter Vergleich verhindert, dass ein zweites Training desselben Teams
+        // am gleichen Tag fälschlich unterdrückt wird.
+        const evTime = ev.dtstart ? toTimeStr(ev.dtstart) : null;
+        const exists = einheiten.find(e=>{
+          if(e.group_name!==ev.mannschaftName) return false;
+          if(e.time && evTime) return e.time.slice(0,5)===evTime;
+          return true; // keine Zeit → Team-Match genügt
+        });
         if(exists) return;
         addEventDot(cell,{
           label:(time?time+' ':'')+ev.summary,
@@ -733,7 +749,13 @@ function renderList(year,month,einheitenMap,spieleMap,icalMap,spieleLookup){
       const isSpiel=ev.typ==='spiel';
       const time=ev.dtstart?toTimeStr(ev.dtstart):'';
       if(!isSpiel){
-        const exists=Object.values(einheitenMap).flat().find(e=>e.group_name===ev.mannschaftName&&e.date===dateStr);
+        // Zeitbasierter Vergleich: nur filtern wenn Team UND Zeit übereinstimmen
+        const evTime = ev.dtstart ? toTimeStr(ev.dtstart) : null;
+        const exists=Object.values(einheitenMap).flat().find(e=>{
+          if(e.group_name!==ev.mannschaftName||e.date!==dateStr) return false;
+          if(e.time && evTime) return e.time.slice(0,5)===evTime;
+          return true;
+        });
         if(exists) return;
         items.push({
           sortKey:dateStr+(time||''),day,
