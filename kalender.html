@@ -158,7 +158,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .kal-leg-item{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--soft);}
 .kal-leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
 
-/* ── EMPTY ── */
+/* ── SYNC-PROTOKOLL ── */
+.slog-group{padding:8px 14px;border-bottom:1px solid var(--border);}
+.slog-group:last-child{border-bottom:none;}
+.slog-ts{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--xsoft);
+  font-family:'DM Mono',monospace;text-transform:uppercase;margin-bottom:4px;}
+.slog-row{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:11.5px;
+  font-family:'DM Mono',monospace;border-bottom:1px solid #f3f4f6;line-height:1.6;}
+.slog-row:last-child{border-bottom:none;}
+.slog-feed{color:var(--soft);flex-shrink:0;min-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.slog-key{color:var(--xsoft);flex-shrink:0;font-size:10px;}
+.slog-val{color:var(--text);word-break:break-all;}
+.slog-val.ok{color:var(--green);}
+.slog-val.warn{color:var(--orange);}
+.slog-val.err{color:var(--red);}
+
+
 .kal-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:60px 20px;text-align:center;color:var(--soft);}
 .kal-empty-icon{font-size:40px;margin-bottom:14px;}
@@ -247,7 +262,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260513.1530</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260513.1700</div>
     </div>
   </aside>
 
@@ -287,27 +302,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- LEGEND -->
       <div class="kal-legend" id="kal-legend" style="display:none;"></div>
 
-      <!-- DIAGNOSE (nur sichtbar wenn Daten vorhanden) -->
-      <div id="kal-diag" style="display:none;background:#fffbeb;border:1px solid #fde68a;
-        border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;
-        color:#92400e;line-height:1.8;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <b>🔍 Feed-Diagnose (Zeitzonenformat)</b>
-          <button onclick="document.getElementById('kal-diag').style.display='none'"
-            style="background:none;border:none;cursor:pointer;font-size:13px;color:#92400e;">✕</button>
-        </div>
-        <div id="kal-diag-body"></div>
-        <div style="margin-top:8px;font-size:11px;color:#a16207;">
-          Dieses Panel hilft bei der Diagnose von Zeitzonenproblemen. Nach Abschluss schließen.
-        </div>
-      </div>
-
       <!-- LIST -->
       <div class="kal-list-card">
         <div class="kal-list-hdr">
           <div class="kal-list-title">📋 Monatsübersicht</div>
         </div>
         <div id="kal-list"></div>
+      </div>
+
+      <!-- SYNC-PROTOKOLL -->
+      <div class="kal-list-card" id="sync-log-card" style="display:none;">
+        <div class="kal-list-hdr">
+          <div class="kal-list-title">🔄 Sync-Protokoll</div>
+          <button class="btn btn-ghost btn-sm" onclick="clearSyncLog()">Leeren</button>
+        </div>
+        <div id="sync-log-body" style="max-height:340px;overflow-y:auto;"></div>
       </div>
 
     </div>
@@ -358,7 +367,9 @@ let allMannschaften = [];
 let mannschaftKalender = {};   // mannschaft_id → [{url,typ,name}]
 let icalEvents  = [];           // geparste iCal-Events (gecacht)
 let icalLoaded  = false;
-let lastDiagLines = [];         // Diagnose: rohe DTSTART-Zeilen pro Feed
+
+const SYNC_LOG_KEY  = 'hbs_kal_sync_log';
+const SYNC_LOG_MAX  = 30;               // max. gespeicherte Sync-Einträge
 
 const WOCHENTAGE = ['So','Mo','Di','Mi','Do','Fr','Sa'];
 const MONATE = ['Januar','Februar','März','April','Mai','Juni',
@@ -381,6 +392,8 @@ async function onAuth(user){
   document.getElementById('topbar-user').textContent = p?.full_name || p?.email || user.email;
   setTopbarRole(p?.role);
   initMyTeamWidget();
+  // Gespeichertes Sync-Protokoll sofort anzeigen
+  renderSyncLog();
   // Mannschaften + iCal laden
   await loadMannschaften();
   await syncFeeds();
@@ -472,6 +485,14 @@ function getIanaTzOffsetMs(ianaZone, utcDateMs){
 
 function parseICal(text){
   const unfolded = text.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+
+  // ── VTIMEZONE-TZID als Fallback für floating DTSTART (kein Z, kein TZID) ──
+  // Manche Feeds (z.B. handball.net Spiele) liefern VTIMEZONE ohne TZID-Referenz in Events.
+  // Wir lesen die erste VTIMEZONE-TZID und nutzen sie als Kontext.
+  let feedTzid = null;
+  const vtMatch = unfolded.match(/^TZID:(.+)$/m);
+  if(vtMatch) feedTzid = vtMatch[1].trim();
+
   const events = [];
   const blocks = unfolded.split('BEGIN:VEVENT');
   for(let i=1;i<blocks.length;i++){
@@ -482,9 +503,10 @@ function parseICal(text){
       const keyPart = line.slice(0,sep);           // z.B. "DTSTART;TZID=Europe/Berlin"
       const key     = keyPart.split(';')[0].trim().toUpperCase();
       const val     = line.slice(sep+1).trim();
-      // TZID-Parameter aus der Schlüsselseite lesen
+      // TZID-Parameter aus der Schlüsselseite lesen;
+      // falls keiner vorhanden → feedTzid als Fallback für floating times
       const tzidM   = keyPart.match(/TZID=([^;:]+)/i);
-      const tzid    = tzidM ? tzidM[1].trim() : null;
+      const tzid    = tzidM ? tzidM[1].trim() : feedTzid;
       if(key==='SUMMARY')  ev.summary  = val.replace(/\\n/g,' ').replace(/\\,/g,',');
       if(key==='DTSTART')  ev.dtstart  = parseICalDate(val, tzid);
       if(key==='DTEND')    ev.dtend    = parseICalDate(val, tzid);
@@ -560,7 +582,8 @@ async function syncFeeds(){
   const icon = document.getElementById('sync-icon');
   if(btn) btn.classList.add('spinning');
   const newEvents = [];
-  const diagLines = [];   // Diagnose: rohe DTSTART-Zeilen pro Feed
+  const syncTs  = new Date().toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const logFeeds = [];   // Protokoll-Einträge für diesen Sync-Lauf
   let ok=0, fail=0;
   for(const t of allMannschaften){
     const feeds = (mannschaftKalender[t.id]||[]);
@@ -574,14 +597,30 @@ async function syncFeeds(){
         const {events: evs, rawText} = await fetchICalFeed(f.url);
         const isSpiel = (f.typ==='spiel'||f.typ==='spiele');
 
-        // ── Diagnose: erste DTSTART-Zeile + VTIMEZONE-TZID aus dem Feed extrahieren ──
+        // ── Protokoll-Daten aus dem Feed extrahieren ──
         const unfolded = rawText.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-        const firstDtstart = unfolded.split('\n').find(l=>l.toUpperCase().startsWith('DTSTART')) || '(nicht gefunden)';
-        const vtimezoneMatch = unfolded.match(/BEGIN:VTIMEZONE[\s\S]*?TZID:([^\r\n]+)/);
-        const vtimezoneTzid = vtimezoneMatch ? vtimezoneMatch[1].trim() : '(kein VTIMEZONE)';
-        diagLines.push(`<b>${t.name} · ${f.name}</b><br>
-          DTSTART-Zeile: <code>${firstDtstart}</code><br>
-          VTIMEZONE TZID: <code>${vtimezoneTzid}</code>`);
+        // VTIMEZONE-TZID (erste Zeile mit TZID: ohne Parameter, also Beginn des Blocks)
+        const vtimezoneMatch = unfolded.match(/^TZID:(.+)$/m);
+        const vtimezoneTzid  = vtimezoneMatch ? vtimezoneMatch[1].trim() : null;
+        // Ersten DTSTART aus einem echten VEVENT-Block lesen
+        const veventBlock   = unfolded.match(/BEGIN:VEVENT([\s\S]*?)END:VEVENT/);
+        const veventDtstart = veventBlock
+          ? (veventBlock[1].split('\n').find(l=>l.toUpperCase().startsWith('DTSTART')) || null)
+          : null;
+        // Erstes geparste Event zum Zeitvergleich
+        const firstEv   = evs.find(e=>e.dtstart);
+        const parsedTime = firstEv ? firstEv.dtstart.toLocaleString('de-DE',{
+          day:'2-digit',month:'2-digit',year:'numeric',
+          hour:'2-digit',minute:'2-digit',timeZoneName:'short'}) : null;
+
+        logFeeds.push({
+          feed:       `${t.name} · ${f.name}`,
+          events:     evs.length,
+          dtstart:    veventDtstart || '–',
+          vtimezone:  vtimezoneTzid || '–',
+          parsedTime: parsedTime   || '–',
+          status:     'ok',
+        });
 
         evs.forEach(e=>newEvents.push({
           ...e,
@@ -593,19 +632,26 @@ async function syncFeeds(){
           farbe_ungeplant:t.farbe_ungeplant || '#94a3b8',
         }));
         ok++;
-      }catch(e){fail++;console.warn(`Feed ${f.name}: ${e.message}`);}
+      }catch(e){
+        fail++;
+        console.warn(`Feed ${f.name}: ${e.message}`);
+        logFeeds.push({feed:`${t.name} · ${f.name}`,events:0,dtstart:'–',vtimezone:'–',parsedTime:'–',status:'err',err:e.message});
+      }
     }
   }
   icalEvents = newEvents;
   icalLoaded = true;
-  lastDiagLines = diagLines;   // global speichern
+
+  // ── Sync-Protokoll in localStorage speichern ──
+  if(logFeeds.length) appendSyncLog({ts: syncTs, feeds: logFeeds});
+
   if(btn) btn.classList.remove('spinning');
   const total = newEvents.length;
   if(allMannschaften.length){
     toast(fail>0 ? `⚠ ${ok} Feeds geladen, ${fail} Fehler` : `✅ ${total} Termine geladen`, fail>0?'info':'success');
   }
   renderKalender();
-  renderDiag();
+  renderSyncLog();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -920,12 +966,53 @@ function renderLegend(teams){
   `).join('');
 }
 
-function renderDiag(){
-  const panel = document.getElementById('kal-diag');
-  const body  = document.getElementById('kal-diag-body');
-  if(!lastDiagLines.length){ panel.style.display='none'; return; }
-  panel.style.display='block';
-  body.innerHTML = lastDiagLines.join('<hr style="border:none;border-top:1px solid #fde68a;margin:6px 0;">');
+// ── SYNC-PROTOKOLL ──────────────────────────────────────────
+function loadSyncLog(){
+  try{ return JSON.parse(localStorage.getItem(SYNC_LOG_KEY)||'[]'); }
+  catch(e){ return []; }
+}
+
+function appendSyncLog(entry){
+  const log = loadSyncLog();
+  log.unshift(entry);                          // neueste oben
+  if(log.length > SYNC_LOG_MAX) log.length = SYNC_LOG_MAX;
+  localStorage.setItem(SYNC_LOG_KEY, JSON.stringify(log));
+}
+
+function clearSyncLog(){
+  localStorage.removeItem(SYNC_LOG_KEY);
+  renderSyncLog();
+}
+
+function renderSyncLog(){
+  const card = document.getElementById('sync-log-card');
+  const body = document.getElementById('sync-log-body');
+  const log  = loadSyncLog();
+  if(!log.length){ card.style.display='none'; return; }
+  card.style.display='';
+
+  body.innerHTML = log.map(entry=>`
+    <div class="slog-group">
+      <div class="slog-ts">🔄 ${entry.ts}</div>
+      ${entry.feeds.map(f=>`
+        <div class="slog-row">
+          <span class="slog-feed" title="${f.feed}">${f.feed}</span>
+          <span class="slog-key">DTSTART</span>
+          <span class="slog-val" title="${f.dtstart}">${f.dtstart}</span>
+        </div>
+        <div class="slog-row">
+          <span class="slog-feed"></span>
+          <span class="slog-key">VTIMEZONE</span>
+          <span class="slog-val">${f.vtimezone}</span>
+        </div>
+        <div class="slog-row">
+          <span class="slog-feed"></span>
+          <span class="slog-key">→ geparst</span>
+          <span class="slog-val ${f.status==='err'?'err':f.parsedTime!=='–'?'ok':''}">${f.status==='err'?'❌ '+f.err:f.parsedTime} (${f.events} Events)</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
 }
 
 // ════════════════════════════════════════════════════════════
