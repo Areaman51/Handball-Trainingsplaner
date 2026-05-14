@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260514.1600 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260514.1800 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -218,27 +218,32 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sys-img-icon{font-size:28px;margin-bottom:6px;}
 .sys-img-text{font-size:12.5px;color:var(--soft);font-weight:500;}
 .sys-img-hint{font-size:11px;color:var(--xsoft);margin-top:3px;}
-/* Standardsituationen */
-.std-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
-.std-card{background:white;border-radius:var(--radius);border:1.5px solid var(--border);padding:18px;box-shadow:var(--shadow);}
-.std-card-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
-.std-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
-.std-icon.freiwurf{background:#fff7ed;color:#ea580c;}
-.std-icon.ecke{background:var(--purple-l);color:var(--purple);}
-.std-icon.sieben{background:var(--yellow-l);color:var(--yellow);}
-.std-card-title{font-size:13px;font-weight:700;}
-.std-img-zone{border:2px dashed var(--border);border-radius:8px;padding:14px 10px;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--bg);margin-top:10px;}
-.std-img-zone:hover{border-color:var(--accent);background:#f0f4ff;}
-.std-img-zone.has-img{border-style:solid;padding:0;background:transparent;}
-.std-img-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-.std-img-zone img{width:100%;border-radius:6px;display:block;max-height:180px;object-fit:contain;}
+/* Auslösehandlungen */
+.aush-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:16px;}
+.aush-card{background:white;border-radius:var(--radius);border:1.5px solid var(--border);padding:16px;box-shadow:var(--shadow);position:relative;transition:border-color .15s;}
+.aush-card:hover{border-color:#c7d2fe;}
+.aush-card-top{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.aush-name{flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13.5px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--text);outline:none;transition:border-color .15s;}
+.aush-name:focus{border-color:var(--accent);}
+.aush-name::placeholder{font-weight:400;color:var(--xsoft);}
+.aush-delete{background:none;border:none;color:var(--xsoft);cursor:pointer;font-size:16px;padding:4px;border-radius:5px;line-height:1;flex-shrink:0;transition:all .15s;}
+.aush-delete:hover{background:var(--red-l);color:var(--red);}
+.aush-img-zone{border:2px dashed var(--border);border-radius:8px;padding:14px 10px;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--bg);margin-top:10px;}
+.aush-img-zone:hover{border-color:var(--accent);background:#f0f4ff;}
+.aush-img-zone.has-img{border-style:solid;border-color:var(--border);padding:0;background:transparent;}
+.aush-img-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.aush-img-zone img{width:100%;border-radius:6px;display:block;max-height:200px;object-fit:contain;}
+.aush-add-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:2px dashed var(--border);border-radius:var(--radius);background:transparent;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--soft);cursor:pointer;transition:all .2s;margin-bottom:20px;}
+.aush-add-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-l);}
+.aush-img-actions{display:flex;gap:6px;margin-top:8px;}
+.aush-saving{font-size:11px;color:var(--xsoft);}
 .sys-save-bar{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:16px 0 4px;}
 .sys-save-hint{font-size:12px;color:var(--xsoft);}
 /* Upload progress */
 .upload-spinner{display:none;width:18px;height:18px;border:2px solid #e5e7eb;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
 .upload-spinner.active{display:inline-block;}
 @keyframes spin{to{transform:rotate(360deg);}}
-@media(max-width:900px){.main{margin-left:0;}.form-row{grid-template-columns:1fr;}.gegner-grid{grid-template-columns:1fr;}.spieler-grid{grid-template-columns:1fr 1fr;}.content{padding:16px;}.analyse-item{grid-template-columns:auto 1fr;}.ai-arrow{display:none;}.sys-grid{grid-template-columns:1fr;}.std-grid{grid-template-columns:1fr;}}
+@media(max-width:900px){.main{margin-left:0;}.form-row{grid-template-columns:1fr;}.gegner-grid{grid-template-columns:1fr;}.spieler-grid{grid-template-columns:1fr 1fr;}.content{padding:16px;}.analyse-item{grid-template-columns:auto 1fr;}.ai-arrow{display:none;}.sys-grid{grid-template-columns:1fr;}.aush-grid{grid-template-columns:1fr;}}
 @media(max-width:540px){.spieler-grid{grid-template-columns:1fr;}.detail-hero{flex-direction:column;}.detail-actions{width:100%;}.page-header-actions{width:100%;}}
 </style>
 </head>
@@ -279,7 +284,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
     </div>
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260514.1600</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260514.1800</div>
     </div>
   </aside>
 
@@ -412,72 +417,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             </div>
           </div>
 
-          <!-- Standardsituationen -->
-          <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--xsoft);margin-bottom:12px;padding-bottom:6px;border-bottom:1.5px solid var(--border);">Standardsituationen</div>
-          <div class="std-grid">
-            <!-- Freiwurf -->
-            <div class="std-card">
-              <div class="std-card-header">
-                <div class="std-icon freiwurf">🎯</div>
-                <div class="std-card-title">Freiwurf</div>
-              </div>
-              <textarea class="form-textarea" id="sys-freiwurf-notiz" placeholder="Typische Laufwege, Varianten, Schützen…" rows="3" style="font-size:12.5px;"></textarea>
-              <div class="std-img-zone" id="sys-fw-imgzone" onclick="triggerUpload('fw')">
-                <input type="file" id="sys-fw-file" accept="image/*" onchange="handleBildUpload('fw')">
-                <div id="sys-fw-placeholder" style="pointer-events:none;">
-                  <div style="font-size:20px;margin-bottom:4px;">🖼</div>
-                  <div style="font-size:11.5px;color:var(--soft);">Skizze hochladen</div>
-                </div>
-              </div>
-              <div class="sys-img-actions" id="sys-fw-actions" style="display:none;">
-                <span class="upload-spinner" id="sys-fw-spinner"></span>
-                <button class="btn btn-ghost btn-xs" onclick="triggerUpload('fw')">🔄 Ersetzen</button>
-                <button class="btn btn-danger btn-xs" onclick="deleteBild('fw')">🗑</button>
-              </div>
-            </div>
-
-            <!-- Ecke -->
-            <div class="std-card">
-              <div class="std-card-header">
-                <div class="std-icon ecke">📐</div>
-                <div class="std-card-title">Ecke / Seitenwurf</div>
-              </div>
-              <textarea class="form-textarea" id="sys-ecke-notiz" placeholder="Ablauf, Positionen, Schützen…" rows="3" style="font-size:12.5px;"></textarea>
-              <div class="std-img-zone" id="sys-eck-imgzone" onclick="triggerUpload('eck')">
-                <input type="file" id="sys-eck-file" accept="image/*" onchange="handleBildUpload('eck')">
-                <div id="sys-eck-placeholder" style="pointer-events:none;">
-                  <div style="font-size:20px;margin-bottom:4px;">🖼</div>
-                  <div style="font-size:11.5px;color:var(--soft);">Skizze hochladen</div>
-                </div>
-              </div>
-              <div class="sys-img-actions" id="sys-eck-actions" style="display:none;">
-                <span class="upload-spinner" id="sys-eck-spinner"></span>
-                <button class="btn btn-ghost btn-xs" onclick="triggerUpload('eck')">🔄 Ersetzen</button>
-                <button class="btn btn-danger btn-xs" onclick="deleteBild('eck')">🗑</button>
-              </div>
-            </div>
-
-            <!-- 7-Meter -->
-            <div class="std-card">
-              <div class="std-card-header">
-                <div class="std-icon sieben">7</div>
-                <div class="std-card-title">7-Meter</div>
-              </div>
-              <textarea class="form-textarea" id="sys-7m-notiz" placeholder="Schützen, Ecken, Einschussverhalten…" rows="3" style="font-size:12.5px;"></textarea>
-              <div class="std-img-zone" id="sys-7m-imgzone" onclick="triggerUpload('7m')">
-                <input type="file" id="sys-7m-file" accept="image/*" onchange="handleBildUpload('7m')">
-                <div id="sys-7m-placeholder" style="pointer-events:none;">
-                  <div style="font-size:20px;margin-bottom:4px;">🖼</div>
-                  <div style="font-size:11.5px;color:var(--soft);">Skizze hochladen</div>
-                </div>
-              </div>
-              <div class="sys-img-actions" id="sys-7m-actions" style="display:none;">
-                <span class="upload-spinner" id="sys-7m-spinner"></span>
-                <button class="btn btn-ghost btn-xs" onclick="triggerUpload('7m')">🔄 Ersetzen</button>
-                <button class="btn btn-danger btn-xs" onclick="deleteBild('7m')">🗑</button>
-              </div>
-            </div>
+          <!-- Auslösehandlungen -->
+          <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--xsoft);margin-bottom:12px;padding-bottom:6px;border-bottom:1.5px solid var(--border);">Auslösehandlungen</div>
+          <div class="aush-grid" id="aush-grid">
+            <!-- wird per JS gerendert -->
           </div>
+          <button class="aush-add-btn" onclick="addAusloesehandlung()">
+            <span style="font-size:20px;line-height:1;">+</span> Auslösehandlung hinzufügen
+          </button>
 
           <div class="sys-save-bar">
             <span class="upload-spinner" id="sys-save-spinner"></span>
@@ -931,39 +878,28 @@ function renderProfilTab(g){
 // ── SPIELSYSTEME TAB ──────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-// Mapping: key → {dbField, fileInputId, zoneId, placeholderId, actionsId, spinnerId}
 const SYS_FIELDS={
-  ang:  {dbBild:'angriff_bild_url',   dbSystem:'angriff_system',  dbNotiz:'angriff_notiz'},
-  abw:  {dbBild:'abwehr_bild_url',    dbSystem:'abwehr_system',   dbNotiz:'abwehr_notiz'},
-  fw:   {dbBild:'standard_freiwurf_bild', dbNotiz:'standard_freiwurf'},
-  eck:  {dbBild:'standard_ecke_bild',     dbNotiz:'standard_ecke'},
-  '7m': {dbBild:'standard_7m_bild',       dbNotiz:'standard_7m'},
+  ang:{dbBild:'angriff_bild_url', dbSystem:'angriff_system', dbNotiz:'angriff_notiz'},
+  abw:{dbBild:'abwehr_bild_url',  dbSystem:'abwehr_system',  dbNotiz:'abwehr_notiz'},
 };
+
+let currentAusloesehandlungen=[];
 
 async function loadSpielsysteme(gegnerId){
   const g=allGegner.find(x=>x.id===gegnerId);
   if(!g) return;
-
   // Angriff
   document.getElementById('sys-ang-system').value=g.angriff_system||'';
   document.getElementById('sys-ang-notiz').value=g.angriff_notiz||'';
   updateSysChip('ang');
   setBildZone('ang',g.angriff_bild_url);
-
   // Abwehr
   document.getElementById('sys-abw-system').value=g.abwehr_system||'';
   document.getElementById('sys-abw-notiz').value=g.abwehr_notiz||'';
   updateSysChip('abw');
   setBildZone('abw',g.abwehr_bild_url);
-
-  // Standardsituationen
-  document.getElementById('sys-freiwurf-notiz').value=g.standard_freiwurf||'';
-  document.getElementById('sys-ecke-notiz').value=g.standard_ecke||'';
-  document.getElementById('sys-7m-notiz').value=g.standard_7m||'';
-  setBildZone('fw',g.standard_freiwurf_bild);
-  setBildZone('eck',g.standard_ecke_bild);
-  setBildZone('7m',g.standard_7m_bild);
-
+  // Auslösehandlungen
+  await loadAusloesehandlungen(gegnerId);
   document.getElementById('sys-save-hint').textContent='';
 }
 
@@ -975,19 +911,17 @@ function updateSysChip(which){
   else chip.style.display='none';
 }
 
+// ── Angriff/Abwehr Bildzone ───────────────────────────────────
 function setBildZone(key,url){
   const zone=document.getElementById(`sys-${key}-imgzone`);
   const placeholder=document.getElementById(`sys-${key}-placeholder`);
   const actions=document.getElementById(`sys-${key}-actions`);
   if(!zone) return;
-
-  // Vorhandenes img entfernen
   zone.querySelectorAll('img').forEach(el=>el.remove());
-
   if(url){
     const img=document.createElement('img');
-    img.src=url+'?t='+Date.now(); // Cache-Busting
-    img.alt='Spielsystem-Skizze';
+    img.src=url+'?t='+Date.now();
+    img.alt='Skizze';
     img.onerror=()=>setBildZone(key,null);
     zone.appendChild(img);
     zone.classList.add('has-img');
@@ -999,63 +933,42 @@ function setBildZone(key,url){
     if(actions) actions.style.display='none';
   }
 }
-
-function triggerUpload(key){
-  // Verhindert doppelten Aufruf wenn Bild schon da (click geht durch img)
-  document.getElementById(`sys-${key}-file`).click();
-}
+function triggerUpload(key){document.getElementById(`sys-${key}-file`).click();}
 
 async function handleBildUpload(key){
   const fileInput=document.getElementById(`sys-${key}-file`);
   const file=fileInput.files[0];
   if(!file||!currentGegnerId) return;
-
-  // Größe prüfen
   if(file.size>10*1024*1024){showToast('Datei zu groß (max. 10 MB).','error');return;}
-
   const spinner=document.getElementById(`sys-${key}-spinner`);
   if(spinner) spinner.classList.add('active');
-
   try{
     const ext=file.name.split('.').pop().toLowerCase()||'jpg';
     const path=`${currentUser.id}/${currentGegnerId}/${key}.${ext}`;
-
     const{error:upErr}=await supa.storage.from('gegner-bilder').upload(path,file,{upsert:true,contentType:file.type});
     if(upErr) throw upErr;
-
     const{data:{publicUrl}}=supa.storage.from('gegner-bilder').getPublicUrl(path);
-
-    // URL in DB speichern
     const field=SYS_FIELDS[key]?.dbBild;
     if(field){
       const{error:dbErr}=await supa.from('gegner').update({[field]:publicUrl}).eq('id',currentGegnerId);
       if(dbErr) throw dbErr;
-      // Lokalen State aktualisieren
       const g=allGegner.find(x=>x.id===currentGegnerId);
       if(g) g[field]=publicUrl;
     }
-
     setBildZone(key,publicUrl);
     showToast('Bild hochgeladen ✓','success');
-  } catch(e){
-    showToast('Upload fehlgeschlagen: '+e.message,'error');
-  } finally{
-    if(spinner) spinner.classList.remove('active');
-    fileInput.value=''; // Reset für erneuten Upload
-  }
+  }catch(e){showToast('Upload fehlgeschlagen: '+e.message,'error');}
+  finally{if(spinner) spinner.classList.remove('active');fileInput.value='';}
 }
 
 async function deleteBild(key){
   if(!confirm('Bild wirklich löschen?')) return;
   const field=SYS_FIELDS[key]?.dbBild;
   if(!field||!currentGegnerId) return;
-
   const{error}=await supa.from('gegner').update({[field]:null}).eq('id',currentGegnerId);
   if(error){showToast('Fehler: '+error.message,'error');return;}
-
   const g=allGegner.find(x=>x.id===currentGegnerId);
   if(g) g[field]=null;
-
   setBildZone(key,null);
   showToast('Bild gelöscht','success');
 }
@@ -1065,32 +978,161 @@ async function saveSpielsysteme(){
   const spinner=document.getElementById('sys-save-spinner');
   const hint=document.getElementById('sys-save-hint');
   spinner.classList.add('active');
-  hint.textContent='';
-
   const payload={
-    angriff_system:  document.getElementById('sys-ang-system').value||null,
-    angriff_notiz:   document.getElementById('sys-ang-notiz').value.trim()||null,
-    abwehr_system:   document.getElementById('sys-abw-system').value||null,
-    abwehr_notiz:    document.getElementById('sys-abw-notiz').value.trim()||null,
-    standard_freiwurf: document.getElementById('sys-freiwurf-notiz').value.trim()||null,
-    standard_ecke:     document.getElementById('sys-ecke-notiz').value.trim()||null,
-    standard_7m:       document.getElementById('sys-7m-notiz').value.trim()||null,
+    angriff_system:document.getElementById('sys-ang-system').value||null,
+    angriff_notiz:document.getElementById('sys-ang-notiz').value.trim()||null,
+    abwehr_system:document.getElementById('sys-abw-system').value||null,
+    abwehr_notiz:document.getElementById('sys-abw-notiz').value.trim()||null,
   };
-
   const{error}=await supa.from('gegner').update(payload).eq('id',currentGegnerId);
   spinner.classList.remove('active');
-
   if(error){showToast('Fehler: '+error.message,'error');return;}
-
-  // Lokalen State aktualisieren
   const g=allGegner.find(x=>x.id===currentGegnerId);
   if(g) Object.assign(g,payload);
-
   hint.textContent='✓ Gespeichert';
   setTimeout(()=>{if(hint.textContent==='✓ Gespeichert')hint.textContent='';},3000);
   showToast('Spielsysteme gespeichert','success');
   updateSysChip('ang');
   updateSysChip('abw');
+}
+
+// ── AUSLÖSEHANDLUNGEN ─────────────────────────────────────────
+async function loadAusloesehandlungen(gegnerId){
+  const{data,error}=await supa.from('gegner_ausloesehandlungen')
+    .select('*').eq('gegner_id',gegnerId)
+    .order('sort_order').order('created_at');
+  if(error){console.warn('Auslösehandlungen:',error.message);return;}
+  currentAusloesehandlungen=data||[];
+  renderAusloesehandlungen();
+}
+
+function renderAusloesehandlungen(){
+  const grid=document.getElementById('aush-grid');
+  if(!grid) return;
+  if(!currentAusloesehandlungen.length){
+    grid.innerHTML='';
+    return;
+  }
+  grid.innerHTML=currentAusloesehandlungen.map(a=>aushCardHtml(a)).join('');
+}
+
+function aushCardHtml(a){
+  return `<div class="aush-card" id="aush-card-${a.id}">
+    <div class="aush-card-top">
+      <input class="aush-name" type="text" value="${esc(a.name)}"
+        placeholder="Name der Auslösehandlung…"
+        onblur="saveAushField('${a.id}','name',this.value)"
+        onkeydown="if(event.key==='Enter')this.blur()">
+      <button class="aush-delete" title="Auslösehandlung löschen" onclick="deleteAusloesehandlung('${a.id}')">✕</button>
+    </div>
+    <textarea class="form-textarea" rows="3" style="font-size:12.5px;"
+      placeholder="Beschreibung, Laufwege, typische Situationen…"
+      onblur="saveAushField('${a.id}','notiz',this.value)">${esc(a.notiz||'')}</textarea>
+    <div class="aush-img-zone${a.bild_url?' has-img':''}" id="aush-zone-${a.id}" onclick="triggerAushUpload('${a.id}')">
+      <input type="file" id="aush-file-${a.id}" accept="image/*" onchange="uploadAushBild('${a.id}')">
+      <div id="aush-ph-${a.id}" style="pointer-events:none;${a.bild_url?'display:none;':''}">
+        <div style="font-size:22px;margin-bottom:5px;">🖼</div>
+        <div style="font-size:12px;color:var(--soft);font-weight:500;">Skizze hochladen</div>
+        <div style="font-size:10.5px;color:var(--xsoft);margin-top:2px;">JPG, PNG, WebP · max. 10 MB</div>
+      </div>
+      ${a.bild_url?`<img src="${esc(a.bild_url)}?t=${Date.now()}" alt="Skizze" onerror="this.remove();document.getElementById('aush-ph-${a.id}').style.display='';document.getElementById('aush-zone-${a.id}').classList.remove('has-img');">`:''}
+    </div>
+    <div class="aush-img-actions" id="aush-actions-${a.id}" style="display:${a.bild_url?'flex':'none'};">
+      <span class="upload-spinner" id="aush-spinner-${a.id}"></span>
+      <button class="btn btn-ghost btn-xs" onclick="triggerAushUpload('${a.id}')">🔄 Ersetzen</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteAushBild('${a.id}')">🗑 Bild</button>
+    </div>
+  </div>`;
+}
+
+async function addAusloesehandlung(){
+  if(!currentGegnerId) return;
+  const sort=currentAusloesehandlungen.length;
+  const{data,error}=await supa.from('gegner_ausloesehandlungen')
+    .insert({gegner_id:currentGegnerId,user_id:currentUser.id,name:'',sort_order:sort})
+    .select().single();
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  currentAusloesehandlungen.push(data);
+  renderAusloesehandlungen();
+  // Fokus auf neues Namensfeld
+  setTimeout(()=>{
+    const inp=document.querySelector(`#aush-card-${data.id} .aush-name`);
+    if(inp) inp.focus();
+  },50);
+}
+
+async function saveAushField(id,field,value){
+  const a=currentAusloesehandlungen.find(x=>x.id===id);
+  if(!a) return;
+  const val=value.trim();
+  if(a[field]===val) return; // Nichts geändert
+  a[field]=val;
+  const{error}=await supa.from('gegner_ausloesehandlungen').update({[field]:val}).eq('id',id);
+  if(error) showToast('Speichern fehlgeschlagen: '+error.message,'error');
+}
+
+async function deleteAusloesehandlung(id){
+  if(!confirm('Auslösehandlung wirklich löschen?')) return;
+  const{error}=await supa.from('gegner_ausloesehandlungen').delete().eq('id',id);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  currentAusloesehandlungen=currentAusloesehandlungen.filter(x=>x.id!==id);
+  renderAusloesehandlungen();
+  showToast('Gelöscht','success');
+}
+
+function triggerAushUpload(id){
+  document.getElementById(`aush-file-${id}`)?.click();
+}
+
+async function uploadAushBild(id){
+  const fileInput=document.getElementById(`aush-file-${id}`);
+  const file=fileInput?.files[0];
+  if(!file||!currentGegnerId) return;
+  if(file.size>10*1024*1024){showToast('Datei zu groß (max. 10 MB).','error');return;}
+  const spinner=document.getElementById(`aush-spinner-${id}`);
+  if(spinner) spinner.classList.add('active');
+  try{
+    const ext=file.name.split('.').pop().toLowerCase()||'jpg';
+    const path=`${currentUser.id}/${currentGegnerId}/aush_${id}.${ext}`;
+    const{error:upErr}=await supa.storage.from('gegner-bilder').upload(path,file,{upsert:true,contentType:file.type});
+    if(upErr) throw upErr;
+    const{data:{publicUrl}}=supa.storage.from('gegner-bilder').getPublicUrl(path);
+    const{error:dbErr}=await supa.from('gegner_ausloesehandlungen').update({bild_url:publicUrl}).eq('id',id);
+    if(dbErr) throw dbErr;
+    const a=currentAusloesehandlungen.find(x=>x.id===id);
+    if(a) a.bild_url=publicUrl;
+    // Bildzone live aktualisieren
+    const zone=document.getElementById(`aush-zone-${id}`);
+    const ph=document.getElementById(`aush-ph-${id}`);
+    const actions=document.getElementById(`aush-actions-${id}`);
+    if(zone){
+      zone.querySelectorAll('img').forEach(el=>el.remove());
+      const img=document.createElement('img');
+      img.src=publicUrl+'?t='+Date.now();
+      img.alt='Skizze';
+      zone.appendChild(img);
+      zone.classList.add('has-img');
+    }
+    if(ph) ph.style.display='none';
+    if(actions) actions.style.display='flex';
+    showToast('Bild hochgeladen ✓','success');
+  }catch(e){showToast('Upload fehlgeschlagen: '+e.message,'error');}
+  finally{if(spinner) spinner.classList.remove('active');if(fileInput) fileInput.value='';}
+}
+
+async function deleteAushBild(id){
+  if(!confirm('Bild wirklich löschen?')) return;
+  const{error}=await supa.from('gegner_ausloesehandlungen').update({bild_url:null}).eq('id',id);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  const a=currentAusloesehandlungen.find(x=>x.id===id);
+  if(a) a.bild_url=null;
+  const zone=document.getElementById(`aush-zone-${id}`);
+  const ph=document.getElementById(`aush-ph-${id}`);
+  const actions=document.getElementById(`aush-actions-${id}`);
+  if(zone){zone.querySelectorAll('img').forEach(el=>el.remove());zone.classList.remove('has-img');}
+  if(ph) ph.style.display='';
+  if(actions) actions.style.display='none';
+  showToast('Bild gelöscht','success');
 }
 
 // ── MODAL GEGNER ──
