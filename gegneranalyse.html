@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260514.1200 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260514.1400 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -24,8 +24,6 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{overflow-x:hidden;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
-
-/* ── SIDEBAR ── */
 .sidebar{width:220px;min-height:100vh;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;transition:transform .25s ease;}
 .sidebar.collapsed{transform:translateX(-220px);}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:19;}
@@ -47,8 +45,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .mt-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);}
 .mt-name{font-size:13px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .mt-name.empty{color:rgba(255,255,255,.3);font-weight:400;font-style:italic;}
-
-/* ── MAIN ── */
 .main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;flex:1;transition:margin-left .25s ease;}
 #app.sidebar-collapsed .main{margin-left:0;}
 .burger-btn{background:none;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;color:rgba(255,255,255,.5);font-size:18px;line-height:1;display:none;align-items:center;justify-content:center;transition:color .15s;}
@@ -64,11 +60,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .topbar-logout{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);border-radius:7px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;}
 .topbar-logout:hover{color:rgba(255,130,130,.8);border-color:rgba(255,100,100,.25);}
 .content{padding:26px;flex:1;}
-
-/* ── PAGE ELEMENTS ── */
 .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;gap:12px;flex-wrap:wrap;}
 .page-title{font-size:20px;font-weight:700;letter-spacing:-.4px;}
 .page-subtitle{font-size:13px;color:var(--soft);margin-top:2px;}
+.page-header-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:22px;}
 .stat-card{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:16px 20px;}
 .stat-num{font-size:26px;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:-.5px;}
@@ -76,79 +71,65 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .stat-card.blue .stat-num{color:var(--accent);}
 .stat-card.green .stat-num{color:var(--green);}
 .stat-card.purple .stat-num{color:var(--purple);}
-.stat-card.yellow .stat-num{color:var(--yellow);}
-
-/* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;text-decoration:none;}
 .btn-primary{background:var(--accent);color:white;}
 .btn-primary:hover{background:#0044cc;}
 .btn-ghost{background:transparent;color:var(--soft);border:1px solid var(--border);}
 .btn-ghost:hover{background:var(--bg);}
+.btn-secondary{background:var(--bg);color:var(--text);border:1px solid var(--border);}
+.btn-secondary:hover{background:#e8eaf0;}
 .btn-danger{background:var(--red-l);color:var(--red);border:1px solid var(--red-b);}
 .btn-danger:hover{background:#fecaca;}
 .btn-sm{padding:4px 10px;font-size:11.5px;border-radius:6px;}
 .btn-xs{padding:3px 8px;font-size:11px;border-radius:5px;}
-
-/* ── CARDS + TABLE ── */
 .card{background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;}
-.table-wrap{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:13px;}
-thead tr{background:#f8f9fb;border-bottom:2px solid var(--border);}
-th{padding:11px 16px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);white-space:nowrap;}
-td{padding:12px 16px;border-bottom:1px solid #f1f3f7;vertical-align:middle;}
-tr:last-child td{border-bottom:none;}
-tbody tr:hover{background:#fafbff;}
-
-/* ── GEGNER GRID ── */
+/* Gegner Grid */
 .gegner-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:24px;}
 .gegner-card{background:white;border-radius:var(--radius);border:1.5px solid var(--border);box-shadow:var(--shadow);padding:20px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
 .gegner-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--card-color,var(--soft));border-radius:var(--radius) var(--radius) 0 0;}
 .gegner-card:hover{border-color:#c7d2fe;box-shadow:var(--shadow-md);transform:translateY(-2px);}
-.gc-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.gc-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
 .gc-name{font-size:16px;font-weight:700;letter-spacing:-.3px;margin-bottom:3px;}
 .gc-liga{font-size:11.5px;color:var(--soft);}
-.gc-color-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;margin-top:3px;border:2px solid rgba(0,0,0,.08);}
-.gc-stats{display:flex;gap:14px;padding-top:12px;border-top:1px solid var(--border);}
-.gc-stat{text-align:center;}
-.gc-stat-num{font-size:18px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text);}
+.gc-trikots{display:flex;gap:4px;align-items:center;flex-shrink:0;}
+.trikot-dot{width:22px;height:22px;border-radius:4px;border:1.5px solid rgba(0,0,0,.12);position:relative;flex-shrink:0;}
+.trikot-dot-label{position:absolute;bottom:1px;right:2px;font-size:7px;font-weight:800;color:rgba(0,0,0,.45);line-height:1;}
+.gc-stats{display:flex;gap:14px;padding-top:10px;border-top:1px solid var(--border);}
+.gc-stat-num{font-size:18px;font-weight:700;font-family:'DM Mono',monospace;}
 .gc-stat-label{font-size:10.5px;color:var(--xsoft);margin-top:1px;}
-.gc-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;}
+.gc-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;}
 .gc-date{font-size:11px;color:var(--xsoft);}
 .gc-arrow{font-size:13px;color:var(--xsoft);transition:all .15s;}
 .gegner-card:hover .gc-arrow{color:var(--accent);transform:translateX(3px);}
-
-/* ── DETAIL VIEW ── */
+/* Detail */
 .detail-hero{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:22px 24px;margin-bottom:20px;display:flex;align-items:flex-start;gap:16px;}
-.detail-color-bar{width:6px;border-radius:6px;self-align:stretch;flex-shrink:0;min-height:60px;}
+.detail-color-bar{width:6px;border-radius:6px;flex-shrink:0;min-height:60px;align-self:stretch;}
 .detail-info{flex:1;min-width:0;}
-.detail-name{font-size:22px;font-weight:700;letter-spacing:-.4px;margin-bottom:4px;}
-.detail-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+.detail-name{font-size:22px;font-weight:700;letter-spacing:-.4px;margin-bottom:6px;}
+.detail-meta{display:flex;flex-wrap:wrap;gap:10px;}
 .detail-meta-item{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--soft);}
-.detail-meta-item span{font-size:14px;}
+.detail-trikots{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.trikot-preview{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);}
+.trikot-swatch{width:22px;height:22px;border-radius:4px;border:1.5px solid rgba(0,0,0,.12);flex-shrink:0;}
+.trikot-label{font-size:11px;font-weight:500;color:var(--soft);}
 .detail-actions{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;}
-
-/* ── TABS ── */
+/* Tabs */
 .tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:20px;}
 .tab-btn{padding:10px 18px;font-size:13px;font-weight:500;color:var(--soft);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:all .15s;}
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
 .tab-btn:hover:not(.active){color:var(--text);}
-
-/* ── ANALYSE LIST ── */
+/* Analyse List */
 .analyse-list{display:flex;flex-direction:column;gap:10px;}
 .analyse-item{background:white;border-radius:var(--radius);border:1.5px solid var(--border);padding:16px 20px;cursor:pointer;transition:all .18s;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;}
 .analyse-item:hover{border-color:#c7d2fe;box-shadow:var(--shadow-md);}
-.ai-date-block{text-align:center;min-width:52px;}
-.ai-day{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:-.5px;line-height:1;}
+.ai-day{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;line-height:1;}
 .ai-month{font-size:10px;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
-.ai-body{}
 .ai-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;}
-.ai-systems{font-size:12px;color:var(--soft);display:flex;gap:8px;flex-wrap:wrap;}
-.ai-system-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:var(--bg);border:1px solid var(--border);}
+.ai-chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:var(--bg);border:1px solid var(--border);}
 .ai-notiz{font-size:12.5px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:400px;}
 .ai-arrow{font-size:13px;color:var(--xsoft);transition:all .15s;}
 .analyse-item:hover .ai-arrow{color:var(--accent);transform:translateX(3px);}
-
-/* ── SPIELER KARTEN ── */
+/* Spieler */
 .spieler-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
 .spieler-card{background:white;border-radius:var(--radius);border:1.5px solid var(--border);padding:16px;transition:all .18s;}
 .spieler-card:hover{border-color:#c7d2fe;box-shadow:var(--shadow);}
@@ -156,12 +137,10 @@ tbody tr:hover{background:#fafbff;}
 .sc-nummer{width:36px;height:36px;border-radius:8px;background:var(--sidebar);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;font-family:'DM Mono',monospace;flex-shrink:0;}
 .sc-info{flex:1;min-width:0;}
 .sc-name{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.sc-pos{margin-top:2px;}
 .sc-body{font-size:11.5px;line-height:1.6;}
 .sc-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--xsoft);margin-top:6px;margin-bottom:2px;}
 .sc-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
-
-/* ── BADGES ── */
+/* Badges */
 .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
 .badge-heim{background:var(--green-l);color:var(--green);border:1px solid var(--green-b);}
 .badge-auswaerts{background:var(--yellow-l);color:var(--yellow);border:1px solid var(--yellow-b);}
@@ -169,8 +148,23 @@ tbody tr:hover{background:#fafbff;}
 .pos-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
 .pos-TH{background:#f0f4ff;color:#1d4ed8;}
 .pos-LA,.pos-RA,.pos-RL,.pos-RR,.pos-RM,.pos-KR{background:var(--accent-l);color:var(--accent);}
-
-/* ── FORM ── */
+/* Import */
+.import-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:9px;border:1.5px solid var(--border);background:white;margin-bottom:8px;transition:border-color .15s;cursor:pointer;}
+.import-item.checked{border-color:var(--accent);background:#f8faff;}
+.import-item.already-exists{background:var(--green-l);border-color:var(--green-b);cursor:default;}
+.import-check{width:18px;height:18px;cursor:pointer;flex-shrink:0;accent-color:var(--accent);}
+.import-name{font-size:13.5px;font-weight:600;}
+.import-sub{font-size:11.5px;color:var(--soft);margin-top:1px;}
+.import-count{font-size:11px;background:var(--accent-l);color:var(--accent);padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;flex-shrink:0;}
+/* Spiel verknüpfen */
+.spiel-link-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border);background:white;cursor:pointer;transition:all .15s;margin-bottom:6px;}
+.spiel-link-item:hover{border-color:var(--accent);}
+.spiel-link-item.selected{border-color:var(--accent);background:var(--accent-l);}
+.spiel-link-item input[type=radio]{accent-color:var(--accent);flex-shrink:0;}
+.sli-date{font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:var(--soft);min-width:78px;flex-shrink:0;}
+.sli-body{flex:1;font-size:12.5px;}
+.sli-score{font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--text);flex-shrink:0;}
+/* Form */
 .form-group{margin-bottom:16px;}
 .form-group:last-child{margin-bottom:0;}
 .form-label{display:block;font-size:12px;font-weight:600;color:var(--soft);margin-bottom:5px;letter-spacing:.02em;}
@@ -180,8 +174,13 @@ tbody tr:hover{background:#fafbff;}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .form-hint{font-size:11px;color:var(--xsoft);margin-top:4px;}
 .section-divider{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--xsoft);margin:18px 0 12px;padding-bottom:6px;border-bottom:1.5px solid var(--border);}
-
-/* ── MODAL ── */
+.color-swatch-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center;}
+.color-swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid rgba(0,0,0,.1);transition:transform .15s;}
+.color-swatch:hover{transform:scale(1.1);}
+.color-swatch.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,87,255,.3);}
+.trikot-input-wrap{display:flex;align-items:center;gap:8px;}
+.trikot-preview-box{width:36px;height:36px;border-radius:7px;border:1.5px solid rgba(0,0,0,.12);flex-shrink:0;transition:background .15s;}
+/* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
 .modal-overlay.open{display:flex;}
 .modal{background:white;border-radius:16px;width:100%;box-shadow:var(--shadow-lg);overflow:hidden;max-height:92vh;display:flex;flex-direction:column;}
@@ -194,73 +193,42 @@ tbody tr:hover{background:#fafbff;}
 .modal-close:hover{background:var(--bg);color:var(--text);}
 .modal-body{padding:20px 24px;overflow-y:auto;flex:1;}
 .modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
-
-/* ── EMPTY + MISC ── */
 .empty{padding:48px 20px;text-align:center;color:var(--xsoft);}
 .empty-icon{font-size:36px;margin-bottom:10px;}
 .empty-text{font-size:14px;}
 .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 .section-title{font-size:14px;font-weight:600;}
-.color-picker-row{display:flex;align-items:center;gap:10px;}
-.color-swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid rgba(0,0,0,.1);transition:transform .15s;}
-.color-swatch:hover{transform:scale(1.1);}
-.color-swatch.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,87,255,.3);}
+.info-box{padding:12px 14px;background:var(--accent-l);border:1px solid #bfdbfe;border-radius:9px;font-size:12.5px;color:#1e3a8a;line-height:1.5;}
 #toast{position:fixed;bottom:24px;right:24px;background:#111827;color:white;padding:12px 20px;border-radius:10px;font-size:13.5px;font-weight:500;z-index:200;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;}
 #toast.show{opacity:1;transform:translateY(0);}
 #auth-screen{position:fixed;inset:0;background:var(--sidebar);display:flex;align-items:center;justify-content:center;z-index:100;}
-
-/* ── RESPONSIVE ── */
-@media(max-width:900px){
-  .main{margin-left:0;}
-  .form-row{grid-template-columns:1fr;}
-  .gegner-grid{grid-template-columns:1fr;}
-  .spieler-grid{grid-template-columns:1fr 1fr;}
-  .content{padding:16px;}
-  .analyse-item{grid-template-columns:auto 1fr;}
-  .ai-arrow{display:none;}
-}
-@media(max-width:540px){
-  .spieler-grid{grid-template-columns:1fr;}
-  .detail-hero{flex-direction:column;}
-  .detail-actions{width:100%;}
-}
+@media(max-width:900px){.main{margin-left:0;}.form-row{grid-template-columns:1fr;}.gegner-grid{grid-template-columns:1fr;}.spieler-grid{grid-template-columns:1fr 1fr;}.content{padding:16px;}.analyse-item{grid-template-columns:auto 1fr;}.ai-arrow{display:none;}}
+@media(max-width:540px){.spieler-grid{grid-template-columns:1fr;}.detail-hero{flex-direction:column;}.detail-actions{width:100%;}.page-header-actions{width:100%;}}
 </style>
 </head>
 <body>
-
-<!-- AUTH REDIRECT -->
 <div id="auth-screen" style="display:none;">
   <div style="text-align:center;color:rgba(255,255,255,.6);font-size:14px;">
     <div style="font-size:32px;margin-bottom:14px;">🔍</div>
-    Weiterleitung zum Dashboard…<br>
+    Weiterleitung…<br>
     <a href="index.html" style="color:#93c5fd;font-weight:600;text-decoration:none;">Jetzt anmelden →</a>
   </div>
 </div>
 
 <div id="app" style="display:none;width:100%;">
-
-  <!-- SIDEBAR OVERLAY -->
   <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
-
-  <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <div style="display:flex;align-items:center;gap:10px;">
         <div class="logo-icon">🔍</div>
-        <div>
-          <div class="logo-text">Gegneranalyse</div>
-          <div class="logo-sub">Handball Coaching Tools</div>
-        </div>
+        <div><div class="logo-text">Gegneranalyse</div><div class="logo-sub">Handball Coaching Tools</div></div>
       </div>
-      <button class="sidebar-close-btn" onclick="toggleSidebar()" title="Sidebar einklappen">✕</button>
+      <button class="sidebar-close-btn" onclick="toggleSidebar()">✕</button>
     </div>
-
-    <!-- Mein Team Widget -->
     <div class="my-team-widget">
       <div class="mt-top"><div class="mt-label">Mein Team</div></div>
       <div class="mt-name empty" id="mt-name">–</div>
     </div>
-
     <div class="sidebar-section">
       <div class="sidebar-label">Scouting</div>
       <div class="sidebar-item active" onclick="showOverview()"><span>🔍</span> Gegneranalyse</div>
@@ -274,17 +242,15 @@ tbody tr:hover{background:#fafbff;}
       <a class="sidebar-item" href="handball-taktikboard.html"><span>♟</span> Taktikboard</a>
       <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
     </div>
-
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260514.1200</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260514.1400</div>
     </div>
   </aside>
 
-  <!-- MAIN -->
   <main class="main">
     <div class="topbar">
       <div class="topbar-left">
-        <button class="burger-btn" id="burger-btn" onclick="toggleSidebar()">☰</button>
+        <button class="burger-btn" onclick="toggleSidebar()">☰</button>
         <div class="topbar-title">Gegneranalyse</div>
       </div>
       <div class="topbar-right">
@@ -293,84 +259,62 @@ tbody tr:hover{background:#fafbff;}
         <button class="topbar-logout" onclick="logout()">⏻ Abmelden</button>
       </div>
     </div>
-
     <div class="content">
 
-      <!-- ══ VIEW: ÜBERSICHT ══ -->
+      <!-- ÜBERSICHT -->
       <div id="view-overview">
         <div class="page-header">
           <div>
             <div class="page-title">Gegneranalyse</div>
-            <div class="page-subtitle">Scouting-Profile und Spielanalysen verwalten</div>
+            <div class="page-subtitle">Scouting-Profile und Spielanalysen</div>
           </div>
-          <button class="btn btn-primary" onclick="openGegnerModal()">+ Neuer Gegner</button>
+          <div class="page-header-actions">
+            <button class="btn btn-secondary" onclick="openKalenderImportModal()">📅 Aus Kalender importieren</button>
+            <button class="btn btn-primary" onclick="openGegnerModal()">+ Neuer Gegner</button>
+          </div>
         </div>
-
         <div class="stats-row">
           <div class="stat-card blue"><div class="stat-num" id="stat-gegner">–</div><div class="stat-label">Gegner</div></div>
           <div class="stat-card purple"><div class="stat-num" id="stat-analysen">–</div><div class="stat-label">Analysen gesamt</div></div>
           <div class="stat-card green"><div class="stat-num" id="stat-spieler-total">–</div><div class="stat-label">Schlüsselspieler</div></div>
         </div>
-
         <div class="gegner-grid" id="gegner-grid">
-          <div class="empty" style="grid-column:1/-1;">
-            <div class="empty-icon">⏳</div>
-            <div class="empty-text">Wird geladen…</div>
-          </div>
+          <div class="empty" style="grid-column:1/-1;"><div class="empty-icon">⏳</div><div class="empty-text">Wird geladen…</div></div>
         </div>
       </div>
 
-      <!-- ══ VIEW: DETAIL ══ -->
+      <!-- DETAIL -->
       <div id="view-detail" style="display:none;">
-
-        <!-- Hero -->
-        <div class="detail-hero" id="detail-hero">
-          <!-- wird per JS befüllt -->
-        </div>
-
-        <!-- Tabs -->
+        <div class="detail-hero" id="detail-hero"></div>
         <div class="tabs">
           <button class="tab-btn active" id="tab-btn-analysen" onclick="switchTab('analysen')">📊 Analysen</button>
           <button class="tab-btn" id="tab-btn-kader" onclick="switchTab('kader')">👥 Schlüsselspieler</button>
           <button class="tab-btn" id="tab-btn-profil" onclick="switchTab('profil')">📝 Profil</button>
         </div>
-
-        <!-- Tab: Analysen -->
         <div id="tab-analysen">
           <div class="section-header">
             <div class="section-title">Spielanalysen</div>
             <button class="btn btn-primary btn-sm" onclick="openAnalyseModal()">+ Neue Analyse</button>
           </div>
-          <div class="analyse-list" id="analyse-list">
-            <div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Wird geladen…</div></div>
-          </div>
+          <div class="analyse-list" id="analyse-list"></div>
         </div>
-
-        <!-- Tab: Kader/Schlüsselspieler -->
         <div id="tab-kader" style="display:none;">
           <div class="section-header">
             <div class="section-title">Schlüsselspieler</div>
             <button class="btn btn-primary btn-sm" onclick="openSpielerModal()">+ Spieler hinzufügen</button>
           </div>
-          <div class="spieler-grid" id="spieler-grid">
-            <div class="empty" style="grid-column:1/-1;"><div class="empty-icon">👥</div><div class="empty-text">Wird geladen…</div></div>
-          </div>
+          <div class="spieler-grid" id="spieler-grid"></div>
         </div>
-
-        <!-- Tab: Profil -->
         <div id="tab-profil" style="display:none;">
-          <div class="card" style="padding:24px;" id="profil-content">
-            <!-- wird per JS befüllt -->
-          </div>
+          <div class="card" style="padding:24px;" id="profil-content"></div>
         </div>
+      </div>
 
-      </div><!-- /view-detail -->
-
-    </div><!-- /content -->
+    </div>
   </main>
-</div><!-- /app -->
+</div>
 
-<!-- ══ MODAL: GEGNER ══ -->
+<!-- MODAL: GEGNER -->
 <div class="modal-overlay" id="gegner-modal">
   <div class="modal modal-md">
     <div class="modal-header">
@@ -386,27 +330,45 @@ tbody tr:hover{background:#fafbff;}
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Liga / Staffel</label>
-          <input class="form-input" id="gm-liga" placeholder="z.B. Handball-Bundesliga" autocomplete="off">
+          <input class="form-input" id="gm-liga" placeholder="z.B. Handball-Bundesliga">
         </div>
         <div class="form-group">
           <label class="form-label">Trainer</label>
-          <input class="form-input" id="gm-trainer" placeholder="z.B. Christian Prokop" autocomplete="off">
+          <input class="form-input" id="gm-trainer" placeholder="z.B. Christian Prokop">
         </div>
       </div>
       <div class="form-group">
         <label class="form-label">Heimspielstätte</label>
-        <input class="form-input" id="gm-spielort" placeholder="z.B. Swiss Life Hall, Hannover" autocomplete="off">
+        <input class="form-input" id="gm-spielort" placeholder="z.B. Swiss Life Hall, Hannover">
       </div>
+      <div class="section-divider">Farben &amp; Trikots</div>
       <div class="form-group">
-        <label class="form-label">Vereinsfarbe</label>
-        <div class="color-picker-row" id="color-picker">
-          <!-- Swatches werden per JS gerendert -->
-        </div>
+        <label class="form-label">Vereinsfarbe (Kartenakzent)</label>
+        <div class="color-swatch-row" id="color-picker"></div>
         <input type="hidden" id="gm-farbe" value="#6b7280">
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">🏠 Trikot Heim</label>
+          <div class="trikot-input-wrap">
+            <div class="trikot-preview-box" id="gm-trikot-heim-prev" style="background:#fff;"></div>
+            <input class="form-input" type="text" id="gm-trikot-heim" placeholder="#FFFFFF" style="margin:0;" oninput="updateTrikotPreview('heim')" autocomplete="off">
+          </div>
+          <div class="form-hint">Hex-Wert oder Farbbeschreibung</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">✈️ Trikot Auswärts</label>
+          <div class="trikot-input-wrap">
+            <div class="trikot-preview-box" id="gm-trikot-auswaerts-prev" style="background:#ccc;"></div>
+            <input class="form-input" type="text" id="gm-trikot-auswaerts" placeholder="#CCCCCC" style="margin:0;" oninput="updateTrikotPreview('auswaerts')" autocomplete="off">
+          </div>
+          <div class="form-hint">Hex-Wert oder Farbbeschreibung</div>
+        </div>
+      </div>
+      <div class="section-divider">Notizen</div>
       <div class="form-group">
-        <label class="form-label">Notizen (allgemein)</label>
-        <textarea class="form-textarea" id="gm-notizen" placeholder="Allgemeine Hinweise zum Gegner…" rows="3"></textarea>
+        <label class="form-label">Allgemeine Notizen</label>
+        <textarea class="form-textarea" id="gm-notizen" placeholder="Spielstil, Besonderheiten, Hintergrundinfos…" rows="3"></textarea>
       </div>
     </div>
     <div class="modal-footer">
@@ -417,7 +379,28 @@ tbody tr:hover{background:#fafbff;}
   </div>
 </div>
 
-<!-- ══ MODAL: ANALYSE ══ -->
+<!-- MODAL: KALENDER-IMPORT -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal modal-md">
+    <div class="modal-header">
+      <div class="modal-title">📅 Gegner aus Kalender importieren</div>
+      <button class="modal-close" onclick="closeImportModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box" style="margin-bottom:16px;">
+        Erkannte Gegner aus deinen Kalender-Spielen. Bereits angelegte Profile sind grün markiert.
+      </div>
+      <div id="import-list"><div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Wird geladen…</div></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeImportModal()">Abbrechen</button>
+      <span style="font-size:12px;color:var(--soft);margin-right:auto;align-self:center;" id="import-count-label"></span>
+      <button class="btn btn-primary" id="import-confirm-btn" onclick="executeImport()">Importieren</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ANALYSE -->
 <div class="modal-overlay" id="analyse-modal">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -426,23 +409,31 @@ tbody tr:hover{background:#fafbff;}
     </div>
     <div class="modal-body">
       <input type="hidden" id="am-id">
+      <input type="hidden" id="am-spiel-id">
 
+      <div class="section-divider" style="margin-top:0;">🔗 Spiel aus Kalender verknüpfen</div>
+      <div id="am-spiele-wrap" style="margin-bottom:8px;"></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:white;">
+        <input type="radio" name="am-spiel-radio" value="manuell" id="am-spiel-manuell" onchange="selectSpielForAnalyse(null)" style="accent-color:var(--accent);" checked>
+        <span>Kein Spiel verknüpfen — Felder manuell ausfüllen</span>
+      </label>
+
+      <div class="section-divider">📋 Spieldaten</div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Datum</label>
           <input class="form-input" type="date" id="am-datum">
         </div>
         <div class="form-group">
-          <label class="form-label">Spielort</label>
+          <label class="form-label">Spielort (für uns)</label>
           <select class="form-select" id="am-spielort">
             <option value="">– nicht gesetzt –</option>
-            <option value="heim">🏠 Heimspiel (für uns)</option>
+            <option value="heim">🏠 Heimspiel</option>
             <option value="auswaerts">✈️ Auswärtsspiel</option>
             <option value="neutral">⚖️ Neutral</option>
           </select>
         </div>
       </div>
-
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Unsere Tore</label>
@@ -468,8 +459,8 @@ tbody tr:hover{background:#fafbff;}
           </select>
         </div>
         <div class="form-group" style="align-self:end;">
-          <label class="form-label">Weitere Systeme / Varianten</label>
-          <input class="form-input" id="am-angriff-varianten" placeholder="z.B. wechseln zwischen 5:1 und 6:0">
+          <label class="form-label">Varianten</label>
+          <input class="form-input" id="am-angriff-varianten" placeholder="z.B. wechseln 5:1 / 6:0">
         </div>
       </div>
       <div class="form-group">
@@ -483,7 +474,7 @@ tbody tr:hover{background:#fafbff;}
           <label class="form-label">System</label>
           <select class="form-select" id="am-abwehr-system">
             <option value="">– unbekannt –</option>
-            <option value="6:0">6:0 — kompakte Manndeckung</option>
+            <option value="6:0">6:0 — kompakt</option>
             <option value="5:1">5:1 — mit Vordermann</option>
             <option value="4:2">4:2 — doppelter Vordermann</option>
             <option value="3:2:1">3:2:1 — Pyramide</option>
@@ -491,8 +482,8 @@ tbody tr:hover{background:#fafbff;}
           </select>
         </div>
         <div class="form-group" style="align-self:end;">
-          <label class="form-label">Weitere Systeme / Varianten</label>
-          <input class="form-input" id="am-abwehr-varianten" placeholder="z.B. wechseln je nach Spielstand">
+          <label class="form-label">Varianten</label>
+          <input class="form-input" id="am-abwehr-varianten" placeholder="z.B. je nach Spielstand">
         </div>
       </div>
       <div class="form-group">
@@ -503,11 +494,11 @@ tbody tr:hover{background:#fafbff;}
       <div class="section-divider">📝 Allgemeines</div>
       <div class="form-group">
         <label class="form-label">Tendenzen &amp; Besonderheiten</label>
-        <textarea class="form-textarea" id="am-tendenzen" placeholder="z.B. starkes Tempospiel, häufige Zeitstrafen, schwaches Rückraumspiel rechts…" rows="3"></textarea>
+        <textarea class="form-textarea" id="am-tendenzen" placeholder="z.B. starkes Tempospiel, häufige Zeitstrafen…" rows="3"></textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Interne Notizen</label>
-        <textarea class="form-textarea" id="am-notizen" placeholder="Scouting-Kommentare, Quellen, nächste Schritte…" rows="2"></textarea>
+        <textarea class="form-textarea" id="am-notizen" placeholder="Scouting-Kommentare, Quellen…" rows="2"></textarea>
       </div>
     </div>
     <div class="modal-footer">
@@ -518,7 +509,7 @@ tbody tr:hover{background:#fafbff;}
   </div>
 </div>
 
-<!-- ══ MODAL: SPIELER ══ -->
+<!-- MODAL: SPIELER -->
 <div class="modal-overlay" id="spieler-modal">
   <div class="modal modal-sm">
     <div class="modal-header">
@@ -556,7 +547,7 @@ tbody tr:hover{background:#fafbff;}
       </div>
       <div class="form-group">
         <label class="form-label">Schwächen</label>
-        <textarea class="form-textarea" id="sm-schwaechen" placeholder="z.B. schwach mit links, fehleranfällig unter Druck…" rows="2"></textarea>
+        <textarea class="form-textarea" id="sm-schwaechen" placeholder="z.B. schwach mit links, unter Druck fehleranfällig…" rows="2"></textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Notiz</label>
@@ -572,188 +563,109 @@ tbody tr:hover{background:#fafbff;}
 </div>
 
 <div id="toast"></div>
-
 <script>
-// ── SUPABASE ─────────────────────────────────────────────────
 const SUPA_URL='https://dlofjsmnkwltuutpxoer.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
 const supa=supabase.createClient(SUPA_URL,SUPA_KEY);
 
-// ── STATE ────────────────────────────────────────────────────
-let currentUser=null;
-let allGegner=[];
-let currentGegnerId=null;
-let currentAnalysen=[];
-let currentSpieler=[];
-let editGegnerId=null;
-let editAnalyseId=null;
-let editSpielerId=null;
-let activeTab='analysen';
+let currentUser=null, allGegner=[], allMannschaften=[], alleSpiele=[];
+let currentGegnerId=null, currentAnalysen=[], currentSpieler=[], spieleFuerGegner=[];
+let editGegnerId=null, editAnalyseId=null, editSpielerId=null, activeTab='analysen';
 let toastTimer=null;
 
-// ── UTILS ────────────────────────────────────────────────────
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const isHex=v=>/^#[0-9A-Fa-f]{6}$/.test((v||'').trim());
+const pad=n=>String(n).padStart(2,'0');
+function fmtDate(d){if(!d)return'–';return new Date(d+'T00:00:00').toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});}
+function fmtDateShort(d){if(!d)return null;const dt=new Date(d+'T00:00:00');return{day:dt.toLocaleDateString('de-DE',{day:'2-digit'}),month:dt.toLocaleDateString('de-DE',{month:'short'})};}
+function showToast(msg,type='success'){const el=document.getElementById('toast');el.innerHTML=msg;el.style.background=type==='error'?'#7f1d1d':type==='info'?'#1e3a8a':'#111827';el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3200);}
 
-function fmtDate(d){
-  if(!d) return '–';
-  const dt=new Date(d+'T00:00:00');
-  return dt.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
-}
-
-function fmtDateShort(d){
-  if(!d) return null;
-  const dt=new Date(d+'T00:00:00');
-  return {day:dt.toLocaleDateString('de-DE',{day:'2-digit'}),month:dt.toLocaleDateString('de-DE',{month:'short'})};
-}
-
-function showToast(msg,type='success'){
-  const el=document.getElementById('toast');
-  el.innerHTML=msg;
-  el.style.background=type==='error'?'#7f1d1d':type==='info'?'#1e3a8a':'#111827';
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>el.classList.remove('show'),3200);
-}
-
-const POS_LABELS={TH:'● TH',LA:'▲ LA',RL:'▲ RL',RM:'▲ RM',RR:'▲ RR',RA:'▲ RA',KR:'▲ KR'};
-const POS_FULL={TH:'Torhüter',LA:'Linksaußen',RL:'Rückraum Links',RM:'Rückraum Mitte',RR:'Rückraum Rechts',RA:'Rechtsaußen',KR:'Kreisläufer'};
-const SPIELORT_LABELS={heim:'🏠 Heim',auswaerts:'✈️ Auswärts',neutral:'⚖️ Neutral'};
-
+const POS_L={TH:'● TH',LA:'▲ LA',RL:'▲ RL',RM:'▲ RM',RR:'▲ RR',RA:'▲ RA',KR:'▲ KR'};
+const POS_F={TH:'Torhüter',LA:'Linksaußen',RL:'Rückraum Links',RM:'Rückraum Mitte',RR:'Rückraum Rechts',RA:'Rechtsaußen',KR:'Kreisläufer'};
+const SPLORTE={heim:'🏠 Heim',auswaerts:'✈️ Auswärts',neutral:'⚖️ Neutral'};
 const FARBEN=['#6b7280','#0057ff','#dc2626','#d97706','#15803d','#7c3aed','#ea580c','#0ea5e9','#111827','#be185d'];
 
-// ── AUTH ─────────────────────────────────────────────────────
+// ── AUTH ──
 async function onAuth(user){
   currentUser=user;
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').style.display='flex';
-  const{data:profile}=await supa.from('profiles').select('full_name,email,role').eq('id',user.id).maybeSingle();
-  document.getElementById('topbar-user').textContent=profile?.full_name||profile?.email||user.email||'';
-  setTopbarRole(profile?.role);
+  const{data:p}=await supa.from('profiles').select('full_name,email,role').eq('id',user.id).maybeSingle();
+  document.getElementById('topbar-user').textContent=p?.full_name||p?.email||user.email||'';
+  setTopbarRole(p?.role);
   initMyTeamWidget();
   initColorPicker();
+  const{data:teams}=await supa.from('mannschaften').select('id,name').order('name');
+  allMannschaften=teams||[];
   await loadGegner();
   showOverview();
 }
-
 async function logout(){if(!confirm('Abmelden?'))return;await supa.auth.signOut();location.href='index.html';}
+function setTopbarRole(role){const el=document.getElementById('topbar-role');if(!role){el.style.display='none';return;}const l={admin:'Admin',trainer:'Trainer',co_trainer:'Co-Trainer',assistent:'Assistent'};el.textContent=l[role]||role;el.style.display='';}
 
-function setTopbarRole(role){
-  const el=document.getElementById('topbar-role');
-  if(!role){el.style.display='none';return;}
-  const labels={admin:'Admin',trainer:'Trainer',co_trainer:'Co-Trainer',assistent:'Assistent'};
-  el.textContent=labels[role]||role;
-  el.style.display='';
-}
-
-// ── SIDEBAR ──────────────────────────────────────────────────
+// ── SIDEBAR ──
 function toggleSidebar(){
-  const sidebar=document.getElementById('sidebar');
-  const overlay=document.getElementById('sidebar-overlay');
-  const app=document.getElementById('app');
-  const collapsed=sidebar.classList.toggle('collapsed');
-  if(app) app.classList.toggle('sidebar-collapsed',collapsed);
-  if(overlay) overlay.classList.toggle('visible',!collapsed&&window.innerWidth<=900);
-  localStorage.setItem('sidebar_collapsed',collapsed?'1':'0');
+  const s=document.getElementById('sidebar'),o=document.getElementById('sidebar-overlay'),a=document.getElementById('app');
+  const c=s.classList.toggle('collapsed');
+  a?.classList.toggle('sidebar-collapsed',c);
+  o?.classList.toggle('visible',!c&&window.innerWidth<=900);
+  localStorage.setItem('sidebar_collapsed',c?'1':'0');
 }
+function initMyTeamWidget(){const n=localStorage.getItem('hbs_my_team')||'';const el=document.getElementById('mt-name');if(!el)return;if(n){el.textContent=n;el.classList.remove('empty');}else{el.textContent='Kein Team gewählt';el.classList.add('empty');}}
 
-function initMyTeamWidget(){
-  const name=localStorage.getItem('hbs_my_team')||'';
-  const el=document.getElementById('mt-name');
-  if(!el) return;
-  if(name){el.textContent=name;el.classList.remove('empty');}
-  else{el.textContent='Kein Team gewählt';el.classList.add('empty');}
-}
-
-// ── COLOR PICKER ─────────────────────────────────────────────
+// ── COLOR PICKER ──
 function initColorPicker(){
-  const wrap=document.getElementById('color-picker');
-  if(!wrap) return;
-  wrap.innerHTML=FARBEN.map(f=>`<div class="color-swatch" style="background:${f};" data-color="${f}" onclick="selectColor('${f}')"></div>`).join('');
+  const w=document.getElementById('color-picker');if(!w)return;
+  w.innerHTML=FARBEN.map(f=>`<div class="color-swatch" style="background:${f};" data-color="${f}" onclick="selectColor('${f}')"></div>`).join('');
 }
+function selectColor(hex){document.getElementById('gm-farbe').value=hex;document.querySelectorAll('.color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color===hex));}
+function updateTrikotPreview(w){const v=document.getElementById(`gm-trikot-${w}`).value.trim();const p=document.getElementById(`gm-trikot-${w}-prev`);p.style.background=isHex(v)?v:(w==='heim'?'#fff':'#ccc');}
 
-function selectColor(hex){
-  document.getElementById('gm-farbe').value=hex;
-  document.querySelectorAll('.color-swatch').forEach(s=>{
-    s.classList.toggle('selected',s.dataset.color===hex);
-  });
-}
+// ── TRIKOT DISPLAY ──
+function trikotPrevHtml(val,label){if(!val)return'';const bg=isHex(val)?`background:${val}`:'background:#ddd';return`<div class="trikot-preview"><div class="trikot-swatch" style="${bg}"></div><span class="trikot-label">${label}: ${esc(val)}</span></div>`;}
 
-// ── DATA: GEGNER ─────────────────────────────────────────────
+// ── DATA: GEGNER ──
 async function loadGegner(){
   const{data,error}=await supa.from('gegner').select('*').order('name');
-  if(error){showToast('Fehler beim Laden: '+error.message,'error');return;}
+  if(error){showToast('Fehler: '+error.message,'error');return;}
   allGegner=data||[];
-
-  // Analysen-Zähler laden
-  const{data:counts}=await supa.from('gegner_analyse').select('gegner_id').eq('user_id',currentUser.id);
-  const countMap={};
-  (counts||[]).forEach(r=>{countMap[r.gegner_id]=(countMap[r.gegner_id]||0)+1;});
-
-  const{data:spielerCounts}=await supa.from('gegner_spieler').select('gegner_id').eq('user_id',currentUser.id);
-  const spielerMap={};
-  (spielerCounts||[]).forEach(r=>{spielerMap[r.gegner_id]=(spielerMap[r.gegner_id]||0)+1;});
-
-  // Stats
-  const totalAnalysen=Object.values(countMap).reduce((a,b)=>a+b,0);
-  const totalSpieler=Object.values(spielerMap).reduce((a,b)=>a+b,0);
+  const{data:ac}=await supa.from('gegner_analyse').select('gegner_id').eq('user_id',currentUser.id);
+  const cm={};(ac||[]).forEach(r=>{cm[r.gegner_id]=(cm[r.gegner_id]||0)+1;});
+  const{data:sc}=await supa.from('gegner_spieler').select('gegner_id').eq('user_id',currentUser.id);
+  const sm={};(sc||[]).forEach(r=>{sm[r.gegner_id]=(sm[r.gegner_id]||0)+1;});
   document.getElementById('stat-gegner').textContent=allGegner.length;
-  document.getElementById('stat-analysen').textContent=totalAnalysen;
-  document.getElementById('stat-spieler-total').textContent=totalSpieler;
-
-  renderGegnerGrid(countMap,spielerMap);
+  document.getElementById('stat-analysen').textContent=Object.values(cm).reduce((a,b)=>a+b,0);
+  document.getElementById('stat-spieler-total').textContent=Object.values(sm).reduce((a,b)=>a+b,0);
+  renderGegnerGrid(cm,sm);
 }
 
-function renderGegnerGrid(countMap={},spielerMap={}){
+function renderGegnerGrid(cm={},sm={}){
   const grid=document.getElementById('gegner-grid');
-  if(!allGegner.length){
-    grid.innerHTML=`<div class="empty" style="grid-column:1/-1;">
-      <div class="empty-icon">🔍</div>
-      <div class="empty-text">Noch keine Gegner angelegt. Klicke "+ Neuer Gegner" um zu starten.</div>
-    </div>`;
-    return;
-  }
+  if(!allGegner.length){grid.innerHTML=`<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">🔍</div><div class="empty-text">Noch keine Gegner. "+ Neuer Gegner" oder "Aus Kalender importieren".</div></div>`;return;}
   grid.innerHTML=allGegner.map(g=>{
-    const n=countMap[g.id]||0;
-    const s=spielerMap[g.id]||0;
-    const farbe=g.farbe||'#6b7280';
-    return `<div class="gegner-card" style="--card-color:${esc(farbe)};" onclick="showGegnerDetail('${g.id}')">
-      <div class="gc-header">
-        <div>
-          <div class="gc-name">${esc(g.name)}</div>
-          <div class="gc-liga">${esc(g.liga||'–')}</div>
-        </div>
-        <div class="gc-color-dot" style="background:${esc(farbe)};"></div>
-      </div>
-      <div class="gc-stats">
-        <div class="gc-stat"><div class="gc-stat-num">${n}</div><div class="gc-stat-label">Analysen</div></div>
-        <div class="gc-stat"><div class="gc-stat-num">${s}</div><div class="gc-stat-label">Spieler</div></div>
-      </div>
-      <div class="gc-footer">
-        <span class="gc-date">${g.trainer?'Trainer: '+esc(g.trainer):''}</span>
-        <span class="gc-arrow">→</span>
-      </div>
+    const f=g.farbe||'#6b7280';
+    const hd=g.trikot_heim&&isHex(g.trikot_heim)?`<div class="trikot-dot" style="background:${esc(g.trikot_heim)};"><div class="trikot-dot-label">H</div></div>`:'';
+    const ad=g.trikot_auswaerts&&isHex(g.trikot_auswaerts)?`<div class="trikot-dot" style="background:${esc(g.trikot_auswaerts)};"><div class="trikot-dot-label">A</div></div>`:'';
+    return`<div class="gegner-card" style="--card-color:${esc(f)};" onclick="showGegnerDetail('${g.id}')">
+      <div class="gc-header"><div><div class="gc-name">${esc(g.name)}</div><div class="gc-liga">${esc(g.liga||'–')}</div></div><div class="gc-trikots">${hd}${ad}</div></div>
+      <div class="gc-stats"><div class="gc-stat"><div class="gc-stat-num">${cm[g.id]||0}</div><div class="gc-stat-label">Analysen</div></div><div class="gc-stat"><div class="gc-stat-num">${sm[g.id]||0}</div><div class="gc-stat-label">Spieler</div></div></div>
+      <div class="gc-footer"><span class="gc-date">${g.trainer?'Trainer: '+esc(g.trainer):g.liga?esc(g.liga):''}</span><span class="gc-arrow">→</span></div>
     </div>`;
   }).join('');
 }
 
-// ── VIEWS ────────────────────────────────────────────────────
-function showOverview(){
-  document.getElementById('view-overview').style.display='';
-  document.getElementById('view-detail').style.display='none';
-  currentGegnerId=null;
-}
+// ── VIEWS ──
+function showOverview(){document.getElementById('view-overview').style.display='';document.getElementById('view-detail').style.display='none';currentGegnerId=null;}
 
 async function showGegnerDetail(id){
   currentGegnerId=id;
   document.getElementById('view-overview').style.display='none';
   document.getElementById('view-detail').style.display='';
-  const g=allGegner.find(x=>x.id===id);
-  if(!g) return;
-
-  // Hero rendern
-  const farbe=g.farbe||'#6b7280';
+  const g=allGegner.find(x=>x.id===id);if(!g)return;
+  const f=g.farbe||'#6b7280';
+  const trikots=(g.trikot_heim||g.trikot_auswaerts)?`<div class="detail-trikots">${trikotPrevHtml(g.trikot_heim,'🏠 Heim')}${trikotPrevHtml(g.trikot_auswaerts,'✈️ Auswärts')}</div>`:'';
   document.getElementById('detail-hero').innerHTML=`
-    <div class="detail-color-bar" style="background:${esc(farbe)};"></div>
+    <div class="detail-color-bar" style="background:${esc(f)};"></div>
     <div class="detail-info">
       <div class="detail-name">${esc(g.name)}</div>
       <div class="detail-meta">
@@ -761,143 +673,73 @@ async function showGegnerDetail(id){
         ${g.trainer?`<div class="detail-meta-item"><span>👤</span>Trainer: ${esc(g.trainer)}</div>`:''}
         ${g.spielort?`<div class="detail-meta-item"><span>📍</span>${esc(g.spielort)}</div>`:''}
       </div>
+      ${trikots}
     </div>
     <div class="detail-actions">
       <button class="btn btn-ghost btn-sm" onclick="showOverview()">← Übersicht</button>
       <button class="btn btn-ghost btn-sm" onclick="openGegnerModal('${g.id}')">✏️ Bearbeiten</button>
     </div>`;
-
-  // Tabs zurücksetzen
   switchTab('analysen');
-
-  // Daten laden
   await Promise.all([loadAnalysen(id),loadSpieler(id)]);
-
-  // Profil-Tab befüllen
   renderProfilTab(g);
 }
 
-function switchTab(tab){
-  activeTab=tab;
-  ['analysen','kader','profil'].forEach(t=>{
-    document.getElementById('tab-'+t).style.display=t===tab?'':'none';
-    document.getElementById('tab-btn-'+t).classList.toggle('active',t===tab);
-  });
-}
+function switchTab(t){activeTab=t;['analysen','kader','profil'].forEach(x=>{document.getElementById('tab-'+x).style.display=x===t?'':'none';document.getElementById('tab-btn-'+x).classList.toggle('active',x===t);});}
 
-// ── DATA: ANALYSEN ───────────────────────────────────────────
-async function loadAnalysen(gegnerId){
-  const{data,error}=await supa.from('gegner_analyse').select('*').eq('gegner_id',gegnerId).order('datum',{ascending:false}).order('created_at',{ascending:false});
-  if(error){showToast('Fehler: '+error.message,'error');return;}
-  currentAnalysen=data||[];
-  renderAnalysen();
-}
+// ── ANALYSEN ──
+async function loadAnalysen(gid){const{data,error}=await supa.from('gegner_analyse').select('*').eq('gegner_id',gid).order('datum',{ascending:false}).order('created_at',{ascending:false});if(error){showToast('Fehler: '+error.message,'error');return;}currentAnalysen=data||[];renderAnalysen();}
 
 function renderAnalysen(){
   const list=document.getElementById('analyse-list');
-  if(!currentAnalysen.length){
-    list.innerHTML=`<div class="empty">
-      <div class="empty-icon">📊</div>
-      <div class="empty-text">Noch keine Analysen für diesen Gegner. Erstelle die erste Analyse.</div>
-    </div>`;
-    return;
-  }
+  if(!currentAnalysen.length){list.innerHTML=`<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Noch keine Analysen. "+ Neue Analyse" klicken.</div></div>`;return;}
   list.innerHTML=currentAnalysen.map(a=>{
     const d=a.datum?fmtDateShort(a.datum):null;
-    const spielort=a.spielort_typ?`<span class="badge badge-${a.spielort_typ}">${SPIELORT_LABELS[a.spielort_typ]||a.spielort_typ}</span>`:'';
-    const ergebnis=(a.ergebnis_uns!=null&&a.ergebnis_gegner!=null)?
-      `<span style="font-family:'DM Mono',monospace;font-size:12px;font-weight:600;">${a.ergebnis_uns}:${a.ergebnis_gegner}</span>`:'';
-    const angSystem=a.angriff_system?`<span class="ai-system-chip">▲ ${esc(a.angriff_system)}</span>`:'';
-    const abwSystem=a.abwehr_system?`<span class="ai-system-chip">● ${esc(a.abwehr_system)}</span>`:'';
+    const spo=a.spielort_typ?`<span class="badge badge-${a.spielort_typ}">${SPLORTE[a.spielort_typ]||a.spielort_typ}</span>`:'';
+    const erg=(a.ergebnis_uns!=null&&a.ergebnis_gegner!=null)?`<span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;">${a.ergebnis_uns}:${a.ergebnis_gegner}</span>`:'';
+    const ang=a.angriff_system?`<span class="ai-chip">▲ ${esc(a.angriff_system)}</span>`:'';
+    const abw=a.abwehr_system?`<span class="ai-chip">● ${esc(a.abwehr_system)}</span>`:'';
+    const lnk=a.spiel_id?'<span title="Kalender-Spiel verknüpft" style="font-size:12px;">🔗</span>':'';
     const notiz=a.tendenzen||a.notizen||'';
-    return `<div class="analyse-item" onclick="openAnalyseModal('${a.id}')">
-      <div class="ai-date-block">
-        ${d?`<div class="ai-day">${d.day}</div><div class="ai-month">${d.month}</div>`:'<div style="font-size:22px;">?</div>'}
-      </div>
-      <div class="ai-body">
-        <div class="ai-top">
-          ${spielort}
-          ${ergebnis}
-          ${angSystem}
-          ${abwSystem}
-        </div>
-        ${notiz?`<div class="ai-notiz">${esc(notiz)}</div>`:''}
-      </div>
+    return`<div class="analyse-item" onclick="openAnalyseModal('${a.id}')">
+      <div style="text-align:center;min-width:52px;">${d?`<div class="ai-day">${d.day}</div><div class="ai-month">${d.month}</div>`:'<div style="font-size:22px;opacity:.3;">?</div>'}</div>
+      <div><div class="ai-top">${spo}${erg}${ang}${abw}${lnk}</div>${notiz?`<div class="ai-notiz">${esc(notiz)}</div>`:''}</div>
       <div class="ai-arrow">→</div>
     </div>`;
   }).join('');
 }
 
-// ── DATA: SPIELER ────────────────────────────────────────────
-async function loadSpieler(gegnerId){
-  const{data,error}=await supa.from('gegner_spieler').select('*').eq('gegner_id',gegnerId).order('nummer',{ascending:true,nullsLast:true}).order('name');
-  if(error){showToast('Fehler: '+error.message,'error');return;}
-  currentSpieler=data||[];
-  renderSpieler();
-}
+// ── SPIELER ──
+async function loadSpieler(gid){const{data,error}=await supa.from('gegner_spieler').select('*').eq('gegner_id',gid).order('nummer',{ascending:true,nullsLast:true}).order('name');if(error){showToast('Fehler: '+error.message,'error');return;}currentSpieler=data||[];renderSpieler();}
 
 function renderSpieler(){
   const grid=document.getElementById('spieler-grid');
-  if(!currentSpieler.length){
-    grid.innerHTML=`<div class="empty" style="grid-column:1/-1;">
-      <div class="empty-icon">👥</div>
-      <div class="empty-text">Noch keine Schlüsselspieler erfasst.</div>
-    </div>`;
-    return;
-  }
+  if(!currentSpieler.length){grid.innerHTML=`<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">👥</div><div class="empty-text">Noch keine Schlüsselspieler.</div></div>`;return;}
   grid.innerHTML=currentSpieler.map(s=>{
-    const posClass=s.position?`pos-${s.position}`:'';
-    return `<div class="spieler-card">
-      <div class="sc-header">
-        <div class="sc-nummer">${s.nummer||'?'}</div>
-        <div class="sc-info">
-          <div class="sc-name">${esc(s.name)}</div>
-          <div class="sc-pos">${s.position?`<span class="pos-badge ${posClass}">${esc(POS_LABELS[s.position]||s.position)} <small style="font-weight:400;opacity:.7;">${esc(POS_FULL[s.position]||'')}</small></span>`:''}</div>
-        </div>
-      </div>
-      <div class="sc-body">
-        ${s.staerken?`<div class="sc-label">Stärken</div><div style="color:var(--green);">${esc(s.staerken)}</div>`:''}
-        ${s.schwaechen?`<div class="sc-label">Schwächen</div><div style="color:var(--red);">${esc(s.schwaechen)}</div>`:''}
-        ${s.notiz?`<div class="sc-label">Notiz</div><div>${esc(s.notiz)}</div>`:''}
-      </div>
-      <div class="sc-actions">
-        <button class="btn btn-ghost btn-xs" onclick="openSpielerModal('${s.id}')">✏️ Bearbeiten</button>
-      </div>
+    const pc=s.position?`pos-${s.position}`:'';
+    return`<div class="spieler-card">
+      <div class="sc-header"><div class="sc-nummer">${s.nummer||'?'}</div><div class="sc-info"><div class="sc-name">${esc(s.name)}</div>${s.position?`<div style="margin-top:2px;"><span class="pos-badge ${pc}">${esc(POS_L[s.position]||s.position)} <small style="font-weight:400;opacity:.7;">${esc(POS_F[s.position]||'')}</small></span></div>`:''}</div></div>
+      <div class="sc-body">${s.staerken?`<div class="sc-label">Stärken</div><div style="color:var(--green);">${esc(s.staerken)}</div>`:''} ${s.schwaechen?`<div class="sc-label">Schwächen</div><div style="color:var(--red);">${esc(s.schwaechen)}</div>`:''} ${s.notiz?`<div class="sc-label">Notiz</div><div>${esc(s.notiz)}</div>`:''}</div>
+      <div class="sc-actions"><button class="btn btn-ghost btn-xs" onclick="openSpielerModal('${s.id}')">✏️ Bearbeiten</button></div>
     </div>`;
   }).join('');
 }
 
-// ── PROFIL TAB ───────────────────────────────────────────────
+// ── PROFIL TAB ──
 function renderProfilTab(g){
+  const tk=(g.trikot_heim||g.trikot_auswaerts)?`<div style="grid-column:1/-1;"><div class="sc-label" style="margin-bottom:8px;">Trikotfarben</div><div style="display:flex;gap:10px;flex-wrap:wrap;">${trikotPrevHtml(g.trikot_heim,'🏠 Heim')}${trikotPrevHtml(g.trikot_auswaerts,'✈️ Auswärts')}</div></div>`:'';
   document.getElementById('profil-content').innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-      <div>
-        <div class="sc-label" style="margin-bottom:6px;">Mannschaftsname</div>
-        <div style="font-size:16px;font-weight:600;">${esc(g.name)}</div>
-      </div>
-      <div>
-        <div class="sc-label" style="margin-bottom:6px;">Liga / Staffel</div>
-        <div>${esc(g.liga||'–')}</div>
-      </div>
-      <div>
-        <div class="sc-label" style="margin-bottom:6px;">Trainer</div>
-        <div>${esc(g.trainer||'–')}</div>
-      </div>
-      <div>
-        <div class="sc-label" style="margin-bottom:6px;">Heimspielstätte</div>
-        <div>${esc(g.spielort||'–')}</div>
-      </div>
+      <div><div class="sc-label" style="margin-bottom:6px;">Mannschaft</div><div style="font-size:16px;font-weight:600;">${esc(g.name)}</div></div>
+      <div><div class="sc-label" style="margin-bottom:6px;">Liga</div><div>${esc(g.liga||'–')}</div></div>
+      <div><div class="sc-label" style="margin-bottom:6px;">Trainer</div><div>${esc(g.trainer||'–')}</div></div>
+      <div><div class="sc-label" style="margin-bottom:6px;">Heimspielstätte</div><div>${esc(g.spielort||'–')}</div></div>
+      ${tk}
     </div>
-    ${g.notizen?`<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
-      <div class="sc-label" style="margin-bottom:6px;">Allgemeine Notizen</div>
-      <div style="font-size:13.5px;line-height:1.6;white-space:pre-wrap;">${esc(g.notizen)}</div>
-    </div>`:''}
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:8px;">
-      <button class="btn btn-ghost btn-sm" onclick="openGegnerModal('${g.id}')">✏️ Profil bearbeiten</button>
-    </div>`;
+    ${g.notizen?`<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><div class="sc-label" style="margin-bottom:6px;">Notizen</div><div style="font-size:13.5px;line-height:1.6;white-space:pre-wrap;">${esc(g.notizen)}</div></div>`:''}
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><button class="btn btn-ghost btn-sm" onclick="openGegnerModal('${g.id}')">✏️ Profil bearbeiten</button></div>`;
 }
 
-// ── MODAL: GEGNER ────────────────────────────────────────────
+// ── MODAL GEGNER ──
 function openGegnerModal(id=null){
   editGegnerId=id||null;
   const g=id?allGegner.find(x=>x.id===id):null;
@@ -908,62 +750,99 @@ function openGegnerModal(id=null){
   document.getElementById('gm-trainer').value=g?.trainer||'';
   document.getElementById('gm-spielort').value=g?.spielort||'';
   document.getElementById('gm-notizen').value=g?.notizen||'';
-  const farbe=g?.farbe||FARBEN[0];
-  document.getElementById('gm-farbe').value=farbe;
-  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color===farbe));
+  const f=g?.farbe||FARBEN[0];
+  document.getElementById('gm-farbe').value=f;
+  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color===f));
+  const th=g?.trikot_heim||'',ta=g?.trikot_auswaerts||'';
+  document.getElementById('gm-trikot-heim').value=th;
+  document.getElementById('gm-trikot-auswaerts').value=ta;
+  document.getElementById('gm-trikot-heim-prev').style.background=isHex(th)?th:'#fff';
+  document.getElementById('gm-trikot-auswaerts-prev').style.background=isHex(ta)?ta:'#ccc';
   document.getElementById('gm-delete-btn').style.display=id?'':'none';
   document.getElementById('gegner-modal').classList.add('open');
   setTimeout(()=>document.getElementById('gm-name').focus(),80);
 }
-
 function closeGegnerModal(){document.getElementById('gegner-modal').classList.remove('open');editGegnerId=null;}
-
 async function saveGegner(){
   const name=document.getElementById('gm-name').value.trim();
   if(!name){showToast('Name ist Pflichtfeld.','error');document.getElementById('gm-name').focus();return;}
-  const payload={
-    name,
-    liga:document.getElementById('gm-liga').value.trim()||null,
-    trainer:document.getElementById('gm-trainer').value.trim()||null,
-    spielort:document.getElementById('gm-spielort').value.trim()||null,
-    farbe:document.getElementById('gm-farbe').value||'#6b7280',
-    notizen:document.getElementById('gm-notizen').value.trim()||null,
-    user_id:currentUser.id
-  };
+  const payload={name,liga:document.getElementById('gm-liga').value.trim()||null,trainer:document.getElementById('gm-trainer').value.trim()||null,spielort:document.getElementById('gm-spielort').value.trim()||null,farbe:document.getElementById('gm-farbe').value||'#6b7280',trikot_heim:document.getElementById('gm-trikot-heim').value.trim()||null,trikot_auswaerts:document.getElementById('gm-trikot-auswaerts').value.trim()||null,notizen:document.getElementById('gm-notizen').value.trim()||null,user_id:currentUser.id};
   let error;
-  if(editGegnerId){
-    ({error}=await supa.from('gegner').update(payload).eq('id',editGegnerId));
-  } else {
-    ({error}=await supa.from('gegner').insert(payload));
-  }
+  if(editGegnerId){({error}=await supa.from('gegner').update(payload).eq('id',editGegnerId));}
+  else{({error}=await supa.from('gegner').insert(payload));}
   if(error){showToast('Fehler: '+error.message,'error');return;}
   showToast(editGegnerId?'Gegner aktualisiert':'Gegner angelegt','success');
-  closeGegnerModal();
-  await loadGegner();
-  // Wenn wir in der Detailansicht waren, aktualisieren
-  if(currentGegnerId===editGegnerId){
-    await showGegnerDetail(currentGegnerId);
-  }
+  const prev=editGegnerId;closeGegnerModal();await loadGegner();
+  if(currentGegnerId&&currentGegnerId===prev) await showGegnerDetail(currentGegnerId);
 }
-
 async function deleteGegner(){
-  const g=allGegner.find(x=>x.id===editGegnerId);
-  if(!g) return;
-  if(!confirm(`Gegner "${g.name}" wirklich löschen?\n\nAlle zugehörigen Analysen und Spieler werden ebenfalls gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.`)) return;
+  const g=allGegner.find(x=>x.id===editGegnerId);if(!g)return;
+  if(!confirm(`Gegner "${g.name}" wirklich löschen?\n\nAlle Analysen und Spieler werden ebenfalls gelöscht.`))return;
   const{error}=await supa.from('gegner').delete().eq('id',editGegnerId);
   if(error){showToast('Fehler: '+error.message,'error');return;}
-  showToast('Gegner gelöscht','success');
-  closeGegnerModal();
-  await loadGegner();
-  showOverview();
+  showToast('Gegner gelöscht','success');closeGegnerModal();await loadGegner();showOverview();
 }
 
-// ── MODAL: ANALYSE ───────────────────────────────────────────
-function openAnalyseModal(id=null){
+// ── KALENDER IMPORT ──
+async function openKalenderImportModal(){
+  document.getElementById('import-modal').classList.add('open');
+  document.getElementById('import-list').innerHTML='<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Kalender wird geladen…</div></div>';
+  document.getElementById('import-count-label').textContent='';
+  const{data:spiele}=await supa.from('spiele').select('id,heim,gast,datum,spielart,status,score_home,score_away').eq('user_id',currentUser.id).order('datum',{ascending:false});
+  alleSpiele=spiele||[];
+  const myNames=new Set([...allMannschaften.map(t=>t.name.toLowerCase()),(localStorage.getItem('hbs_my_team')||'').toLowerCase()].filter(Boolean));
+  const gMap={};
+  alleSpiele.forEach(s=>{
+    let opp=null;
+    const hl=(s.heim||'').toLowerCase(),gl=(s.gast||'').toLowerCase();
+    if(s.spielart==='heim'||myNames.has(hl)) opp=s.gast;
+    else if(s.spielart==='auswaerts'||myNames.has(gl)) opp=s.heim;
+    else if(s.heim&&s.gast) opp=s.gast;
+    if(!opp) return;
+    const k=opp.toLowerCase().trim();
+    if(!gMap[k]) gMap[k]={name:opp,games:[]};
+    gMap[k].games.push(s);
+  });
+  const known=new Set(allGegner.map(g=>g.name.toLowerCase().trim()));
+  const items=Object.values(gMap).sort((a,b)=>a.name.localeCompare(b.name,'de'));
+  if(!items.length){document.getElementById('import-list').innerHTML=`<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Keine Spiele im Kalender gefunden. Erst Kalender synchronisieren.</div></div>`;document.getElementById('import-confirm-btn').disabled=true;return;}
+  document.getElementById('import-confirm-btn').disabled=false;
+  renderImportList(items,known);
+}
+function renderImportList(items,known){
+  const wrap=document.getElementById('import-list');
+  wrap.innerHTML=items.map((item,i)=>{
+    const exists=known.has(item.name.toLowerCase().trim());
+    const n=item.games.length;
+    const sub=`${n} Spiel${n!==1?'e':''} im Kalender`+(item.games[0]?.datum?` · letztes: ${fmtDate(item.games[0].datum)}`:'');
+    if(exists)return`<div class="import-item already-exists"><span style="font-size:16px;">✅</span><div style="flex:1;"><div class="import-name">${esc(item.name)}</div><div class="import-sub">${sub} · bereits angelegt</div></div><span class="import-count">${n} Spiele</span></div>`;
+    return`<div class="import-item" id="ii-${i}" onclick="toggleImportItem(${i})"><input type="checkbox" class="import-check" id="ic-${i}" checked onchange="updateImportCount()"><div style="flex:1;"><div class="import-name">${esc(item.name)}</div><div class="import-sub">${sub}</div></div><span class="import-count">${n} Spiele</span></div>`;
+  }).join('');
+  wrap.dataset.items=JSON.stringify(items.map(it=>({name:it.name,count:it.games.length,exists:known.has(it.name.toLowerCase().trim())})));
+  updateImportCount();
+}
+function toggleImportItem(i){const cb=document.getElementById('ic-'+i);if(!cb)return;cb.checked=!cb.checked;document.getElementById('ii-'+i)?.classList.toggle('checked',cb.checked);updateImportCount();}
+function updateImportCount(){const cbs=document.querySelectorAll('#import-list .import-check');const c=Array.from(cbs).filter(cb=>cb.checked).length;document.getElementById('import-count-label').textContent=c?`${c} Gegner wird importiert`:'Keine Auswahl';}
+async function executeImport(){
+  const items=JSON.parse(document.getElementById('import-list').dataset.items||'[]');
+  const cbs=document.querySelectorAll('#import-list .import-check');
+  const toImport=[];
+  cbs.forEach((cb,i)=>{if(cb.checked&&items[i]&&!items[i].exists)toImport.push(items[i].name);});
+  if(!toImport.length){showToast('Keine neuen Gegner ausgewählt.','info');return;}
+  const{error}=await supa.from('gegner').insert(toImport.map(name=>({name,user_id:currentUser.id})));
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast(`✅ ${toImport.length} Gegner importiert`,'success');
+  closeImportModal();await loadGegner();
+}
+function closeImportModal(){document.getElementById('import-modal').classList.remove('open');}
+
+// ── MODAL ANALYSE ──
+async function openAnalyseModal(id=null){
   editAnalyseId=id||null;
   const a=id?currentAnalysen.find(x=>x.id===id):null;
   document.getElementById('am-title').textContent=a?'Analyse bearbeiten':'Neue Analyse';
   document.getElementById('am-id').value=id||'';
+  document.getElementById('am-spiel-id').value=a?.spiel_id||'';
   document.getElementById('am-datum').value=a?.datum||new Date().toISOString().slice(0,10);
   document.getElementById('am-spielort').value=a?.spielort_typ||'';
   document.getElementById('am-tore-uns').value=a?.ergebnis_uns??'';
@@ -977,146 +856,79 @@ function openAnalyseModal(id=null){
   document.getElementById('am-tendenzen').value=a?.tendenzen||'';
   document.getElementById('am-notizen').value=a?.notizen||'';
   document.getElementById('am-delete-btn').style.display=id?'':'none';
+  await loadSpieleFuerAnalyseModal(a?.spiel_id||null);
   document.getElementById('analyse-modal').classList.add('open');
 }
 
-function closeAnalyseModal(){document.getElementById('analyse-modal').classList.remove('open');editAnalyseId=null;}
+async function loadSpieleFuerAnalyseModal(linkedSpielId){
+  const g=allGegner.find(x=>x.id===currentGegnerId);
+  if(!g){document.getElementById('am-spiele-wrap').innerHTML='';return;}
+  const{data}=await supa.from('spiele').select('id,heim,gast,datum,spielart,status,score_home,score_away').eq('user_id',currentUser.id).or(`heim.ilike.%${g.name}%,gast.ilike.%${g.name}%`).order('datum',{ascending:false}).limit(20);
+  spieleFuerGegner=data||[];
+  if(!spieleFuerGegner.length){document.getElementById('am-spiele-wrap').innerHTML=`<div style="font-size:12.5px;color:var(--xsoft);padding:4px 0;">Keine Spiele gegen diesen Gegner im Kalender gefunden.</div>`;const r=document.getElementById('am-spiel-manuell');if(r)r.checked=true;return;}
+  const myNames=new Set([...allMannschaften.map(t=>t.name.toLowerCase()),(localStorage.getItem('hbs_my_team')||'').toLowerCase()].filter(Boolean));
+  document.getElementById('am-spiele-wrap').innerHTML=spieleFuerGegner.map(s=>{
+    const hl=(s.heim||'').toLowerCase(),gl=(s.gast||'').toLowerCase();
+    let art='',artClass='neutral';
+    if(s.spielart==='heim'||myNames.has(hl)){art='🏠 Heim';artClass='heim';}
+    else if(s.spielart==='auswaerts'||myNames.has(gl)){art='✈️ Auswärts';artClass='auswaerts';}
+    const hasScore=s.score_home!=null&&s.score_away!=null;
+    let score='';
+    if(hasScore){const u=s.spielart==='auswaerts'?s.score_away:s.score_home;const ge=s.spielart==='auswaerts'?s.score_home:s.score_away;score=`${u}:${ge}`;}
+    const sel=s.id===linkedSpielId;
+    return`<label class="spiel-link-item${sel?' selected':''}" for="sr-${s.id}" onclick="selectSpielForAnalyse('${s.id}')">
+      <input type="radio" name="am-spiel-radio" id="sr-${s.id}" value="${s.id}" ${sel?'checked':''} style="accent-color:var(--accent);">
+      <div class="sli-date">${fmtDate(s.datum)}</div>
+      <div class="sli-body">${esc(s.heim)} – ${esc(s.gast)} ${art?`<span class="badge badge-${artClass}" style="font-size:10px;padding:1px 6px;">${art}</span>`:''}</div>
+      ${score?`<div class="sli-score">${score}</div>`:''}
+    </label>`;
+  }).join('');
+  if(!linkedSpielId){const r=document.getElementById('am-spiel-manuell');if(r)r.checked=true;}
+}
 
+function selectSpielForAnalyse(spielId){
+  document.querySelectorAll('.spiel-link-item').forEach(el=>{const i=el.querySelector('input[type=radio]');el.classList.toggle('selected',i&&i.value===spielId);});
+  if(!spielId){document.getElementById('am-spiel-id').value='';return;}
+  const s=spieleFuerGegner.find(x=>x.id===spielId);if(!s)return;
+  document.getElementById('am-spiel-id').value=spielId;
+  if(s.datum) document.getElementById('am-datum').value=s.datum;
+  if(s.spielart) document.getElementById('am-spielort').value=s.spielart;
+  if(s.score_home!=null&&s.score_away!=null){
+    const u=s.spielart==='auswaerts'?s.score_away:s.score_home;
+    const ge=s.spielart==='auswaerts'?s.score_home:s.score_away;
+    document.getElementById('am-tore-uns').value=u;
+    document.getElementById('am-tore-gegner').value=ge;
+  }
+}
+
+function closeAnalyseModal(){document.getElementById('analyse-modal').classList.remove('open');editAnalyseId=null;}
 async function saveAnalyse(){
   if(!currentGegnerId){showToast('Kein Gegner gewählt.','error');return;}
-  const toreUns=document.getElementById('am-tore-uns').value;
-  const toreGegner=document.getElementById('am-tore-gegner').value;
-  const payload={
-    gegner_id:currentGegnerId,
-    user_id:currentUser.id,
-    datum:document.getElementById('am-datum').value||null,
-    spielort_typ:document.getElementById('am-spielort').value||null,
-    ergebnis_uns:toreUns!==''?parseInt(toreUns):null,
-    ergebnis_gegner:toreGegner!==''?parseInt(toreGegner):null,
-    angriff_system:document.getElementById('am-angriff-system').value||null,
-    angriff_notiz:document.getElementById('am-angriff-notiz').value.trim()||null,
-    abwehr_system:document.getElementById('am-abwehr-system').value||null,
-    abwehr_notiz:document.getElementById('am-abwehr-notiz').value.trim()||null,
-    tendenzen:document.getElementById('am-tendenzen').value.trim()||null,
-    notizen:document.getElementById('am-notizen').value.trim()||null,
-  };
+  const tu=document.getElementById('am-tore-uns').value,tg=document.getElementById('am-tore-gegner').value;
+  const payload={gegner_id:currentGegnerId,user_id:currentUser.id,datum:document.getElementById('am-datum').value||null,spielort_typ:document.getElementById('am-spielort').value||null,ergebnis_uns:tu!==''?parseInt(tu):null,ergebnis_gegner:tg!==''?parseInt(tg):null,angriff_system:document.getElementById('am-angriff-system').value||null,angriff_notiz:document.getElementById('am-angriff-notiz').value.trim()||null,abwehr_system:document.getElementById('am-abwehr-system').value||null,abwehr_notiz:document.getElementById('am-abwehr-notiz').value.trim()||null,tendenzen:document.getElementById('am-tendenzen').value.trim()||null,notizen:document.getElementById('am-notizen').value.trim()||null,spiel_id:document.getElementById('am-spiel-id').value||null};
   let error;
-  if(editAnalyseId){
-    ({error}=await supa.from('gegner_analyse').update(payload).eq('id',editAnalyseId));
-  } else {
-    ({error}=await supa.from('gegner_analyse').insert(payload));
-  }
+  if(editAnalyseId){({error}=await supa.from('gegner_analyse').update(payload).eq('id',editAnalyseId));}
+  else{({error}=await supa.from('gegner_analyse').insert(payload));}
   if(error){showToast('Fehler: '+error.message,'error');return;}
   showToast(editAnalyseId?'Analyse aktualisiert':'Analyse gespeichert','success');
-  closeAnalyseModal();
-  await loadAnalysen(currentGegnerId);
-  // Stats refreshen
-  await loadGegner();
+  closeAnalyseModal();await loadAnalysen(currentGegnerId);await loadGegner();
 }
+async function deleteAnalyse(){if(!editAnalyseId)return;if(!confirm('Analyse wirklich löschen?'))return;const{error}=await supa.from('gegner_analyse').delete().eq('id',editAnalyseId);if(error){showToast('Fehler: '+error.message,'error');return;}showToast('Analyse gelöscht','success');closeAnalyseModal();await loadAnalysen(currentGegnerId);await loadGegner();}
 
-async function deleteAnalyse(){
-  if(!editAnalyseId) return;
-  if(!confirm('Analyse wirklich löschen?')) return;
-  const{error}=await supa.from('gegner_analyse').delete().eq('id',editAnalyseId);
-  if(error){showToast('Fehler: '+error.message,'error');return;}
-  showToast('Analyse gelöscht','success');
-  closeAnalyseModal();
-  await loadAnalysen(currentGegnerId);
-  await loadGegner();
-}
-
-// ── MODAL: SPIELER ───────────────────────────────────────────
-function openSpielerModal(id=null){
-  editSpielerId=id||null;
-  const s=id?currentSpieler.find(x=>x.id===id):null;
-  document.getElementById('sm-title').textContent=s?'Spieler bearbeiten':'Spieler hinzufügen';
-  document.getElementById('sm-id').value=id||'';
-  document.getElementById('sm-name').value=s?.name||'';
-  document.getElementById('sm-nummer').value=s?.nummer||'';
-  document.getElementById('sm-position').value=s?.position||'';
-  document.getElementById('sm-staerken').value=s?.staerken||'';
-  document.getElementById('sm-schwaechen').value=s?.schwaechen||'';
-  document.getElementById('sm-notiz').value=s?.notiz||'';
-  document.getElementById('sm-delete-btn').style.display=id?'':'none';
-  document.getElementById('spieler-modal').classList.add('open');
-  setTimeout(()=>document.getElementById('sm-name').focus(),80);
-}
-
+// ── MODAL SPIELER ──
+function openSpielerModal(id=null){editSpielerId=id||null;const s=id?currentSpieler.find(x=>x.id===id):null;document.getElementById('sm-title').textContent=s?'Spieler bearbeiten':'Spieler hinzufügen';document.getElementById('sm-id').value=id||'';document.getElementById('sm-name').value=s?.name||'';document.getElementById('sm-nummer').value=s?.nummer||'';document.getElementById('sm-position').value=s?.position||'';document.getElementById('sm-staerken').value=s?.staerken||'';document.getElementById('sm-schwaechen').value=s?.schwaechen||'';document.getElementById('sm-notiz').value=s?.notiz||'';document.getElementById('sm-delete-btn').style.display=id?'':'none';document.getElementById('spieler-modal').classList.add('open');setTimeout(()=>document.getElementById('sm-name').focus(),80);}
 function closeSpielerModal(){document.getElementById('spieler-modal').classList.remove('open');editSpielerId=null;}
+async function saveSpieler(){if(!currentGegnerId){showToast('Kein Gegner gewählt.','error');return;}const name=document.getElementById('sm-name').value.trim();if(!name){showToast('Name ist Pflichtfeld.','error');document.getElementById('sm-name').focus();return;}const nv=document.getElementById('sm-nummer').value;const payload={gegner_id:currentGegnerId,user_id:currentUser.id,name,nummer:nv!==''?parseInt(nv):null,position:document.getElementById('sm-position').value||null,staerken:document.getElementById('sm-staerken').value.trim()||null,schwaechen:document.getElementById('sm-schwaechen').value.trim()||null,notiz:document.getElementById('sm-notiz').value.trim()||null};let error;if(editSpielerId){({error}=await supa.from('gegner_spieler').update(payload).eq('id',editSpielerId));}else{({error}=await supa.from('gegner_spieler').insert(payload));}if(error){showToast('Fehler: '+error.message,'error');return;}showToast(editSpielerId?'Spieler aktualisiert':'Spieler hinzugefügt','success');closeSpielerModal();await loadSpieler(currentGegnerId);await loadGegner();}
+async function deleteSpieler(){if(!editSpielerId)return;if(!confirm('Spieler wirklich löschen?'))return;const{error}=await supa.from('gegner_spieler').delete().eq('id',editSpielerId);if(error){showToast('Fehler: '+error.message,'error');return;}showToast('Spieler gelöscht','success');closeSpielerModal();await loadSpieler(currentGegnerId);await loadGegner();}
 
-async function saveSpieler(){
-  if(!currentGegnerId){showToast('Kein Gegner gewählt.','error');return;}
-  const name=document.getElementById('sm-name').value.trim();
-  if(!name){showToast('Name ist Pflichtfeld.','error');document.getElementById('sm-name').focus();return;}
-  const nummerVal=document.getElementById('sm-nummer').value;
-  const payload={
-    gegner_id:currentGegnerId,
-    user_id:currentUser.id,
-    name,
-    nummer:nummerVal!==''?parseInt(nummerVal):null,
-    position:document.getElementById('sm-position').value||null,
-    staerken:document.getElementById('sm-staerken').value.trim()||null,
-    schwaechen:document.getElementById('sm-schwaechen').value.trim()||null,
-    notiz:document.getElementById('sm-notiz').value.trim()||null,
-  };
-  let error;
-  if(editSpielerId){
-    ({error}=await supa.from('gegner_spieler').update(payload).eq('id',editSpielerId));
-  } else {
-    ({error}=await supa.from('gegner_spieler').insert(payload));
-  }
-  if(error){showToast('Fehler: '+error.message,'error');return;}
-  showToast(editSpielerId?'Spieler aktualisiert':'Spieler hinzugefügt','success');
-  closeSpielerModal();
-  await loadSpieler(currentGegnerId);
-  await loadGegner();
-}
+// ── KEYBOARD & OVERLAY ──
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;['gegner-modal','import-modal','analyse-modal','spieler-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
+['gegner-modal','import-modal','analyse-modal','spieler-modal'].forEach(id=>{document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});});
 
-async function deleteSpieler(){
-  if(!editSpielerId) return;
-  if(!confirm('Spieler wirklich löschen?')) return;
-  const{error}=await supa.from('gegner_spieler').delete().eq('id',editSpielerId);
-  if(error){showToast('Fehler: '+error.message,'error');return;}
-  showToast('Spieler gelöscht','success');
-  closeSpielerModal();
-  await loadSpieler(currentGegnerId);
-  await loadGegner();
-}
-
-// ── KEYBOARD + CLICK-OUTSIDE ─────────────────────────────────
-document.addEventListener('keydown',e=>{
-  if(e.key!=='Escape') return;
-  ['gegner-modal','analyse-modal','spieler-modal'].forEach(id=>
-    document.getElementById(id).classList.remove('open'));
-});
-
-['gegner-modal','analyse-modal','spieler-modal'].forEach(id=>{
-  document.getElementById(id).addEventListener('click',e=>{
-    if(e.target===e.currentTarget) e.currentTarget.classList.remove('open');
-  });
-});
-
-// ── BOOT ─────────────────────────────────────────────────────
-// Sidebar-Status wiederherstellen
-(function(){
-  const col=localStorage.getItem('sidebar_collapsed')==='1';
-  if(col){
-    document.getElementById('sidebar').classList.add('collapsed');
-    document.getElementById('app').classList.add('sidebar-collapsed');
-  }
-})();
-
-supa.auth.getSession().then(({data:{session}})=>{
-  if(session) onAuth(session.user);
-  else {
-    document.getElementById('auth-screen').style.display='flex';
-    setTimeout(()=>window.location.href='index.html',2500);
-  }
-});
-supa.auth.onAuthStateChange((event,session)=>{
-  if(event==='SIGNED_IN'&&session&&!currentUser) onAuth(session.user);
-  if(event==='SIGNED_OUT') window.location.href='index.html';
-});
+// ── BOOT ──
+(function(){if(localStorage.getItem('sidebar_collapsed')==='1'){document.getElementById('sidebar').classList.add('collapsed');document.getElementById('app').classList.add('sidebar-collapsed');}})();
+supa.auth.getSession().then(({data:{session}})=>{if(session)onAuth(session.user);else{document.getElementById('auth-screen').style.display='flex';setTimeout(()=>window.location.href='index.html',2500);}});
+supa.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'&&session&&!currentUser)onAuth(session.user);if(event==='SIGNED_OUT')window.location.href='index.html';});
 </script>
 </body>
 </html>
