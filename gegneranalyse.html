@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260514.2000 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260514.2100 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -330,7 +330,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
     </div>
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260514.2000</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260514.2100</div>
     </div>
   </aside>
 
@@ -506,19 +506,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             </div>
           </div>
 
-          <!-- handball.net Saisondaten -->
+          <!-- handball.net Spielplan -->
           <div class="stat-section">
-            <div class="stat-section-title">🌐 handball.net — Saisondaten</div>
+            <div class="stat-section-title">🌐 handball.net — Spielplan der Saison</div>
             <div class="hbn-url-row">
               <input class="hbn-url-input" type="url" id="hbn-ical-input"
                 placeholder="handball.net iCal-URL des Gegners (webcal://… oder https://…)">
               <button class="btn btn-primary btn-sm" id="hbn-load-btn" onclick="loadHbnSaison()">Laden</button>
               <button class="btn btn-ghost btn-sm" id="hbn-save-url-btn" onclick="saveHbnIcalUrl()" style="display:none;" title="URL am Profil speichern">💾 Speichern</button>
             </div>
-            <div style="font-size:11.5px;color:var(--xsoft);margin-bottom:10px;" id="hbn-url-hint"></div>
+            <div style="font-size:11.5px;color:var(--xsoft);margin-bottom:10px;line-height:1.5;" id="hbn-url-hint">
+              Den iCal-Feed des Gegners aus handball.net kopieren (Spielplan → iCal-Link). Zeigt den vollen Spielplan mit Heim/Auswärts-Aufteilung und nächstem Spieldatum. Ergebnisse kommen aus der Bank-Statistik.
+            </div>
             <div class="hbn-saison-result" id="hbn-saison-result">
               <div class="hbn-saison-kpi" id="hbn-saison-kpis"></div>
-              <div class="stat-section-title" style="margin-top:4px;">Letzte Saisonspiele</div>
+              <div class="stat-section-title" style="margin-top:4px;">Spielplan (neueste zuerst)</div>
               <div id="hbn-saison-spiele"></div>
             </div>
           </div>
@@ -1431,17 +1433,6 @@ async function hbnFetch(url,requestType){
   return res.json();
 }
 
-// iCal-Summary parsen: "Heim - Gast (23:21)" oder "Heim - Gast"
-function parseIcalSummaryScore(summary=''){
-  const scoreMatch=summary.match(/\((\d+):(\d+)\)\s*$/);
-  const withoutScore=summary.replace(/\s*\(\d+:\d+\)\s*$/,'').trim();
-  const sep=withoutScore.indexOf(' - ');
-  const heim=sep>0?withoutScore.slice(0,sep).trim():withoutScore;
-  const gast=sep>0?withoutScore.slice(sep+3).trim():'';
-  const score=scoreMatch?{heim:parseInt(scoreMatch[1]),gast:parseInt(scoreMatch[2])}:null;
-  return{heim,gast,score};
-}
-
 // Gegner-Name normalisiert matchen
 function normStr(s){return(s||'').toLowerCase().replace(/[\s\-\_\.]/g,'');}
 
@@ -1498,13 +1489,11 @@ async function loadStatistikTab(){
 }
 
 function renderBilanzKpis(spiele,aktionen,g){
-  const myNames=new Set([...allMannschaften.map(t=>t.name.toLowerCase()),(localStorage.getItem('hbs_my_team')||'').toLowerCase()].filter(Boolean));
   let siege=0,niederlagen=0,unent=0,torWir=0,torSie=0,spAnz=0,strafenGes=0;
 
   spiele.forEach(s=>{
     if(s.score_home==null||s.score_away==null) return;
-    const wir=s.spielart==='auswaerts'?s.score_away:s.score_home;
-    const sie=s.spielart==='auswaerts'?s.score_home:s.score_away;
+    const{wir,sie}=unsereSeite(s,g.name);
     torWir+=wir; torSie+=sie; spAnz++;
     if(wir>sie) siege++;
     else if(wir<sie) niederlagen++;
@@ -1521,22 +1510,34 @@ function renderBilanzKpis(spiele,aktionen,g){
   document.getElementById('kpi-strafen').textContent=spiele.length?(strafenGes/spiele.length).toFixed(1):'–';
 }
 
+// Zuverlässige Seitenbestimmung: spielart primär, Namensabgleich als Fallback
+function unsereSeite(s,gegnerName){
+  if(s.spielart==='heim')      return {wir:s.score_home, sie:s.score_away, art:'heim'};
+  if(s.spielart==='auswaerts') return {wir:s.score_away, sie:s.score_home, art:'auswaerts'};
+  // Fallback: Gegner im heim-Feld → sie sind Heim → wir sind Gast
+  const gl=normStr(gegnerName);
+  const hl=normStr(s.heim||'');
+  if(hl&&gl&&(hl.includes(gl.slice(0,8))||gl.includes(hl.slice(0,8)))){
+    return {wir:s.score_away, sie:s.score_home, art:'auswaerts'};
+  }
+  return {wir:s.score_home, sie:s.score_away, art:'heim'};
+}
+
 function renderBegegnungen(spiele,g){
   const el=document.getElementById('stat-begegnungen');
   const mitErgebnis=spiele.filter(s=>s.score_home!=null&&s.score_away!=null).slice(0,8);
   if(!mitErgebnis.length){
-    el.innerHTML='<div style="color:var(--xsoft);font-size:13px;">Keine Spiele mit Ergebnis gefunden.</div>';
+    el.innerHTML='<div style="color:var(--xsoft);font-size:13px;">Keine Spiele mit Ergebnis. Ergebnisse werden aus der Bank-Statistik übernommen.</div>';
     return;
   }
   el.innerHTML=mitErgebnis.map(s=>{
-    const wir=s.spielart==='auswaerts'?s.score_away:s.score_home;
-    const sie=s.spielart==='auswaerts'?s.score_home:s.score_away;
+    const{wir,sie,art}=unsereSeite(s,g.name);
     const cls=wir>sie?'win':wir<sie?'loss':'draw';
     const label=wir>sie?'Sieg':wir<sie?'Niederlage':'Unentsch.';
-    const art=s.spielart==='heim'?'🏠':'✈️';
+    const artIcon=art==='heim'?'🏠':'✈️';
     return`<div class="begegnung-row">
       <span class="beg-datum">${fmtDate(s.datum)}</span>
-      <span>${art}</span>
+      <span>${artIcon}</span>
       <span class="beg-result ${cls}">${wir}:${sie}</span>
       <span class="beg-outcome ${cls}">${label}</span>
     </div>`;
@@ -1547,13 +1548,12 @@ function renderTopscorer(aktionen,spiele){
   const el=document.getElementById('stat-topscorer');
   const tore=aktionen.filter(a=>a.type==='gegner_tor');
   if(!tore.length){
-    el.innerHTML='<div style="color:var(--xsoft);font-size:13px;">Keine Daten (Bank-Statistik wird benötigt).</div>';
+    el.innerHTML='<div style="color:var(--xsoft);font-size:13px;">Keine Daten. Gegner-Tore werden in der Bank-Statistik erfasst.</div>';
     return;
   }
-  // Aggregieren nach Name/Nummer
   const scorerMap={};
   tore.forEach(a=>{
-    const key=a.gegner_name||`#${a.gegner_nummer}`||'Unbekannt';
+    const key=a.gegner_name?normStr(a.gegner_name):`nr_${a.gegner_nummer||'?'}`;
     if(!scorerMap[key]) scorerMap[key]={name:a.gegner_name||'',nummer:a.gegner_nummer||null,tore:0};
     scorerMap[key].tore++;
   });
@@ -1566,7 +1566,10 @@ function renderTopscorer(aktionen,spiele){
   </div>`).join('');
 }
 
-// ── handball.net Saisondaten laden ────────────────────────────
+// ── handball.net Spielplan laden ──────────────────────────────
+// Das iCal-Format von handball.net enthält KEINE Ergebnisse —
+// nur Spieltermine (Datum, Teams, Ort). Ergebnisse kommen aus
+// der Bank-Statistik (unsere eigenen Spiele).
 async function loadHbnSaison(){
   const url=document.getElementById('hbn-ical-input').value.trim();
   if(!url){showToast('Bitte iCal-URL eingeben.','error');return;}
@@ -1580,50 +1583,62 @@ async function loadHbnSaison(){
 
     const g=allGegner.find(x=>x.id===currentGegnerId);
     const gName=normStr(g?.name||'');
+    const today=new Date().toISOString().slice(0,10);
 
-    // Ergebnisse parsen
-    let s=0,n=0,u=0,torF=0,torG=0,anzahl=0;
-    const mitScore=[];
+    // Spiele klassifizieren
+    let heimSpiele=0,auswaertsSpiele=0,vergangen=0,kommend=0;
     games.forEach(game=>{
-      const{heim,gast,score}=parseIcalSummaryScore(game.summary||`${game.heim||''} - ${game.gast||''}`);
-      if(!score) return;
-      // Perspektive des Gegners: welche Seite sind sie?
-      const istHeim=normStr(heim)===gName||normStr(game.heim||'')===gName;
-      const gF=istHeim?score.heim:score.gast;
-      const gG=istHeim?score.gast:score.heim;
-      torF+=gF; torG+=gG; anzahl++;
-      const res=gF>gG?'w':gF<gG?'l':'d';
-      if(res==='w')s++;else if(res==='l')n++;else u++;
-      mitScore.push({datum:game.datum,heim:game.heim||heim,gast:game.gast||gast,scoreHeim:score.heim,scoreGast:score.gast,istHeim,res});
+      const hl=normStr(game.heim||'');
+      const ist_heim=hl&&gName&&(hl.includes(gName.slice(0,8))||gName.includes(hl.slice(0,8)));
+      if(ist_heim) heimSpiele++; else auswaertsSpiele++;
+      if((game.datum||'')>=today) kommend++; else vergangen++;
     });
 
-    // Gesamt-Spiele (auch ohne Score)
-    const gesamt=games.length;
+    // Nächstes Spiel
+    const naechstes=games.find(g=>(g.datum||'')>=today);
 
-    // KPI rendern
+    // KPIs
     document.getElementById('hbn-saison-kpis').innerHTML=`
-      <div class="hbn-kpi"><div class="hbn-kpi-num" style="color:var(--text)">${gesamt}</div><div class="hbn-kpi-label">Spiele gesamt</div></div>
-      <div class="hbn-kpi"><div class="hbn-kpi-num" style="color:var(--green)">${s}</div><div class="hbn-kpi-label">Siege</div></div>
-      <div class="hbn-kpi"><div class="hbn-kpi-num" style="color:var(--red)">${n}</div><div class="hbn-kpi-label">Niederlagen</div></div>
-      <div class="hbn-kpi"><div class="hbn-kpi-num" style="color:var(--accent)">${anzahl?(torF/anzahl).toFixed(1):'–'}</div><div class="hbn-kpi-label">Ø Tore / Spiel</div></div>`;
+      <div class="hbn-kpi"><div class="hbn-kpi-num" style="color:var(--text);">${games.length}</div><div class="hbn-kpi-label">Spiele Saison</div></div>
+      <div class="hbn-kpi"><div class="hbn-kpi-num" style="color:var(--text);">${vergangen}</div><div class="hbn-kpi-label">Gespielt</div></div>
+      <div class="hbn-kpi"><div class="hbn-kpi-num" style="color:var(--accent);">${kommend}</div><div class="hbn-kpi-label">Ausstehend</div></div>
+      <div class="hbn-kpi"><div class="hbn-kpi-num" style="color:var(--text);">${heimSpiele}H / ${auswaertsSpiele}A</div><div class="hbn-kpi-label">Heim / Auswärts</div></div>`;
 
-    // Letzte 10 Spiele mit Ergebnis
-    const letzteSpiele=mitScore.slice(-10).reverse();
-    document.getElementById('hbn-saison-spiele').innerHTML=letzteSpiele.length?
-      letzteSpiele.map(sp=>`<div class="hbn-spiel-row">
-        <span class="hbn-spiel-datum">${sp.datum?sp.datum.split('-').reverse().join('.'):'–'}</span>
-        <span class="hbn-spiel-teams">${esc(sp.heim)} – ${esc(sp.gast)}</span>
-        <span class="hbn-spiel-score ${sp.res}">${sp.scoreHeim}:${sp.scoreGast}</span>
-      </div>`).join('') :
-      '<div style="color:var(--xsoft);font-size:12.5px;">Keine Ergebnisse im Feed verfügbar.</div>';
+    // Nächstes Spiel Banner
+    const naechstesHtml=naechstes?`<div style="background:var(--accent-l);border:1px solid #bfdbfe;border-radius:9px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;">
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);display:block;margin-bottom:3px;">Nächstes Spiel</span>
+      <strong>${naechstes.datum?naechstes.datum.split('-').reverse().join('.'):'–'}</strong>
+      ${naechstes.uhrzeit?`<span style="color:var(--soft);"> · ${naechstes.uhrzeit} Uhr</span>`:''}
+      <span style="margin:0 6px;color:var(--border);">|</span>
+      ${esc(naechstes.heim||'')} – ${esc(naechstes.gast||'')}
+      ${naechstes.ort?`<span style="color:var(--soft);font-size:11.5px;display:block;margin-top:2px;">📍 ${esc(naechstes.ort)}</span>`:''}
+    </div>`:'';
+
+    // Alle Spiele sortiert (neueste vergangene zuerst, dann kommende)
+    const sortedGames=[...games].sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));
+
+    document.getElementById('hbn-saison-spiele').innerHTML=
+      naechstesHtml+
+      sortedGames.slice(0,15).map(sp=>{
+        const isFuture=(sp.datum||'')>=today;
+        const hl=normStr(sp.heim||'');
+        const istHeim=hl&&gName&&(hl.includes(gName.slice(0,8))||gName.includes(hl.slice(0,8)));
+        const artIcon=istHeim?'🏠':'✈️';
+        return`<div class="hbn-spiel-row" style="${isFuture?'opacity:.65;':''}">
+          <span class="hbn-spiel-datum">${sp.datum?sp.datum.split('-').reverse().join('.'):'–'}</span>
+          <span style="font-size:13px;flex-shrink:0;">${artIcon}</span>
+          <span class="hbn-spiel-teams">${esc(sp.heim||'')} – ${esc(sp.gast||'')}</span>
+          ${sp.uhrzeit&&isFuture?`<span style="font-size:11px;color:var(--soft);flex-shrink:0;">${sp.uhrzeit}</span>`:''}
+        </div>`;
+      }).join('');
 
     document.getElementById('hbn-saison-result').style.display='';
 
-    // "Speichern"-Button einblenden wenn URL noch nicht gespeichert
     if(!g?.hbn_ical_url){
       document.getElementById('hbn-save-url-btn').style.display='';
     }
-    showToast(`✅ ${gesamt} Spiele geladen`,'success');
+    showToast(`✅ ${games.length} Spiele geladen`,'success');
+
   }catch(e){
     showToast('Laden fehlgeschlagen: '+e.message,'error');
   }finally{
