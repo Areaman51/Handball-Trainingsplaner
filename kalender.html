@@ -158,27 +158,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .kal-leg-item{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--soft);}
 .kal-leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
 
-/* ── SYNC-PROTOKOLL ── */
-.slog-group{padding:8px 14px;border-bottom:1px solid var(--border);}
-.slog-group:last-child{border-bottom:none;}
-.slog-ts{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--xsoft);
-  font-family:'DM Mono',monospace;text-transform:uppercase;margin-bottom:4px;}
-.slog-row{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:11.5px;
-  font-family:'DM Mono',monospace;border-bottom:1px solid #f3f4f6;line-height:1.6;}
-.slog-row:last-child{border-bottom:none;}
-.slog-feed{color:var(--soft);flex-shrink:0;min-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.slog-key{color:var(--xsoft);flex-shrink:0;font-size:10px;}
-.slog-val{color:var(--text);word-break:break-all;}
-.slog-val.ok{color:var(--green);}
-.slog-val.warn{color:var(--orange);}
-.slog-val.err{color:var(--red);}
-
 
 .kal-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:60px 20px;text-align:center;color:var(--soft);}
 .kal-empty-icon{font-size:40px;margin-bottom:14px;}
 
 /* ── TOAST ── */
+/* ── LOADING SCREEN ── */
+#loading-screen{position:fixed;inset:0;background:var(--sidebar);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:1000;transition:opacity .35s ease;}
+#loading-screen.ls-hiding{opacity:0;pointer-events:none;}
+.ls-logo{width:52px;height:52px;background:var(--accent);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:white;letter-spacing:-.5px;margin-bottom:2px;}
+.ls-title{color:white;font-size:16px;font-weight:600;letter-spacing:-.2px;}
+.ls-sub{color:rgba(255,255,255,.35);font-size:12px;}
+.ls-spinner{width:26px;height:26px;border:2.5px solid rgba(255,255,255,.15);border-top-color:rgba(255,255,255,.7);border-radius:50%;animation:ls-spin .75s linear infinite;margin-top:4px;}
+@keyframes ls-spin{to{transform:rotate(360deg);}}
+
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
   padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;
   transition:transform .25s,opacity .25s;opacity:0;pointer-events:none;white-space:nowrap;}
@@ -222,7 +216,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 <!-- ═══ APP ═══ -->
 <div id="app" style="display:none">
-  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <div class="ls-logo">HB</div>
+  <div class="ls-title">Kalender</div>
+  <div class="ls-spinner"></div>
+  <div class="ls-sub" id="ls-text">Verbindung wird hergestellt…</div>
+</div>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <div style="display:flex;align-items:center;gap:10px;">
@@ -262,7 +264,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260513.1700</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260514.1000</div>
     </div>
   </aside>
 
@@ -310,14 +312,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div id="kal-list"></div>
       </div>
 
-      <!-- SYNC-PROTOKOLL -->
-      <div class="kal-list-card" id="sync-log-card" style="display:none;">
-        <div class="kal-list-hdr">
-          <div class="kal-list-title">🔄 Sync-Protokoll</div>
-          <button class="btn btn-ghost btn-sm" onclick="clearSyncLog()">Leeren</button>
-        </div>
-        <div id="sync-log-body" style="max-height:340px;overflow-y:auto;"></div>
-      </div>
 
     </div>
   </main>
@@ -368,9 +362,6 @@ let mannschaftKalender = {};   // mannschaft_id → [{url,typ,name}]
 let icalEvents  = [];           // geparste iCal-Events (gecacht)
 let icalLoaded  = false;
 
-const SYNC_LOG_KEY  = 'hbs_kal_sync_log';
-const SYNC_LOG_MAX  = 30;               // max. gespeicherte Sync-Einträge
-
 const WOCHENTAGE = ['So','Mo','Di','Mi','Do','Fr','Sa'];
 const MONATE = ['Januar','Februar','März','April','Mai','Juni',
                 'Juli','August','September','Oktober','November','Dezember'];
@@ -388,16 +379,18 @@ async function onAuth(user){
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = '';
   // Profil laden (inkl. Rolle)
+  setLoadingText('Profil wird geladen…');
   const {data:p} = await supa.from('profiles').select('full_name,email,role').eq('id',user.id).maybeSingle();
   document.getElementById('topbar-user').textContent = p?.full_name || p?.email || user.email;
   setTopbarRole(p?.role);
   initMyTeamWidget();
-  // Gespeichertes Sync-Protokoll sofort anzeigen
-  renderSyncLog();
   // Mannschaften + iCal laden
+  setLoadingText('Mannschaften werden geladen…');
   await loadMannschaften();
+  setLoadingText('Kalender-Feeds werden synchronisiert…');
   await syncFeeds();
   renderKalender();
+  hideLoadingScreen();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -583,7 +576,7 @@ async function syncFeeds(){
   if(btn) btn.classList.add('spinning');
   const newEvents = [];
   const syncTs  = new Date().toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  const logFeeds = [];   // Protokoll-Einträge für diesen Sync-Lauf
+  console.group(`%c🔄 Kalender-Sync  ${syncTs}`,'color:#0057ff;font-weight:700');
   let ok=0, fail=0;
   for(const t of allMannschaften){
     const feeds = (mannschaftKalender[t.id]||[]);
@@ -613,14 +606,11 @@ async function syncFeeds(){
           day:'2-digit',month:'2-digit',year:'numeric',
           hour:'2-digit',minute:'2-digit',timeZoneName:'short'}) : null;
 
-        logFeeds.push({
-          feed:       `${t.name} · ${f.name}`,
-          events:     evs.length,
-          dtstart:    veventDtstart || '–',
-          vtimezone:  vtimezoneTzid || '–',
-          parsedTime: parsedTime   || '–',
-          status:     'ok',
-        });
+        console.log(
+          `%c${t.name} · ${f.name}%c  ${evs.length} Events`,
+          'font-weight:700','font-weight:400',
+          {DTSTART: veventDtstart||'–', VTIMEZONE: vtimezoneTzid||'–', geparst: parsedTime||'–'}
+        );
 
         evs.forEach(e=>newEvents.push({
           ...e,
@@ -635,15 +625,15 @@ async function syncFeeds(){
       }catch(e){
         fail++;
         console.warn(`Feed ${f.name}: ${e.message}`);
-        logFeeds.push({feed:`${t.name} · ${f.name}`,events:0,dtstart:'–',vtimezone:'–',parsedTime:'–',status:'err',err:e.message});
+        console.warn(`${t.name} · ${f.name}: ${e.message}`);
       }
     }
   }
   icalEvents = newEvents;
   icalLoaded = true;
 
-  // ── Sync-Protokoll in localStorage speichern ──
-  if(logFeeds.length) appendSyncLog({ts: syncTs, feeds: logFeeds});
+  console.log(`%c✅ ${ok} Feeds OK${fail?' | ⚠ '+fail+' Fehler':''}  →  ${newEvents.length} Termine gesamt`,'color:#15803d;font-weight:700');
+  console.groupEnd();
 
   if(btn) btn.classList.remove('spinning');
   const total = newEvents.length;
@@ -651,7 +641,6 @@ async function syncFeeds(){
     toast(fail>0 ? `⚠ ${ok} Feeds geladen, ${fail} Fehler` : `✅ ${total} Termine geladen`, fail>0?'info':'success');
   }
   renderKalender();
-  renderSyncLog();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -955,6 +944,17 @@ function listItem({bg,day,wd,name,sub,onclick,icon}){
   </div>`;
 }
 
+
+function hideLoadingScreen(){
+  const el=document.getElementById('loading-screen');
+  if(!el) return;
+  el.classList.add('ls-hiding');
+  setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); },380);
+}
+function setLoadingText(txt){
+  const el=document.getElementById('ls-text');
+  if(el) el.textContent=txt;
+}
 function renderLegend(teams){
   const leg = document.getElementById('kal-legend');
   if(!teams.length){leg.style.display='none';return;}
@@ -966,54 +966,6 @@ function renderLegend(teams){
   `).join('');
 }
 
-// ── SYNC-PROTOKOLL ──────────────────────────────────────────
-function loadSyncLog(){
-  try{ return JSON.parse(localStorage.getItem(SYNC_LOG_KEY)||'[]'); }
-  catch(e){ return []; }
-}
-
-function appendSyncLog(entry){
-  const log = loadSyncLog();
-  log.unshift(entry);                          // neueste oben
-  if(log.length > SYNC_LOG_MAX) log.length = SYNC_LOG_MAX;
-  localStorage.setItem(SYNC_LOG_KEY, JSON.stringify(log));
-}
-
-function clearSyncLog(){
-  localStorage.removeItem(SYNC_LOG_KEY);
-  renderSyncLog();
-}
-
-function renderSyncLog(){
-  const card = document.getElementById('sync-log-card');
-  const body = document.getElementById('sync-log-body');
-  const log  = loadSyncLog();
-  if(!log.length){ card.style.display='none'; return; }
-  card.style.display='';
-
-  body.innerHTML = log.map(entry=>`
-    <div class="slog-group">
-      <div class="slog-ts">🔄 ${entry.ts}</div>
-      ${entry.feeds.map(f=>`
-        <div class="slog-row">
-          <span class="slog-feed" title="${f.feed}">${f.feed}</span>
-          <span class="slog-key">DTSTART</span>
-          <span class="slog-val" title="${f.dtstart}">${f.dtstart}</span>
-        </div>
-        <div class="slog-row">
-          <span class="slog-feed"></span>
-          <span class="slog-key">VTIMEZONE</span>
-          <span class="slog-val">${f.vtimezone}</span>
-        </div>
-        <div class="slog-row">
-          <span class="slog-feed"></span>
-          <span class="slog-key">→ geparst</span>
-          <span class="slog-val ${f.status==='err'?'err':f.parsedTime!=='–'?'ok':''}">${f.status==='err'?'❌ '+f.err:f.parsedTime} (${f.events} Events)</span>
-        </div>
-      `).join('')}
-    </div>
-  `).join('');
-}
 
 // ════════════════════════════════════════════════════════════
 // NAVIGATION
