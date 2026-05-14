@@ -264,7 +264,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260514.1000</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260514.1100</div>
     </div>
   </aside>
 
@@ -453,26 +453,25 @@ function resolveIana(tzid){
   return ICAL_TZ_MAP[tzid.toLowerCase()] || null;
 }
 
-// Gibt den UTC-Offset einer IANA-Zeitzone in Millisekunden zurück,
-// gemessen am übergebenen UTC-Zeitpunkt (korrekte Sommerzeit-Behandlung).
-function getIanaTzOffsetMs(ianaZone, utcDateMs){
+// Gibt den UTC-Offset einer IANA-Zeitzone in Millisekunden zurück.
+// Nutzt sv-SE locale (ISO-ähnliches Format "YYYY-MM-DD HH:MM:SS") — 
+// portabler als formatToParts und ohne hour12-Probleme.
+// Zwei-Schritt-Korrektur für DST-Grenzen (z.B. 02:30 bei Uhrenumstellung).
+function getIanaTzOffsetMs(ianaZone, utcMs){
   try{
-    const d = new Date(utcDateMs);
-    const fmt = new Intl.DateTimeFormat('en-US',{
-      timeZone:ianaZone,
-      year:'numeric',month:'2-digit',day:'2-digit',
-      hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
-    });
-    const p = Object.fromEntries(fmt.formatToParts(d).map(x=>[x.type,x.value]));
-    // 24:00 → 00:00 des Folgetages – Intl-Eigenheit abfangen
-    const hh = parseInt(p.hour) % 24;
-    const mm = parseInt(p.minute);
-    const ss = parseInt(p.second);
-    // Rekonstruiere den IANA-Lokalzeitpunkt als pseudo-UTC-Timestamp
-    const ianaAsUtcMs = Date.UTC(
-      parseInt(p.year), parseInt(p.month)-1, parseInt(p.day), hh, mm, ss
-    );
-    return ianaAsUtcMs - utcDateMs; // positiv = östlich von UTC (z.B. +7200000 für CEST)
+    function _off(ms){
+      const s = new Date(ms).toLocaleString('sv-SE',{timeZone:ianaZone});
+      // "2025-10-20 22:30:00"
+      const [dp,tp] = s.split(' ');
+      const [yr,mo,da] = dp.split('-').map(Number);
+      const [hh,mm,ss] = tp.split(':').map(Number);
+      return Date.UTC(yr, mo-1, da, hh, mm, ss||0) - ms;
+    }
+    // Schritt 1: Offset beim approx. UTC-Zeitpunkt
+    const off1 = _off(utcMs);
+    // Schritt 2: Offset beim korrigierten Zeitpunkt (für DST-Grenzfälle)
+    const off2 = _off(utcMs - off1);
+    return off2;
   }catch(e){ return 0; }
 }
 
@@ -606,11 +605,22 @@ async function syncFeeds(){
           day:'2-digit',month:'2-digit',year:'numeric',
           hour:'2-digit',minute:'2-digit',timeZoneName:'short'}) : null;
 
+        // Pro Feed: erstes Event + alle Spiele separat loggen
         console.log(
           `%c${t.name} · ${f.name}%c  ${evs.length} Events`,
           'font-weight:700','font-weight:400',
           {DTSTART: veventDtstart||'–', VTIMEZONE: vtimezoneTzid||'–', geparst: parsedTime||'–'}
         );
+        if(isSpiel && evs.length){
+          console.group('  Spiel-Events');
+          evs.slice(0,5).forEach(e=>console.log(
+            e.dtstart?.toISOString(),
+            '→', e.dtstart ? String(e.dtstart.getHours()).padStart(2,'0')+':'+String(e.dtstart.getMinutes()).padStart(2,'0') : '–',
+            e.summary
+          ));
+          if(evs.length>5) console.log(`  … und ${evs.length-5} weitere`);
+          console.groupEnd();
+        }
 
         evs.forEach(e=>newEvents.push({
           ...e,
@@ -944,6 +954,23 @@ function listItem({bg,day,wd,name,sub,onclick,icon}){
   </div>`;
 }
 
+
+
+// ── DEBUG: in Konsole aufrufbar mit debugGames() ──────────────
+window.debugGames = function(){
+  const games = icalEvents.filter(e=>e.typ==='spiel');
+  if(!games.length){ console.log('Keine Spiel-Events im Cache.'); return; }
+  console.group('%c🏆 debugGames() — alle iCal-Spiele','color:#d97706;font-weight:700');
+  console.table(games.map(e=>({
+    Mannschaft:    e.mannschaftName,
+    Summary:       e.summary,
+    UTC_ISO:       e.dtstart?.toISOString(),
+    Lokal_HH_MM:  e.dtstart ? (String(e.dtstart.getHours()).padStart(2,'0')+':'+String(e.dtstart.getMinutes()).padStart(2,'0')) : '–',
+    toTimeStr:     e.dtstart ? toTimeStr(e.dtstart) : '–',
+    toLocaleStr:   e.dtstart?.toLocaleString('de-DE',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'}),
+  })));
+  console.groupEnd();
+};
 
 function hideLoadingScreen(){
   const el=document.getElementById('loading-screen');
