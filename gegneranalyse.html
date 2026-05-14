@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260514.1400 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260514.1600 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -202,7 +202,43 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 #toast{position:fixed;bottom:24px;right:24px;background:#111827;color:white;padding:12px 20px;border-radius:10px;font-size:13.5px;font-weight:500;z-index:200;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;}
 #toast.show{opacity:1;transform:translateY(0);}
 #auth-screen{position:fixed;inset:0;background:var(--sidebar);display:flex;align-items:center;justify-content:center;z-index:100;}
-@media(max-width:900px){.main{margin-left:0;}.form-row{grid-template-columns:1fr;}.gegner-grid{grid-template-columns:1fr;}.spieler-grid{grid-template-columns:1fr 1fr;}.content{padding:16px;}.analyse-item{grid-template-columns:auto 1fr;}.ai-arrow{display:none;}}
+/* ── SPIELSYSTEME TAB ── */
+.sys-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.sys-card{background:white;border-radius:var(--radius);border:1.5px solid var(--border);padding:20px;box-shadow:var(--shadow);}
+.sys-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.sys-card-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px;}
+.sys-card-system{font-size:12px;padding:3px 10px;border-radius:20px;font-weight:600;background:var(--accent-l);color:var(--accent);border:1px solid #bfdbfe;}
+.sys-img-zone{border:2px dashed var(--border);border-radius:10px;padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;position:relative;margin-top:12px;background:var(--bg);}
+.sys-img-zone:hover{border-color:var(--accent);background:#f0f4ff;}
+.sys-img-zone.has-img{border-style:solid;border-color:var(--border);padding:0;background:transparent;}
+.sys-img-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.sys-img-zone img{width:100%;border-radius:8px;display:block;max-height:280px;object-fit:contain;}
+.sys-img-actions{display:flex;gap:6px;margin-top:8px;}
+.sys-img-placeholder{pointer-events:none;}
+.sys-img-icon{font-size:28px;margin-bottom:6px;}
+.sys-img-text{font-size:12.5px;color:var(--soft);font-weight:500;}
+.sys-img-hint{font-size:11px;color:var(--xsoft);margin-top:3px;}
+/* Standardsituationen */
+.std-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+.std-card{background:white;border-radius:var(--radius);border:1.5px solid var(--border);padding:18px;box-shadow:var(--shadow);}
+.std-card-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.std-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.std-icon.freiwurf{background:#fff7ed;color:#ea580c;}
+.std-icon.ecke{background:var(--purple-l);color:var(--purple);}
+.std-icon.sieben{background:var(--yellow-l);color:var(--yellow);}
+.std-card-title{font-size:13px;font-weight:700;}
+.std-img-zone{border:2px dashed var(--border);border-radius:8px;padding:14px 10px;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--bg);margin-top:10px;}
+.std-img-zone:hover{border-color:var(--accent);background:#f0f4ff;}
+.std-img-zone.has-img{border-style:solid;padding:0;background:transparent;}
+.std-img-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.std-img-zone img{width:100%;border-radius:6px;display:block;max-height:180px;object-fit:contain;}
+.sys-save-bar{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:16px 0 4px;}
+.sys-save-hint{font-size:12px;color:var(--xsoft);}
+/* Upload progress */
+.upload-spinner{display:none;width:18px;height:18px;border:2px solid #e5e7eb;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+.upload-spinner.active{display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@media(max-width:900px){.main{margin-left:0;}.form-row{grid-template-columns:1fr;}.gegner-grid{grid-template-columns:1fr;}.spieler-grid{grid-template-columns:1fr 1fr;}.content{padding:16px;}.analyse-item{grid-template-columns:auto 1fr;}.ai-arrow{display:none;}.sys-grid{grid-template-columns:1fr;}.std-grid{grid-template-columns:1fr;}}
 @media(max-width:540px){.spieler-grid{grid-template-columns:1fr;}.detail-hero{flex-direction:column;}.detail-actions{width:100%;}.page-header-actions{width:100%;}}
 </style>
 </head>
@@ -243,7 +279,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
     </div>
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260514.1400</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260514.1600</div>
     </div>
   </aside>
 
@@ -288,6 +324,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="detail-hero" id="detail-hero"></div>
         <div class="tabs">
           <button class="tab-btn active" id="tab-btn-analysen" onclick="switchTab('analysen')">📊 Analysen</button>
+          <button class="tab-btn" id="tab-btn-systeme" onclick="switchTab('systeme')">♟ Spielsysteme</button>
           <button class="tab-btn" id="tab-btn-kader" onclick="switchTab('kader')">👥 Schlüsselspieler</button>
           <button class="tab-btn" id="tab-btn-profil" onclick="switchTab('profil')">📝 Profil</button>
         </div>
@@ -298,6 +335,157 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           </div>
           <div class="analyse-list" id="analyse-list"></div>
         </div>
+
+        <!-- ── SPIELSYSTEME TAB ── -->
+        <div id="tab-systeme" style="display:none;">
+          <div class="sys-grid">
+            <!-- Angriff -->
+            <div class="sys-card">
+              <div class="sys-card-header">
+                <div class="sys-card-title"><span>▲</span> Angriffssystem</div>
+                <span class="sys-card-system" id="sys-ang-chip" style="display:none;"></span>
+              </div>
+              <div class="form-group" style="margin-bottom:10px;">
+                <label class="form-label">System</label>
+                <select class="form-select" id="sys-ang-system" onchange="updateSysChip('ang')">
+                  <option value="">– unbekannt –</option>
+                  <option value="6:0">6:0 — klassisch</option>
+                  <option value="5:1">5:1 — mit Vordermann</option>
+                  <option value="4:2">4:2 — doppelter Vordermann</option>
+                  <option value="3:3">3:3 — offensiv</option>
+                  <option value="3:2:1">3:2:1 — Pyramide</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Notizen &amp; Besonderheiten</label>
+                <textarea class="form-textarea" id="sys-ang-notiz" placeholder="Spielzüge, Laufwege, typische Muster…" rows="4"></textarea>
+              </div>
+              <div class="sys-img-zone" id="sys-ang-imgzone" onclick="triggerUpload('ang')">
+                <input type="file" id="sys-ang-file" accept="image/*" onchange="handleBildUpload('ang')">
+                <div class="sys-img-placeholder" id="sys-ang-placeholder">
+                  <div class="sys-img-icon">🖼</div>
+                  <div class="sys-img-text">Skizze oder Screenshot hochladen</div>
+                  <div class="sys-img-hint">JPG, PNG, WebP · max. 10 MB</div>
+                </div>
+              </div>
+              <div class="sys-img-actions" id="sys-ang-actions" style="display:none;">
+                <span class="upload-spinner" id="sys-ang-spinner"></span>
+                <button class="btn btn-ghost btn-xs" onclick="triggerUpload('ang')">🔄 Bild ersetzen</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteBild('ang')">🗑 Bild löschen</button>
+              </div>
+            </div>
+
+            <!-- Abwehr -->
+            <div class="sys-card">
+              <div class="sys-card-header">
+                <div class="sys-card-title"><span>●</span> Abwehrsystem</div>
+                <span class="sys-card-system" id="sys-abw-chip" style="display:none;"></span>
+              </div>
+              <div class="form-group" style="margin-bottom:10px;">
+                <label class="form-label">System</label>
+                <select class="form-select" id="sys-abw-system" onchange="updateSysChip('abw')">
+                  <option value="">– unbekannt –</option>
+                  <option value="6:0">6:0 — kompakt</option>
+                  <option value="5:1">5:1 — mit Vordermann</option>
+                  <option value="4:2">4:2 — doppelter Vordermann</option>
+                  <option value="3:2:1">3:2:1 — Pyramide</option>
+                  <option value="3:3">3:3 — offensiv</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Notizen &amp; Besonderheiten</label>
+                <textarea class="form-textarea" id="sys-abw-notiz" placeholder="Deckungsverhalten, Schwachstellen, Sonderaufgaben…" rows="4"></textarea>
+              </div>
+              <div class="sys-img-zone" id="sys-abw-imgzone" onclick="triggerUpload('abw')">
+                <input type="file" id="sys-abw-file" accept="image/*" onchange="handleBildUpload('abw')">
+                <div class="sys-img-placeholder" id="sys-abw-placeholder">
+                  <div class="sys-img-icon">🖼</div>
+                  <div class="sys-img-text">Skizze oder Screenshot hochladen</div>
+                  <div class="sys-img-hint">JPG, PNG, WebP · max. 10 MB</div>
+                </div>
+              </div>
+              <div class="sys-img-actions" id="sys-abw-actions" style="display:none;">
+                <span class="upload-spinner" id="sys-abw-spinner"></span>
+                <button class="btn btn-ghost btn-xs" onclick="triggerUpload('abw')">🔄 Bild ersetzen</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteBild('abw')">🗑 Bild löschen</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Standardsituationen -->
+          <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--xsoft);margin-bottom:12px;padding-bottom:6px;border-bottom:1.5px solid var(--border);">Standardsituationen</div>
+          <div class="std-grid">
+            <!-- Freiwurf -->
+            <div class="std-card">
+              <div class="std-card-header">
+                <div class="std-icon freiwurf">🎯</div>
+                <div class="std-card-title">Freiwurf</div>
+              </div>
+              <textarea class="form-textarea" id="sys-freiwurf-notiz" placeholder="Typische Laufwege, Varianten, Schützen…" rows="3" style="font-size:12.5px;"></textarea>
+              <div class="std-img-zone" id="sys-fw-imgzone" onclick="triggerUpload('fw')">
+                <input type="file" id="sys-fw-file" accept="image/*" onchange="handleBildUpload('fw')">
+                <div id="sys-fw-placeholder" style="pointer-events:none;">
+                  <div style="font-size:20px;margin-bottom:4px;">🖼</div>
+                  <div style="font-size:11.5px;color:var(--soft);">Skizze hochladen</div>
+                </div>
+              </div>
+              <div class="sys-img-actions" id="sys-fw-actions" style="display:none;">
+                <span class="upload-spinner" id="sys-fw-spinner"></span>
+                <button class="btn btn-ghost btn-xs" onclick="triggerUpload('fw')">🔄 Ersetzen</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteBild('fw')">🗑</button>
+              </div>
+            </div>
+
+            <!-- Ecke -->
+            <div class="std-card">
+              <div class="std-card-header">
+                <div class="std-icon ecke">📐</div>
+                <div class="std-card-title">Ecke / Seitenwurf</div>
+              </div>
+              <textarea class="form-textarea" id="sys-ecke-notiz" placeholder="Ablauf, Positionen, Schützen…" rows="3" style="font-size:12.5px;"></textarea>
+              <div class="std-img-zone" id="sys-eck-imgzone" onclick="triggerUpload('eck')">
+                <input type="file" id="sys-eck-file" accept="image/*" onchange="handleBildUpload('eck')">
+                <div id="sys-eck-placeholder" style="pointer-events:none;">
+                  <div style="font-size:20px;margin-bottom:4px;">🖼</div>
+                  <div style="font-size:11.5px;color:var(--soft);">Skizze hochladen</div>
+                </div>
+              </div>
+              <div class="sys-img-actions" id="sys-eck-actions" style="display:none;">
+                <span class="upload-spinner" id="sys-eck-spinner"></span>
+                <button class="btn btn-ghost btn-xs" onclick="triggerUpload('eck')">🔄 Ersetzen</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteBild('eck')">🗑</button>
+              </div>
+            </div>
+
+            <!-- 7-Meter -->
+            <div class="std-card">
+              <div class="std-card-header">
+                <div class="std-icon sieben">7</div>
+                <div class="std-card-title">7-Meter</div>
+              </div>
+              <textarea class="form-textarea" id="sys-7m-notiz" placeholder="Schützen, Ecken, Einschussverhalten…" rows="3" style="font-size:12.5px;"></textarea>
+              <div class="std-img-zone" id="sys-7m-imgzone" onclick="triggerUpload('7m')">
+                <input type="file" id="sys-7m-file" accept="image/*" onchange="handleBildUpload('7m')">
+                <div id="sys-7m-placeholder" style="pointer-events:none;">
+                  <div style="font-size:20px;margin-bottom:4px;">🖼</div>
+                  <div style="font-size:11.5px;color:var(--soft);">Skizze hochladen</div>
+                </div>
+              </div>
+              <div class="sys-img-actions" id="sys-7m-actions" style="display:none;">
+                <span class="upload-spinner" id="sys-7m-spinner"></span>
+                <button class="btn btn-ghost btn-xs" onclick="triggerUpload('7m')">🔄 Ersetzen</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteBild('7m')">🗑</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sys-save-bar">
+            <span class="upload-spinner" id="sys-save-spinner"></span>
+            <span class="sys-save-hint" id="sys-save-hint"></span>
+            <button class="btn btn-primary" onclick="saveSpielsysteme()">💾 Spielsysteme speichern</button>
+          </div>
+        </div><!-- /tab-systeme -->
+
         <div id="tab-kader" style="display:none;">
           <div class="section-header">
             <div class="section-title">Schlüsselspieler</div>
@@ -680,11 +868,11 @@ async function showGegnerDetail(id){
       <button class="btn btn-ghost btn-sm" onclick="openGegnerModal('${g.id}')">✏️ Bearbeiten</button>
     </div>`;
   switchTab('analysen');
-  await Promise.all([loadAnalysen(id),loadSpieler(id)]);
+  await Promise.all([loadAnalysen(id),loadSpieler(id),loadSpielsysteme(id)]);
   renderProfilTab(g);
 }
 
-function switchTab(t){activeTab=t;['analysen','kader','profil'].forEach(x=>{document.getElementById('tab-'+x).style.display=x===t?'':'none';document.getElementById('tab-btn-'+x).classList.toggle('active',x===t);});}
+function switchTab(t){activeTab=t;['analysen','systeme','kader','profil'].forEach(x=>{document.getElementById('tab-'+x).style.display=x===t?'':'none';document.getElementById('tab-btn-'+x).classList.toggle('active',x===t);});}
 
 // ── ANALYSEN ──
 async function loadAnalysen(gid){const{data,error}=await supa.from('gegner_analyse').select('*').eq('gegner_id',gid).order('datum',{ascending:false}).order('created_at',{ascending:false});if(error){showToast('Fehler: '+error.message,'error');return;}currentAnalysen=data||[];renderAnalysen();}
@@ -737,6 +925,172 @@ function renderProfilTab(g){
     </div>
     ${g.notizen?`<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><div class="sc-label" style="margin-bottom:6px;">Notizen</div><div style="font-size:13.5px;line-height:1.6;white-space:pre-wrap;">${esc(g.notizen)}</div></div>`:''}
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><button class="btn btn-ghost btn-sm" onclick="openGegnerModal('${g.id}')">✏️ Profil bearbeiten</button></div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── SPIELSYSTEME TAB ──────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+// Mapping: key → {dbField, fileInputId, zoneId, placeholderId, actionsId, spinnerId}
+const SYS_FIELDS={
+  ang:  {dbBild:'angriff_bild_url',   dbSystem:'angriff_system',  dbNotiz:'angriff_notiz'},
+  abw:  {dbBild:'abwehr_bild_url',    dbSystem:'abwehr_system',   dbNotiz:'abwehr_notiz'},
+  fw:   {dbBild:'standard_freiwurf_bild', dbNotiz:'standard_freiwurf'},
+  eck:  {dbBild:'standard_ecke_bild',     dbNotiz:'standard_ecke'},
+  '7m': {dbBild:'standard_7m_bild',       dbNotiz:'standard_7m'},
+};
+
+async function loadSpielsysteme(gegnerId){
+  const g=allGegner.find(x=>x.id===gegnerId);
+  if(!g) return;
+
+  // Angriff
+  document.getElementById('sys-ang-system').value=g.angriff_system||'';
+  document.getElementById('sys-ang-notiz').value=g.angriff_notiz||'';
+  updateSysChip('ang');
+  setBildZone('ang',g.angriff_bild_url);
+
+  // Abwehr
+  document.getElementById('sys-abw-system').value=g.abwehr_system||'';
+  document.getElementById('sys-abw-notiz').value=g.abwehr_notiz||'';
+  updateSysChip('abw');
+  setBildZone('abw',g.abwehr_bild_url);
+
+  // Standardsituationen
+  document.getElementById('sys-freiwurf-notiz').value=g.standard_freiwurf||'';
+  document.getElementById('sys-ecke-notiz').value=g.standard_ecke||'';
+  document.getElementById('sys-7m-notiz').value=g.standard_7m||'';
+  setBildZone('fw',g.standard_freiwurf_bild);
+  setBildZone('eck',g.standard_ecke_bild);
+  setBildZone('7m',g.standard_7m_bild);
+
+  document.getElementById('sys-save-hint').textContent='';
+}
+
+function updateSysChip(which){
+  const val=document.getElementById(`sys-${which}-system`).value;
+  const chip=document.getElementById(`sys-${which}-chip`);
+  if(!chip) return;
+  if(val){chip.textContent=val;chip.style.display='';}
+  else chip.style.display='none';
+}
+
+function setBildZone(key,url){
+  const zone=document.getElementById(`sys-${key}-imgzone`);
+  const placeholder=document.getElementById(`sys-${key}-placeholder`);
+  const actions=document.getElementById(`sys-${key}-actions`);
+  if(!zone) return;
+
+  // Vorhandenes img entfernen
+  zone.querySelectorAll('img').forEach(el=>el.remove());
+
+  if(url){
+    const img=document.createElement('img');
+    img.src=url+'?t='+Date.now(); // Cache-Busting
+    img.alt='Spielsystem-Skizze';
+    img.onerror=()=>setBildZone(key,null);
+    zone.appendChild(img);
+    zone.classList.add('has-img');
+    if(placeholder) placeholder.style.display='none';
+    if(actions) actions.style.display='flex';
+  } else {
+    zone.classList.remove('has-img');
+    if(placeholder) placeholder.style.display='';
+    if(actions) actions.style.display='none';
+  }
+}
+
+function triggerUpload(key){
+  // Verhindert doppelten Aufruf wenn Bild schon da (click geht durch img)
+  document.getElementById(`sys-${key}-file`).click();
+}
+
+async function handleBildUpload(key){
+  const fileInput=document.getElementById(`sys-${key}-file`);
+  const file=fileInput.files[0];
+  if(!file||!currentGegnerId) return;
+
+  // Größe prüfen
+  if(file.size>10*1024*1024){showToast('Datei zu groß (max. 10 MB).','error');return;}
+
+  const spinner=document.getElementById(`sys-${key}-spinner`);
+  if(spinner) spinner.classList.add('active');
+
+  try{
+    const ext=file.name.split('.').pop().toLowerCase()||'jpg';
+    const path=`${currentUser.id}/${currentGegnerId}/${key}.${ext}`;
+
+    const{error:upErr}=await supa.storage.from('gegner-bilder').upload(path,file,{upsert:true,contentType:file.type});
+    if(upErr) throw upErr;
+
+    const{data:{publicUrl}}=supa.storage.from('gegner-bilder').getPublicUrl(path);
+
+    // URL in DB speichern
+    const field=SYS_FIELDS[key]?.dbBild;
+    if(field){
+      const{error:dbErr}=await supa.from('gegner').update({[field]:publicUrl}).eq('id',currentGegnerId);
+      if(dbErr) throw dbErr;
+      // Lokalen State aktualisieren
+      const g=allGegner.find(x=>x.id===currentGegnerId);
+      if(g) g[field]=publicUrl;
+    }
+
+    setBildZone(key,publicUrl);
+    showToast('Bild hochgeladen ✓','success');
+  } catch(e){
+    showToast('Upload fehlgeschlagen: '+e.message,'error');
+  } finally{
+    if(spinner) spinner.classList.remove('active');
+    fileInput.value=''; // Reset für erneuten Upload
+  }
+}
+
+async function deleteBild(key){
+  if(!confirm('Bild wirklich löschen?')) return;
+  const field=SYS_FIELDS[key]?.dbBild;
+  if(!field||!currentGegnerId) return;
+
+  const{error}=await supa.from('gegner').update({[field]:null}).eq('id',currentGegnerId);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+
+  const g=allGegner.find(x=>x.id===currentGegnerId);
+  if(g) g[field]=null;
+
+  setBildZone(key,null);
+  showToast('Bild gelöscht','success');
+}
+
+async function saveSpielsysteme(){
+  if(!currentGegnerId) return;
+  const spinner=document.getElementById('sys-save-spinner');
+  const hint=document.getElementById('sys-save-hint');
+  spinner.classList.add('active');
+  hint.textContent='';
+
+  const payload={
+    angriff_system:  document.getElementById('sys-ang-system').value||null,
+    angriff_notiz:   document.getElementById('sys-ang-notiz').value.trim()||null,
+    abwehr_system:   document.getElementById('sys-abw-system').value||null,
+    abwehr_notiz:    document.getElementById('sys-abw-notiz').value.trim()||null,
+    standard_freiwurf: document.getElementById('sys-freiwurf-notiz').value.trim()||null,
+    standard_ecke:     document.getElementById('sys-ecke-notiz').value.trim()||null,
+    standard_7m:       document.getElementById('sys-7m-notiz').value.trim()||null,
+  };
+
+  const{error}=await supa.from('gegner').update(payload).eq('id',currentGegnerId);
+  spinner.classList.remove('active');
+
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+
+  // Lokalen State aktualisieren
+  const g=allGegner.find(x=>x.id===currentGegnerId);
+  if(g) Object.assign(g,payload);
+
+  hint.textContent='✓ Gespeichert';
+  setTimeout(()=>{if(hint.textContent==='✓ Gespeichert')hint.textContent='';},3000);
+  showToast('Spielsysteme gespeichert','success');
+  updateSysChip('ang');
+  updateSysChip('abw');
 }
 
 // ── MODAL GEGNER ──
