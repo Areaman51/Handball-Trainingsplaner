@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260514.2100 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260514.2200 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -114,7 +114,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .trikot-label{font-size:11px;font-weight:500;color:var(--soft);}
 .detail-actions{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;}
 /* Tabs */
-.tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:20px;}
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:20px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
 .tab-btn{padding:10px 18px;font-size:13px;font-weight:500;color:var(--soft);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:all .15s;}
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
 .tab-btn:hover:not(.active){color:var(--text);}
@@ -330,7 +331,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
     </div>
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260514.2100</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260514.2200</div>
     </div>
   </aside>
 
@@ -1510,16 +1511,23 @@ function renderBilanzKpis(spiele,aktionen,g){
   document.getElementById('kpi-strafen').textContent=spiele.length?(strafenGes/spiele.length).toFixed(1):'–';
 }
 
-// Zuverlässige Seitenbestimmung: spielart primär, Namensabgleich als Fallback
+// Seitenbestimmung: Namensabgleich primär (zuverlässiger als spielart-Default),
+// spielart nur wenn Name nicht eindeutig zuzuordnen.
 function unsereSeite(s,gegnerName){
-  if(s.spielart==='heim')      return {wir:s.score_home, sie:s.score_away, art:'heim'};
-  if(s.spielart==='auswaerts') return {wir:s.score_away, sie:s.score_home, art:'auswaerts'};
-  // Fallback: Gegner im heim-Feld → sie sind Heim → wir sind Gast
-  const gl=normStr(gegnerName);
+  const gl=normStr(gegnerName).slice(0,10); // ersten 10 Zeichen reichen zum Matching
   const hl=normStr(s.heim||'');
-  if(hl&&gl&&(hl.includes(gl.slice(0,8))||gl.includes(hl.slice(0,8)))){
+  const gl2=normStr(s.gast||'');
+
+  // Gegner im heim-Feld → sie sind Heim → wir sind Gast → score_away = unsere Tore
+  if(gl&&hl&&(hl.includes(gl)||gl.includes(hl.slice(0,gl.length||1)))){
     return {wir:s.score_away, sie:s.score_home, art:'auswaerts'};
   }
+  // Gegner im gast-Feld → sie sind Gast → wir sind Heim → score_home = unsere Tore
+  if(gl&&gl2&&(gl2.includes(gl)||gl.includes(gl2.slice(0,gl.length||1)))){
+    return {wir:s.score_home, sie:s.score_away, art:'heim'};
+  }
+  // Letzter Fallback: spielart-Feld (nur wenn Namens-Match fehlschlug)
+  if(s.spielart==='auswaerts') return {wir:s.score_away, sie:s.score_home, art:'auswaerts'};
   return {wir:s.score_home, sie:s.score_away, art:'heim'};
 }
 
@@ -1632,7 +1640,7 @@ async function loadHbnSaison(){
         </div>`;
       }).join('');
 
-    document.getElementById('hbn-saison-result').style.display='';
+    document.getElementById('hbn-saison-result').style.display='block';
 
     if(!g?.hbn_ical_url){
       document.getElementById('hbn-save-url-btn').style.display='';
