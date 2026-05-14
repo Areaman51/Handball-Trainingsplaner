@@ -265,7 +265,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260514.1130</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260514.1200</div>
     </div>
   </aside>
 
@@ -662,6 +662,9 @@ async function syncFeeds(){
   console.log(`%c✅ ${ok} Feeds OK${fail?' | ⚠ '+fail+' Fehler':''}  →  ${newEvents.length} Termine gesamt`,'color:#15803d;font-weight:700');
   console.groupEnd();
 
+  // ── DB-Selbstkorrektur: falsche uhrzeit in Supabase-Spielen reparieren ──
+  if(currentUser) correctSpielUhrzeiten(newEvents).catch(e=>console.warn('uhrzeit-Korrektur:',e));
+
   if(btn) btn.classList.remove('spinning');
   const total = newEvents.length;
   if(allMannschaften.length){
@@ -670,8 +673,43 @@ async function syncFeeds(){
   renderKalender();
 }
 
-// ════════════════════════════════════════════════════════════
-// KALENDER RENDER
+// ── DB-Selbstkorrektur: Supabase-Spiele mit falscher uhrzeit reparieren ──
+// Wird nach jedem Sync aufgerufen. Vergleicht iCal-Zeit mit DB-Zeit und
+// korrigiert stille Abweichungen (z.B. aus der Zeit vor dem Timezone-Fix).
+async function correctSpielUhrzeiten(icalEvs){
+  if(!currentUser) return;
+  const icalSpiele = icalEvs.filter(e=>e.typ==='spiel'&&e.dtstart);
+
+  // Alle Supabase-Spiele ohne Statistik laden (status != 'fertig')
+  const {data:dbSpiele} = await supa.from('spiele')
+    .select('id,heim,gast,datum,uhrzeit')
+    .eq('user_id', currentUser.id)
+    .neq('status','fertig');
+
+  if(!dbSpiele?.length) return;
+
+  const updates = [];
+  dbSpiele.forEach(s=>{
+    const icalMatch = icalSpiele.find(ev=>
+      toDateStr(ev.dtstart)===s.datum &&
+      (ev.summary.includes(s.heim)||ev.summary.includes(s.gast))
+    );
+    if(!icalMatch) return;
+    const icalTime = toTimeStr(icalMatch.dtstart); // z.B. "20:30"
+    const dbTime   = s.uhrzeit?.slice(0,5) || '';
+    if(icalTime && icalTime !== dbTime){
+      console.log(`%c🔧 Uhrzeit korrigiert: ${s.heim} – ${s.gast} (${s.datum}): ${dbTime||'–'} → ${icalTime}`,'color:#0057ff');
+      updates.push({id:s.id, uhrzeit:icalTime+':00'});
+    }
+  });
+
+  for(const u of updates){
+    await supa.from('spiele').update({uhrzeit:u.uhrzeit}).eq('id',u.id);
+  }
+  if(updates.length) console.log(`%c✅ ${updates.length} Spieluhrzeiten in DB korrigiert`,'color:#15803d;font-weight:700');
+}
+
+
 // ════════════════════════════════════════════════════════════
 function kalNav(dir){ kalDate.setMonth(kalDate.getMonth()+dir); renderKalender(); }
 function goToday(){ kalDate = new Date(); renderKalender(); }
@@ -771,11 +809,14 @@ async function renderKalender(){
       });
     });
 
-    // Supabase-Spiele
+    // Supabase-Spiele (iCal-Zeit bevorzugen wenn vorhanden – DB kann veraltet sein)
     spiele.forEach(s=>{
       const bg = teams.find(t=>t.name===s.heim||t.name===s.gast)?.farbe_geplant||'#d97706';
+      const icalMatch = icalDay.find(ev=>ev.typ==='spiel'&&(
+        ev.summary.includes(s.heim)||ev.summary.includes(s.gast)));
+      const displayTime = icalMatch ? toTimeStr(icalMatch.dtstart) : (s.uhrzeit?.slice(0,5)||'');
       addEventDot(cell,{
-        label:'🏆 '+(s.uhrzeit?s.uhrzeit.slice(0,5)+' ':'')+s.heim+' – '+s.gast,
+        label:'🏆 '+(displayTime?displayTime+' ':'')+s.heim+' – '+s.gast,
         title:`Spiel: ${s.heim} vs. ${s.gast} · ${statusLabel(s.status)}`,
         bg, cls:'spiel',
         onclick:(ev)=>{ev.stopPropagation();navigateToSpiel(s);}
@@ -884,18 +925,31 @@ function renderList(year,month,einheitenMap,spieleMap,icalMap,spieleLookup){
     });
   });
 
-  // Supabase-Spiele
+  // Supabase-Spiele (iCal-Zeit bevorzugen wenn vorhanden – DB kann veraltet sein)
+  // icalSpielByDatum: Datum → iCal-Spiel-Events (für Zeitkorrektur)
+  const icalSpielByDatum = {};
+  icalEvents.filter(e=>e.typ==='spiel').forEach(e=>{
+    if(!e.dtstart) return;
+    const dk = toDateStr(e.dtstart);
+    if(!icalSpielByDatum[dk]) icalSpielByDatum[dk]=[];
+    icalSpielByDatum[dk].push(e);
+  });
+
   Object.values(spieleMap).flat().forEach(s=>{
     const day=parseInt(s.datum?.split('-')[2]||0);
     const teamColor=teams.find(t=>t.name===s.heim||t.name===s.gast)?.farbe_geplant||'#d97706';
     const statusBadge=s.status==='live'?'<span class="kli-badge badge-live">🔴 Live</span>':
                        s.status==='fertig'?'<span class="kli-badge badge-done">✅ Fertig</span>':'<span class="kli-badge badge-game">🏆 Spiel</span>';
+    // iCal-Match für korrekte Zeit suchen
+    const icalMatch=(icalSpielByDatum[s.datum]||[]).find(ev=>
+      ev.summary.includes(s.heim)||ev.summary.includes(s.gast));
+    const displayTime = icalMatch ? toTimeStr(icalMatch.dtstart) : (s.uhrzeit?.slice(0,5)||'');
     items.push({
-      sortKey:s.datum+(s.uhrzeit||''),day,
+      sortKey:s.datum+(displayTime||''),day,
       html:listItem({
         bg:teamColor,day,wd:WOCHENTAGE[new Date(s.datum+'T00:00:00').getDay()],
         name:s.heim+' – '+s.gast,
-        sub:(s.uhrzeit?s.uhrzeit.slice(0,5)+' Uhr · ':'')+'Spiel'+statusBadge,
+        sub:(displayTime?displayTime+' Uhr · ':'')+'Spiel'+statusBadge,
         badge:'',onclick:`navigateToSpiel(${JSON.stringify(s).replace(/"/g,"'")})`,icon:'🏆'
       })
     });
