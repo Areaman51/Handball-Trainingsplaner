@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>📅 Kalender</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='28'>📅</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -264,7 +265,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260514.1100</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260514.1130</div>
     </div>
   </aside>
 
@@ -361,6 +362,22 @@ let allMannschaften = [];
 let mannschaftKalender = {};   // mannschaft_id → [{url,typ,name}]
 let icalEvents  = [];           // geparste iCal-Events (gecacht)
 let icalLoaded  = false;
+
+// ── DEBUG-Helfer (global, sofort verfügbar) ───────────────────
+window.debugGames = function(){
+  const games = icalEvents.filter(e=>e.typ==='spiel');
+  if(!games.length){ console.log('%c⚠ Keine Spiel-Events im Cache. Noch nicht synchronisiert?','color:#d97706'); return; }
+  console.group('%c🏆 debugGames() — ' + games.length + ' Spiel-Events','color:#d97706;font-weight:700');
+  console.table(games.map(e=>({
+    Mannschaft:  e.mannschaftName,
+    Summary:     e.summary,
+    UTC_ISO:     e.dtstart?.toISOString(),
+    Lokal_Zeit:  e.dtstart ? String(e.dtstart.getHours()).padStart(2,'0')+':'+String(e.dtstart.getMinutes()).padStart(2,'0') : '–',
+    Anzeige:     e.dtstart ? toTimeStr(e.dtstart) : '–',
+    Zeitzone:    e.dtstart?.toLocaleString('de-DE',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'}),
+  })));
+  console.groupEnd();
+};
 
 const WOCHENTAGE = ['So','Mo','Di','Mi','Do','Fr','Sa'];
 const MONATE = ['Januar','Februar','März','April','Mai','Juni',
@@ -953,24 +970,6 @@ function listItem({bg,day,wd,name,sub,onclick,icon}){
     <div class="kli-arrow">›</div>
   </div>`;
 }
-
-
-
-// ── DEBUG: in Konsole aufrufbar mit debugGames() ──────────────
-window.debugGames = function(){
-  const games = icalEvents.filter(e=>e.typ==='spiel');
-  if(!games.length){ console.log('Keine Spiel-Events im Cache.'); return; }
-  console.group('%c🏆 debugGames() — alle iCal-Spiele','color:#d97706;font-weight:700');
-  console.table(games.map(e=>({
-    Mannschaft:    e.mannschaftName,
-    Summary:       e.summary,
-    UTC_ISO:       e.dtstart?.toISOString(),
-    Lokal_HH_MM:  e.dtstart ? (String(e.dtstart.getHours()).padStart(2,'0')+':'+String(e.dtstart.getMinutes()).padStart(2,'0')) : '–',
-    toTimeStr:     e.dtstart ? toTimeStr(e.dtstart) : '–',
-    toLocaleStr:   e.dtstart?.toLocaleString('de-DE',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'}),
-  })));
-  console.groupEnd();
-};
 
 function hideLoadingScreen(){
   const el=document.getElementById('loading-screen');
