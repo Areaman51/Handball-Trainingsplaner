@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<!-- Handball Coaching Tools v1.260514.1200 — Gegneranalyse -->
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>🔍 Gegneranalyse – Handball Coaching Tools</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f2f4f8;--white:#fff;--sidebar:#141820;--sidebar-h:#1e2535;
+  --accent:#0057ff;--accent-l:#e6eeff;
+  --text:#111827;--soft:#6b7280;--xsoft:#9ca3af;--border:#e5e7eb;
+  --shadow:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 16px rgba(0,0,0,.10);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.14);--radius:12px;
+  --green:#15803d;--green-l:#f0fdf4;--green-b:#86efac;
+  --red:#dc2626;--red-l:#fee2e2;--red-b:#fca5a5;
+  --yellow:#d97706;--yellow-l:#fffbeb;--yellow-b:#fde68a;
+  --orange:#ea580c;--orange-l:#fff7ed;--orange-b:#fed7aa;
+  --purple:#7c3aed;--purple-l:#ede9fe;--purple-b:#c4b5fd;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{overflow-x:hidden;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;min-height:100vh;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;transition:transform .25s ease;}
+.sidebar.collapsed{transform:translateX(-220px);}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:19;}
+.sidebar-overlay.visible{display:block;}
+.sidebar-close-btn{background:none;border:none;color:rgba(255,255,255,.35);font-size:15px;cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1;transition:color .15s;flex-shrink:0;}
+.sidebar-close-btn:hover{color:white;}
+.sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;}
+.logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;color:white;flex-shrink:0;}
+.logo-text{color:white;font-size:14px;font-weight:600;letter-spacing:-.3px;}
+.logo-sub{color:rgba(255,255,255,.35);font-size:10px;margin-top:1px;}
+.sidebar-section{padding:14px 10px 4px;}
+.sidebar-label{font-size:9.5px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.25);text-transform:uppercase;padding:0 8px;margin-bottom:4px;}
+.sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;transition:all .15s;text-decoration:none;}
+.sidebar-item:hover{background:var(--sidebar-h);color:rgba(255,255,255,.8);}
+.sidebar-item.active{background:rgba(0,87,255,.18);color:white;font-weight:500;}
+.sidebar-bottom{margin-top:auto;padding:12px 10px;border-top:1px solid rgba(255,255,255,.06);}
+.my-team-widget{margin:12px 10px 4px;background:rgba(0,87,255,.12);border:1px solid rgba(0,87,255,.22);border-radius:10px;padding:10px 12px;}
+.mt-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.mt-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);}
+.mt-name{font-size:13px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mt-name.empty{color:rgba(255,255,255,.3);font-weight:400;font-style:italic;}
+
+/* ── MAIN ── */
+.main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;flex:1;transition:margin-left .25s ease;}
+#app.sidebar-collapsed .main{margin-left:0;}
+.burger-btn{background:none;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;color:rgba(255,255,255,.5);font-size:18px;line-height:1;display:none;align-items:center;justify-content:center;transition:color .15s;}
+.burger-btn:hover{color:white;}
+#app.sidebar-collapsed .burger-btn{display:flex;}
+@media(max-width:900px){.burger-btn{display:flex !important;}}
+.topbar{background:var(--sidebar);padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:15;}
+.topbar-left{display:flex;align-items:center;gap:10px;}
+.topbar-title{font-size:15px;font-weight:600;color:white;letter-spacing:-.2px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+.topbar-role{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(0,87,255,.25);color:#93c5fd;}
+.topbar-user-name{font-size:12px;color:rgba(255,255,255,.45);}
+.topbar-logout{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);border-radius:7px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;}
+.topbar-logout:hover{color:rgba(255,130,130,.8);border-color:rgba(255,100,100,.25);}
+.content{padding:26px;flex:1;}
+
+/* ── PAGE ELEMENTS ── */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;gap:12px;flex-wrap:wrap;}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.4px;}
+.page-subtitle{font-size:13px;color:var(--soft);margin-top:2px;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:22px;}
+.stat-card{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:16px 20px;}
+.stat-num{font-size:26px;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:-.5px;}
+.stat-label{font-size:12px;color:var(--soft);margin-top:2px;}
+.stat-card.blue .stat-num{color:var(--accent);}
+.stat-card.green .stat-num{color:var(--green);}
+.stat-card.purple .stat-num{color:var(--purple);}
+.stat-card.yellow .stat-num{color:var(--yellow);}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;text-decoration:none;}
+.btn-primary{background:var(--accent);color:white;}
+.btn-primary:hover{background:#0044cc;}
+.btn-ghost{background:transparent;color:var(--soft);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--bg);}
+.btn-danger{background:var(--red-l);color:var(--red);border:1px solid var(--red-b);}
+.btn-danger:hover{background:#fecaca;}
+.btn-sm{padding:4px 10px;font-size:11.5px;border-radius:6px;}
+.btn-xs{padding:3px 8px;font-size:11px;border-radius:5px;}
+
+/* ── CARDS + TABLE ── */
+.card{background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead tr{background:#f8f9fb;border-bottom:2px solid var(--border);}
+th{padding:11px 16px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);white-space:nowrap;}
+td{padding:12px 16px;border-bottom:1px solid #f1f3f7;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:#fafbff;}
+
+/* ── GEGNER GRID ── */
+.gegner-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:24px;}
+.gegner-card{background:white;border-radius:var(--radius);border:1.5px solid var(--border);box-shadow:var(--shadow);padding:20px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.gegner-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--card-color,var(--soft));border-radius:var(--radius) var(--radius) 0 0;}
+.gegner-card:hover{border-color:#c7d2fe;box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.gc-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.gc-name{font-size:16px;font-weight:700;letter-spacing:-.3px;margin-bottom:3px;}
+.gc-liga{font-size:11.5px;color:var(--soft);}
+.gc-color-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;margin-top:3px;border:2px solid rgba(0,0,0,.08);}
+.gc-stats{display:flex;gap:14px;padding-top:12px;border-top:1px solid var(--border);}
+.gc-stat{text-align:center;}
+.gc-stat-num{font-size:18px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text);}
+.gc-stat-label{font-size:10.5px;color:var(--xsoft);margin-top:1px;}
+.gc-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;}
+.gc-date{font-size:11px;color:var(--xsoft);}
+.gc-arrow{font-size:13px;color:var(--xsoft);transition:all .15s;}
+.gegner-card:hover .gc-arrow{color:var(--accent);transform:translateX(3px);}
+
+/* ── DETAIL VIEW ── */
+.detail-hero{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:22px 24px;margin-bottom:20px;display:flex;align-items:flex-start;gap:16px;}
+.detail-color-bar{width:6px;border-radius:6px;self-align:stretch;flex-shrink:0;min-height:60px;}
+.detail-info{flex:1;min-width:0;}
+.detail-name{font-size:22px;font-weight:700;letter-spacing:-.4px;margin-bottom:4px;}
+.detail-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+.detail-meta-item{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--soft);}
+.detail-meta-item span{font-size:14px;}
+.detail-actions{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:20px;}
+.tab-btn{padding:10px 18px;font-size:13px;font-weight:500;color:var(--soft);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:all .15s;}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-btn:hover:not(.active){color:var(--text);}
+
+/* ── ANALYSE LIST ── */
+.analyse-list{display:flex;flex-direction:column;gap:10px;}
+.analyse-item{background:white;border-radius:var(--radius);border:1.5px solid var(--border);padding:16px 20px;cursor:pointer;transition:all .18s;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;}
+.analyse-item:hover{border-color:#c7d2fe;box-shadow:var(--shadow-md);}
+.ai-date-block{text-align:center;min-width:52px;}
+.ai-day{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:-.5px;line-height:1;}
+.ai-month{font-size:10px;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.ai-body{}
+.ai-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;}
+.ai-systems{font-size:12px;color:var(--soft);display:flex;gap:8px;flex-wrap:wrap;}
+.ai-system-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:var(--bg);border:1px solid var(--border);}
+.ai-notiz{font-size:12.5px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:400px;}
+.ai-arrow{font-size:13px;color:var(--xsoft);transition:all .15s;}
+.analyse-item:hover .ai-arrow{color:var(--accent);transform:translateX(3px);}
+
+/* ── SPIELER KARTEN ── */
+.spieler-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+.spieler-card{background:white;border-radius:var(--radius);border:1.5px solid var(--border);padding:16px;transition:all .18s;}
+.spieler-card:hover{border-color:#c7d2fe;box-shadow:var(--shadow);}
+.sc-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.sc-nummer{width:36px;height:36px;border-radius:8px;background:var(--sidebar);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;font-family:'DM Mono',monospace;flex-shrink:0;}
+.sc-info{flex:1;min-width:0;}
+.sc-name{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sc-pos{margin-top:2px;}
+.sc-body{font-size:11.5px;line-height:1.6;}
+.sc-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--xsoft);margin-top:6px;margin-bottom:2px;}
+.sc-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-heim{background:var(--green-l);color:var(--green);border:1px solid var(--green-b);}
+.badge-auswaerts{background:var(--yellow-l);color:var(--yellow);border:1px solid var(--yellow-b);}
+.badge-neutral{background:var(--bg);color:var(--soft);border:1px solid var(--border);}
+.pos-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+.pos-TH{background:#f0f4ff;color:#1d4ed8;}
+.pos-LA,.pos-RA,.pos-RL,.pos-RR,.pos-RM,.pos-KR{background:var(--accent-l);color:var(--accent);}
+
+/* ── FORM ── */
+.form-group{margin-bottom:16px;}
+.form-group:last-child{margin-bottom:0;}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--soft);margin-bottom:5px;letter-spacing:.02em;}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);outline:none;transition:border-color .15s;background:white;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);}
+.form-textarea{resize:vertical;min-height:80px;line-height:1.5;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-hint{font-size:11px;color:var(--xsoft);margin-top:4px;}
+.section-divider{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--xsoft);margin:18px 0 12px;padding-bottom:6px;border-bottom:1.5px solid var(--border);}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:white;border-radius:16px;width:100%;box-shadow:var(--shadow-lg);overflow:hidden;max-height:92vh;display:flex;flex-direction:column;}
+.modal-sm{max-width:440px;}
+.modal-md{max-width:560px;}
+.modal-lg{max-width:680px;}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.modal-title{font-size:16px;font-weight:700;}
+.modal-close{background:none;border:none;font-size:20px;color:var(--xsoft);cursor:pointer;padding:2px 6px;border-radius:5px;line-height:1;}
+.modal-close:hover{background:var(--bg);color:var(--text);}
+.modal-body{padding:20px 24px;overflow-y:auto;flex:1;}
+.modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
+
+/* ── EMPTY + MISC ── */
+.empty{padding:48px 20px;text-align:center;color:var(--xsoft);}
+.empty-icon{font-size:36px;margin-bottom:10px;}
+.empty-text{font-size:14px;}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.section-title{font-size:14px;font-weight:600;}
+.color-picker-row{display:flex;align-items:center;gap:10px;}
+.color-swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid rgba(0,0,0,.1);transition:transform .15s;}
+.color-swatch:hover{transform:scale(1.1);}
+.color-swatch.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,87,255,.3);}
+#toast{position:fixed;bottom:24px;right:24px;background:#111827;color:white;padding:12px 20px;border-radius:10px;font-size:13.5px;font-weight:500;z-index:200;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;}
+#toast.show{opacity:1;transform:translateY(0);}
+#auth-screen{position:fixed;inset:0;background:var(--sidebar);display:flex;align-items:center;justify-content:center;z-index:100;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .main{margin-left:0;}
+  .form-row{grid-template-columns:1fr;}
+  .gegner-grid{grid-template-columns:1fr;}
+  .spieler-grid{grid-template-columns:1fr 1fr;}
+  .content{padding:16px;}
+  .analyse-item{grid-template-columns:auto 1fr;}
+  .ai-arrow{display:none;}
+}
+@media(max-width:540px){
+  .spieler-grid{grid-template-columns:1fr;}
+  .detail-hero{flex-direction:column;}
+  .detail-actions{width:100%;}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH REDIRECT -->
+<div id="auth-screen" style="display:none;">
+  <div style="text-align:center;color:rgba(255,255,255,.6);font-size:14px;">
+    <div style="font-size:32px;margin-bottom:14px;">🔍</div>
+    Weiterleitung zum Dashboard…<br>
+    <a href="index.html" style="color:#93c5fd;font-weight:600;text-decoration:none;">Jetzt anmelden →</a>
+  </div>
+</div>
+
+<div id="app" style="display:none;width:100%;">
+
+  <!-- SIDEBAR OVERLAY -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="logo-icon">🔍</div>
+        <div>
+          <div class="logo-text">Gegneranalyse</div>
+          <div class="logo-sub">Handball Coaching Tools</div>
+        </div>
+      </div>
+      <button class="sidebar-close-btn" onclick="toggleSidebar()" title="Sidebar einklappen">✕</button>
+    </div>
+
+    <!-- Mein Team Widget -->
+    <div class="my-team-widget">
+      <div class="mt-top"><div class="mt-label">Mein Team</div></div>
+      <div class="mt-name empty" id="mt-name">–</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Scouting</div>
+      <div class="sidebar-item active" onclick="showOverview()"><span>🔍</span> Gegneranalyse</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Navigation</div>
+      <a class="sidebar-item" href="index.html"><span>🏠</span> Dashboard</a>
+      <a class="sidebar-item" href="kalender.html"><span>📅</span> Kalender</a>
+      <a class="sidebar-item" href="trainingsplaner.html"><span>📋</span> Trainingsplaner</a>
+      <a class="sidebar-item" href="handball-bank-statistik.html"><span>🤾</span> Bank-Statistik</a>
+      <a class="sidebar-item" href="handball-taktikboard.html"><span>♟</span> Taktikboard</a>
+      <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260514.1200</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="burger-btn" id="burger-btn" onclick="toggleSidebar()">☰</button>
+        <div class="topbar-title">Gegneranalyse</div>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-role" id="topbar-role" style="display:none;"></span>
+        <span class="topbar-user-name" id="topbar-user">–</span>
+        <button class="topbar-logout" onclick="logout()">⏻ Abmelden</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ══ VIEW: ÜBERSICHT ══ -->
+      <div id="view-overview">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Gegneranalyse</div>
+            <div class="page-subtitle">Scouting-Profile und Spielanalysen verwalten</div>
+          </div>
+          <button class="btn btn-primary" onclick="openGegnerModal()">+ Neuer Gegner</button>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card blue"><div class="stat-num" id="stat-gegner">–</div><div class="stat-label">Gegner</div></div>
+          <div class="stat-card purple"><div class="stat-num" id="stat-analysen">–</div><div class="stat-label">Analysen gesamt</div></div>
+          <div class="stat-card green"><div class="stat-num" id="stat-spieler-total">–</div><div class="stat-label">Schlüsselspieler</div></div>
+        </div>
+
+        <div class="gegner-grid" id="gegner-grid">
+          <div class="empty" style="grid-column:1/-1;">
+            <div class="empty-icon">⏳</div>
+            <div class="empty-text">Wird geladen…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ VIEW: DETAIL ══ -->
+      <div id="view-detail" style="display:none;">
+
+        <!-- Hero -->
+        <div class="detail-hero" id="detail-hero">
+          <!-- wird per JS befüllt -->
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab-btn active" id="tab-btn-analysen" onclick="switchTab('analysen')">📊 Analysen</button>
+          <button class="tab-btn" id="tab-btn-kader" onclick="switchTab('kader')">👥 Schlüsselspieler</button>
+          <button class="tab-btn" id="tab-btn-profil" onclick="switchTab('profil')">📝 Profil</button>
+        </div>
+
+        <!-- Tab: Analysen -->
+        <div id="tab-analysen">
+          <div class="section-header">
+            <div class="section-title">Spielanalysen</div>
+            <button class="btn btn-primary btn-sm" onclick="openAnalyseModal()">+ Neue Analyse</button>
+          </div>
+          <div class="analyse-list" id="analyse-list">
+            <div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Wird geladen…</div></div>
+          </div>
+        </div>
+
+        <!-- Tab: Kader/Schlüsselspieler -->
+        <div id="tab-kader" style="display:none;">
+          <div class="section-header">
+            <div class="section-title">Schlüsselspieler</div>
+            <button class="btn btn-primary btn-sm" onclick="openSpielerModal()">+ Spieler hinzufügen</button>
+          </div>
+          <div class="spieler-grid" id="spieler-grid">
+            <div class="empty" style="grid-column:1/-1;"><div class="empty-icon">👥</div><div class="empty-text">Wird geladen…</div></div>
+          </div>
+        </div>
+
+        <!-- Tab: Profil -->
+        <div id="tab-profil" style="display:none;">
+          <div class="card" style="padding:24px;" id="profil-content">
+            <!-- wird per JS befüllt -->
+          </div>
+        </div>
+
+      </div><!-- /view-detail -->
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /app -->
+
+<!-- ══ MODAL: GEGNER ══ -->
+<div class="modal-overlay" id="gegner-modal">
+  <div class="modal modal-md">
+    <div class="modal-header">
+      <div class="modal-title" id="gm-title">Neuer Gegner</div>
+      <button class="modal-close" onclick="closeGegnerModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="gm-id">
+      <div class="form-group">
+        <label class="form-label">Mannschaftsname *</label>
+        <input class="form-input" id="gm-name" placeholder="z.B. TSV Hannover-Burgdorf" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Liga / Staffel</label>
+          <input class="form-input" id="gm-liga" placeholder="z.B. Handball-Bundesliga" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Trainer</label>
+          <input class="form-input" id="gm-trainer" placeholder="z.B. Christian Prokop" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Heimspielstätte</label>
+        <input class="form-input" id="gm-spielort" placeholder="z.B. Swiss Life Hall, Hannover" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Vereinsfarbe</label>
+        <div class="color-picker-row" id="color-picker">
+          <!-- Swatches werden per JS gerendert -->
+        </div>
+        <input type="hidden" id="gm-farbe" value="#6b7280">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notizen (allgemein)</label>
+        <textarea class="form-textarea" id="gm-notizen" placeholder="Allgemeine Hinweise zum Gegner…" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeGegnerModal()">Abbrechen</button>
+      <button class="btn btn-danger btn-sm" id="gm-delete-btn" style="margin-right:auto;display:none;" onclick="deleteGegner()">Gegner löschen</button>
+      <button class="btn btn-primary" onclick="saveGegner()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ANALYSE ══ -->
+<div class="modal-overlay" id="analyse-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="am-title">Neue Analyse</div>
+      <button class="modal-close" onclick="closeAnalyseModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="am-id">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Datum</label>
+          <input class="form-input" type="date" id="am-datum">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Spielort</label>
+          <select class="form-select" id="am-spielort">
+            <option value="">– nicht gesetzt –</option>
+            <option value="heim">🏠 Heimspiel (für uns)</option>
+            <option value="auswaerts">✈️ Auswärtsspiel</option>
+            <option value="neutral">⚖️ Neutral</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Unsere Tore</label>
+          <input class="form-input" type="number" id="am-tore-uns" placeholder="–" min="0" max="99">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gegner-Tore</label>
+          <input class="form-input" type="number" id="am-tore-gegner" placeholder="–" min="0" max="99">
+        </div>
+      </div>
+
+      <div class="section-divider">▲ Angriffssystem des Gegners</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">System</label>
+          <select class="form-select" id="am-angriff-system">
+            <option value="">– unbekannt –</option>
+            <option value="6:0">6:0 — klassisch</option>
+            <option value="5:1">5:1 — mit Vordermann</option>
+            <option value="4:2">4:2 — doppelter Vordermann</option>
+            <option value="3:3">3:3 — offensiv</option>
+            <option value="3:2:1">3:2:1 — Pyramide</option>
+          </select>
+        </div>
+        <div class="form-group" style="align-self:end;">
+          <label class="form-label">Weitere Systeme / Varianten</label>
+          <input class="form-input" id="am-angriff-varianten" placeholder="z.B. wechseln zwischen 5:1 und 6:0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notizen zum Angriffsspiel</label>
+        <textarea class="form-textarea" id="am-angriff-notiz" placeholder="Spielzüge, Präferenzen, Schwachstellen…" rows="3"></textarea>
+      </div>
+
+      <div class="section-divider">● Abwehrsystem des Gegners</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">System</label>
+          <select class="form-select" id="am-abwehr-system">
+            <option value="">– unbekannt –</option>
+            <option value="6:0">6:0 — kompakte Manndeckung</option>
+            <option value="5:1">5:1 — mit Vordermann</option>
+            <option value="4:2">4:2 — doppelter Vordermann</option>
+            <option value="3:2:1">3:2:1 — Pyramide</option>
+            <option value="3:3">3:3 — offensiv</option>
+          </select>
+        </div>
+        <div class="form-group" style="align-self:end;">
+          <label class="form-label">Weitere Systeme / Varianten</label>
+          <input class="form-input" id="am-abwehr-varianten" placeholder="z.B. wechseln je nach Spielstand">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notizen zur Abwehr</label>
+        <textarea class="form-textarea" id="am-abwehr-notiz" placeholder="Deckungsverhalten, Schwachstellen, Sonderaufgaben…" rows="3"></textarea>
+      </div>
+
+      <div class="section-divider">📝 Allgemeines</div>
+      <div class="form-group">
+        <label class="form-label">Tendenzen &amp; Besonderheiten</label>
+        <textarea class="form-textarea" id="am-tendenzen" placeholder="z.B. starkes Tempospiel, häufige Zeitstrafen, schwaches Rückraumspiel rechts…" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Interne Notizen</label>
+        <textarea class="form-textarea" id="am-notizen" placeholder="Scouting-Kommentare, Quellen, nächste Schritte…" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAnalyseModal()">Abbrechen</button>
+      <button class="btn btn-danger btn-sm" id="am-delete-btn" style="margin-right:auto;display:none;" onclick="deleteAnalyse()">Analyse löschen</button>
+      <button class="btn btn-primary" onclick="saveAnalyse()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: SPIELER ══ -->
+<div class="modal-overlay" id="spieler-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div class="modal-title" id="sm-title">Spieler hinzufügen</div>
+      <button class="modal-close" onclick="closeSpielerModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="sm-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Name *</label>
+          <input class="form-input" id="sm-name" placeholder="Vor- und Nachname" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rückennummer</label>
+          <input class="form-input" type="number" id="sm-nummer" placeholder="#" min="1" max="99">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Position (DHB)</label>
+        <select class="form-select" id="sm-position">
+          <option value="">– keine Angabe –</option>
+          <option value="TH">● TH — Torhüter</option>
+          <option value="LA">▲ LA — Linksaußen</option>
+          <option value="RL">▲ RL — Rückraum Links</option>
+          <option value="RM">▲ RM — Rückraum Mitte</option>
+          <option value="RR">▲ RR — Rückraum Rechts</option>
+          <option value="RA">▲ RA — Rechtsaußen</option>
+          <option value="KR">▲ KR — Kreisläufer</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Stärken</label>
+        <textarea class="form-textarea" id="sm-staerken" placeholder="z.B. starker Außenseiter, guter Passgeber…" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Schwächen</label>
+        <textarea class="form-textarea" id="sm-schwaechen" placeholder="z.B. schwach mit links, fehleranfällig unter Druck…" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notiz</label>
+        <textarea class="form-textarea" id="sm-notiz" placeholder="Sonstige Hinweise…" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeSpielerModal()">Abbrechen</button>
+      <button class="btn btn-danger btn-sm" id="sm-delete-btn" style="margin-right:auto;display:none;" onclick="deleteSpieler()">Löschen</button>
+      <button class="btn btn-primary" onclick="saveSpieler()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── SUPABASE ─────────────────────────────────────────────────
+const SUPA_URL='https://dlofjsmnkwltuutpxoer.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
+const supa=supabase.createClient(SUPA_URL,SUPA_KEY);
+
+// ── STATE ────────────────────────────────────────────────────
+let currentUser=null;
+let allGegner=[];
+let currentGegnerId=null;
+let currentAnalysen=[];
+let currentSpieler=[];
+let editGegnerId=null;
+let editAnalyseId=null;
+let editSpielerId=null;
+let activeTab='analysen';
+let toastTimer=null;
+
+// ── UTILS ────────────────────────────────────────────────────
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function fmtDate(d){
+  if(!d) return '–';
+  const dt=new Date(d+'T00:00:00');
+  return dt.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+function fmtDateShort(d){
+  if(!d) return null;
+  const dt=new Date(d+'T00:00:00');
+  return {day:dt.toLocaleDateString('de-DE',{day:'2-digit'}),month:dt.toLocaleDateString('de-DE',{month:'short'})};
+}
+
+function showToast(msg,type='success'){
+  const el=document.getElementById('toast');
+  el.innerHTML=msg;
+  el.style.background=type==='error'?'#7f1d1d':type==='info'?'#1e3a8a':'#111827';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),3200);
+}
+
+const POS_LABELS={TH:'● TH',LA:'▲ LA',RL:'▲ RL',RM:'▲ RM',RR:'▲ RR',RA:'▲ RA',KR:'▲ KR'};
+const POS_FULL={TH:'Torhüter',LA:'Linksaußen',RL:'Rückraum Links',RM:'Rückraum Mitte',RR:'Rückraum Rechts',RA:'Rechtsaußen',KR:'Kreisläufer'};
+const SPIELORT_LABELS={heim:'🏠 Heim',auswaerts:'✈️ Auswärts',neutral:'⚖️ Neutral'};
+
+const FARBEN=['#6b7280','#0057ff','#dc2626','#d97706','#15803d','#7c3aed','#ea580c','#0ea5e9','#111827','#be185d'];
+
+// ── AUTH ─────────────────────────────────────────────────────
+async function onAuth(user){
+  currentUser=user;
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  const{data:profile}=await supa.from('profiles').select('full_name,email,role').eq('id',user.id).maybeSingle();
+  document.getElementById('topbar-user').textContent=profile?.full_name||profile?.email||user.email||'';
+  setTopbarRole(profile?.role);
+  initMyTeamWidget();
+  initColorPicker();
+  await loadGegner();
+  showOverview();
+}
+
+async function logout(){if(!confirm('Abmelden?'))return;await supa.auth.signOut();location.href='index.html';}
+
+function setTopbarRole(role){
+  const el=document.getElementById('topbar-role');
+  if(!role){el.style.display='none';return;}
+  const labels={admin:'Admin',trainer:'Trainer',co_trainer:'Co-Trainer',assistent:'Assistent'};
+  el.textContent=labels[role]||role;
+  el.style.display='';
+}
+
+// ── SIDEBAR ──────────────────────────────────────────────────
+function toggleSidebar(){
+  const sidebar=document.getElementById('sidebar');
+  const overlay=document.getElementById('sidebar-overlay');
+  const app=document.getElementById('app');
+  const collapsed=sidebar.classList.toggle('collapsed');
+  if(app) app.classList.toggle('sidebar-collapsed',collapsed);
+  if(overlay) overlay.classList.toggle('visible',!collapsed&&window.innerWidth<=900);
+  localStorage.setItem('sidebar_collapsed',collapsed?'1':'0');
+}
+
+function initMyTeamWidget(){
+  const name=localStorage.getItem('hbs_my_team')||'';
+  const el=document.getElementById('mt-name');
+  if(!el) return;
+  if(name){el.textContent=name;el.classList.remove('empty');}
+  else{el.textContent='Kein Team gewählt';el.classList.add('empty');}
+}
+
+// ── COLOR PICKER ─────────────────────────────────────────────
+function initColorPicker(){
+  const wrap=document.getElementById('color-picker');
+  if(!wrap) return;
+  wrap.innerHTML=FARBEN.map(f=>`<div class="color-swatch" style="background:${f};" data-color="${f}" onclick="selectColor('${f}')"></div>`).join('');
+}
+
+function selectColor(hex){
+  document.getElementById('gm-farbe').value=hex;
+  document.querySelectorAll('.color-swatch').forEach(s=>{
+    s.classList.toggle('selected',s.dataset.color===hex);
+  });
+}
+
+// ── DATA: GEGNER ─────────────────────────────────────────────
+async function loadGegner(){
+  const{data,error}=await supa.from('gegner').select('*').order('name');
+  if(error){showToast('Fehler beim Laden: '+error.message,'error');return;}
+  allGegner=data||[];
+
+  // Analysen-Zähler laden
+  const{data:counts}=await supa.from('gegner_analyse').select('gegner_id').eq('user_id',currentUser.id);
+  const countMap={};
+  (counts||[]).forEach(r=>{countMap[r.gegner_id]=(countMap[r.gegner_id]||0)+1;});
+
+  const{data:spielerCounts}=await supa.from('gegner_spieler').select('gegner_id').eq('user_id',currentUser.id);
+  const spielerMap={};
+  (spielerCounts||[]).forEach(r=>{spielerMap[r.gegner_id]=(spielerMap[r.gegner_id]||0)+1;});
+
+  // Stats
+  const totalAnalysen=Object.values(countMap).reduce((a,b)=>a+b,0);
+  const totalSpieler=Object.values(spielerMap).reduce((a,b)=>a+b,0);
+  document.getElementById('stat-gegner').textContent=allGegner.length;
+  document.getElementById('stat-analysen').textContent=totalAnalysen;
+  document.getElementById('stat-spieler-total').textContent=totalSpieler;
+
+  renderGegnerGrid(countMap,spielerMap);
+}
+
+function renderGegnerGrid(countMap={},spielerMap={}){
+  const grid=document.getElementById('gegner-grid');
+  if(!allGegner.length){
+    grid.innerHTML=`<div class="empty" style="grid-column:1/-1;">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-text">Noch keine Gegner angelegt. Klicke "+ Neuer Gegner" um zu starten.</div>
+    </div>`;
+    return;
+  }
+  grid.innerHTML=allGegner.map(g=>{
+    const n=countMap[g.id]||0;
+    const s=spielerMap[g.id]||0;
+    const farbe=g.farbe||'#6b7280';
+    return `<div class="gegner-card" style="--card-color:${esc(farbe)};" onclick="showGegnerDetail('${g.id}')">
+      <div class="gc-header">
+        <div>
+          <div class="gc-name">${esc(g.name)}</div>
+          <div class="gc-liga">${esc(g.liga||'–')}</div>
+        </div>
+        <div class="gc-color-dot" style="background:${esc(farbe)};"></div>
+      </div>
+      <div class="gc-stats">
+        <div class="gc-stat"><div class="gc-stat-num">${n}</div><div class="gc-stat-label">Analysen</div></div>
+        <div class="gc-stat"><div class="gc-stat-num">${s}</div><div class="gc-stat-label">Spieler</div></div>
+      </div>
+      <div class="gc-footer">
+        <span class="gc-date">${g.trainer?'Trainer: '+esc(g.trainer):''}</span>
+        <span class="gc-arrow">→</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── VIEWS ────────────────────────────────────────────────────
+function showOverview(){
+  document.getElementById('view-overview').style.display='';
+  document.getElementById('view-detail').style.display='none';
+  currentGegnerId=null;
+}
+
+async function showGegnerDetail(id){
+  currentGegnerId=id;
+  document.getElementById('view-overview').style.display='none';
+  document.getElementById('view-detail').style.display='';
+  const g=allGegner.find(x=>x.id===id);
+  if(!g) return;
+
+  // Hero rendern
+  const farbe=g.farbe||'#6b7280';
+  document.getElementById('detail-hero').innerHTML=`
+    <div class="detail-color-bar" style="background:${esc(farbe)};"></div>
+    <div class="detail-info">
+      <div class="detail-name">${esc(g.name)}</div>
+      <div class="detail-meta">
+        ${g.liga?`<div class="detail-meta-item"><span>🏆</span>${esc(g.liga)}</div>`:''}
+        ${g.trainer?`<div class="detail-meta-item"><span>👤</span>Trainer: ${esc(g.trainer)}</div>`:''}
+        ${g.spielort?`<div class="detail-meta-item"><span>📍</span>${esc(g.spielort)}</div>`:''}
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button class="btn btn-ghost btn-sm" onclick="showOverview()">← Übersicht</button>
+      <button class="btn btn-ghost btn-sm" onclick="openGegnerModal('${g.id}')">✏️ Bearbeiten</button>
+    </div>`;
+
+  // Tabs zurücksetzen
+  switchTab('analysen');
+
+  // Daten laden
+  await Promise.all([loadAnalysen(id),loadSpieler(id)]);
+
+  // Profil-Tab befüllen
+  renderProfilTab(g);
+}
+
+function switchTab(tab){
+  activeTab=tab;
+  ['analysen','kader','profil'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===tab?'':'none';
+    document.getElementById('tab-btn-'+t).classList.toggle('active',t===tab);
+  });
+}
+
+// ── DATA: ANALYSEN ───────────────────────────────────────────
+async function loadAnalysen(gegnerId){
+  const{data,error}=await supa.from('gegner_analyse').select('*').eq('gegner_id',gegnerId).order('datum',{ascending:false}).order('created_at',{ascending:false});
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  currentAnalysen=data||[];
+  renderAnalysen();
+}
+
+function renderAnalysen(){
+  const list=document.getElementById('analyse-list');
+  if(!currentAnalysen.length){
+    list.innerHTML=`<div class="empty">
+      <div class="empty-icon">📊</div>
+      <div class="empty-text">Noch keine Analysen für diesen Gegner. Erstelle die erste Analyse.</div>
+    </div>`;
+    return;
+  }
+  list.innerHTML=currentAnalysen.map(a=>{
+    const d=a.datum?fmtDateShort(a.datum):null;
+    const spielort=a.spielort_typ?`<span class="badge badge-${a.spielort_typ}">${SPIELORT_LABELS[a.spielort_typ]||a.spielort_typ}</span>`:'';
+    const ergebnis=(a.ergebnis_uns!=null&&a.ergebnis_gegner!=null)?
+      `<span style="font-family:'DM Mono',monospace;font-size:12px;font-weight:600;">${a.ergebnis_uns}:${a.ergebnis_gegner}</span>`:'';
+    const angSystem=a.angriff_system?`<span class="ai-system-chip">▲ ${esc(a.angriff_system)}</span>`:'';
+    const abwSystem=a.abwehr_system?`<span class="ai-system-chip">● ${esc(a.abwehr_system)}</span>`:'';
+    const notiz=a.tendenzen||a.notizen||'';
+    return `<div class="analyse-item" onclick="openAnalyseModal('${a.id}')">
+      <div class="ai-date-block">
+        ${d?`<div class="ai-day">${d.day}</div><div class="ai-month">${d.month}</div>`:'<div style="font-size:22px;">?</div>'}
+      </div>
+      <div class="ai-body">
+        <div class="ai-top">
+          ${spielort}
+          ${ergebnis}
+          ${angSystem}
+          ${abwSystem}
+        </div>
+        ${notiz?`<div class="ai-notiz">${esc(notiz)}</div>`:''}
+      </div>
+      <div class="ai-arrow">→</div>
+    </div>`;
+  }).join('');
+}
+
+// ── DATA: SPIELER ────────────────────────────────────────────
+async function loadSpieler(gegnerId){
+  const{data,error}=await supa.from('gegner_spieler').select('*').eq('gegner_id',gegnerId).order('nummer',{ascending:true,nullsLast:true}).order('name');
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  currentSpieler=data||[];
+  renderSpieler();
+}
+
+function renderSpieler(){
+  const grid=document.getElementById('spieler-grid');
+  if(!currentSpieler.length){
+    grid.innerHTML=`<div class="empty" style="grid-column:1/-1;">
+      <div class="empty-icon">👥</div>
+      <div class="empty-text">Noch keine Schlüsselspieler erfasst.</div>
+    </div>`;
+    return;
+  }
+  grid.innerHTML=currentSpieler.map(s=>{
+    const posClass=s.position?`pos-${s.position}`:'';
+    return `<div class="spieler-card">
+      <div class="sc-header">
+        <div class="sc-nummer">${s.nummer||'?'}</div>
+        <div class="sc-info">
+          <div class="sc-name">${esc(s.name)}</div>
+          <div class="sc-pos">${s.position?`<span class="pos-badge ${posClass}">${esc(POS_LABELS[s.position]||s.position)} <small style="font-weight:400;opacity:.7;">${esc(POS_FULL[s.position]||'')}</small></span>`:''}</div>
+        </div>
+      </div>
+      <div class="sc-body">
+        ${s.staerken?`<div class="sc-label">Stärken</div><div style="color:var(--green);">${esc(s.staerken)}</div>`:''}
+        ${s.schwaechen?`<div class="sc-label">Schwächen</div><div style="color:var(--red);">${esc(s.schwaechen)}</div>`:''}
+        ${s.notiz?`<div class="sc-label">Notiz</div><div>${esc(s.notiz)}</div>`:''}
+      </div>
+      <div class="sc-actions">
+        <button class="btn btn-ghost btn-xs" onclick="openSpielerModal('${s.id}')">✏️ Bearbeiten</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── PROFIL TAB ───────────────────────────────────────────────
+function renderProfilTab(g){
+  document.getElementById('profil-content').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div class="sc-label" style="margin-bottom:6px;">Mannschaftsname</div>
+        <div style="font-size:16px;font-weight:600;">${esc(g.name)}</div>
+      </div>
+      <div>
+        <div class="sc-label" style="margin-bottom:6px;">Liga / Staffel</div>
+        <div>${esc(g.liga||'–')}</div>
+      </div>
+      <div>
+        <div class="sc-label" style="margin-bottom:6px;">Trainer</div>
+        <div>${esc(g.trainer||'–')}</div>
+      </div>
+      <div>
+        <div class="sc-label" style="margin-bottom:6px;">Heimspielstätte</div>
+        <div>${esc(g.spielort||'–')}</div>
+      </div>
+    </div>
+    ${g.notizen?`<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+      <div class="sc-label" style="margin-bottom:6px;">Allgemeine Notizen</div>
+      <div style="font-size:13.5px;line-height:1.6;white-space:pre-wrap;">${esc(g.notizen)}</div>
+    </div>`:''}
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="openGegnerModal('${g.id}')">✏️ Profil bearbeiten</button>
+    </div>`;
+}
+
+// ── MODAL: GEGNER ────────────────────────────────────────────
+function openGegnerModal(id=null){
+  editGegnerId=id||null;
+  const g=id?allGegner.find(x=>x.id===id):null;
+  document.getElementById('gm-title').textContent=g?'Gegner bearbeiten':'Neuer Gegner';
+  document.getElementById('gm-id').value=id||'';
+  document.getElementById('gm-name').value=g?.name||'';
+  document.getElementById('gm-liga').value=g?.liga||'';
+  document.getElementById('gm-trainer').value=g?.trainer||'';
+  document.getElementById('gm-spielort').value=g?.spielort||'';
+  document.getElementById('gm-notizen').value=g?.notizen||'';
+  const farbe=g?.farbe||FARBEN[0];
+  document.getElementById('gm-farbe').value=farbe;
+  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color===farbe));
+  document.getElementById('gm-delete-btn').style.display=id?'':'none';
+  document.getElementById('gegner-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('gm-name').focus(),80);
+}
+
+function closeGegnerModal(){document.getElementById('gegner-modal').classList.remove('open');editGegnerId=null;}
+
+async function saveGegner(){
+  const name=document.getElementById('gm-name').value.trim();
+  if(!name){showToast('Name ist Pflichtfeld.','error');document.getElementById('gm-name').focus();return;}
+  const payload={
+    name,
+    liga:document.getElementById('gm-liga').value.trim()||null,
+    trainer:document.getElementById('gm-trainer').value.trim()||null,
+    spielort:document.getElementById('gm-spielort').value.trim()||null,
+    farbe:document.getElementById('gm-farbe').value||'#6b7280',
+    notizen:document.getElementById('gm-notizen').value.trim()||null,
+    user_id:currentUser.id
+  };
+  let error;
+  if(editGegnerId){
+    ({error}=await supa.from('gegner').update(payload).eq('id',editGegnerId));
+  } else {
+    ({error}=await supa.from('gegner').insert(payload));
+  }
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast(editGegnerId?'Gegner aktualisiert':'Gegner angelegt','success');
+  closeGegnerModal();
+  await loadGegner();
+  // Wenn wir in der Detailansicht waren, aktualisieren
+  if(currentGegnerId===editGegnerId){
+    await showGegnerDetail(currentGegnerId);
+  }
+}
+
+async function deleteGegner(){
+  const g=allGegner.find(x=>x.id===editGegnerId);
+  if(!g) return;
+  if(!confirm(`Gegner "${g.name}" wirklich löschen?\n\nAlle zugehörigen Analysen und Spieler werden ebenfalls gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.`)) return;
+  const{error}=await supa.from('gegner').delete().eq('id',editGegnerId);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast('Gegner gelöscht','success');
+  closeGegnerModal();
+  await loadGegner();
+  showOverview();
+}
+
+// ── MODAL: ANALYSE ───────────────────────────────────────────
+function openAnalyseModal(id=null){
+  editAnalyseId=id||null;
+  const a=id?currentAnalysen.find(x=>x.id===id):null;
+  document.getElementById('am-title').textContent=a?'Analyse bearbeiten':'Neue Analyse';
+  document.getElementById('am-id').value=id||'';
+  document.getElementById('am-datum').value=a?.datum||new Date().toISOString().slice(0,10);
+  document.getElementById('am-spielort').value=a?.spielort_typ||'';
+  document.getElementById('am-tore-uns').value=a?.ergebnis_uns??'';
+  document.getElementById('am-tore-gegner').value=a?.ergebnis_gegner??'';
+  document.getElementById('am-angriff-system').value=a?.angriff_system||'';
+  document.getElementById('am-angriff-varianten').value=a?.angriff_varianten||'';
+  document.getElementById('am-angriff-notiz').value=a?.angriff_notiz||'';
+  document.getElementById('am-abwehr-system').value=a?.abwehr_system||'';
+  document.getElementById('am-abwehr-varianten').value=a?.abwehr_varianten||'';
+  document.getElementById('am-abwehr-notiz').value=a?.abwehr_notiz||'';
+  document.getElementById('am-tendenzen').value=a?.tendenzen||'';
+  document.getElementById('am-notizen').value=a?.notizen||'';
+  document.getElementById('am-delete-btn').style.display=id?'':'none';
+  document.getElementById('analyse-modal').classList.add('open');
+}
+
+function closeAnalyseModal(){document.getElementById('analyse-modal').classList.remove('open');editAnalyseId=null;}
+
+async function saveAnalyse(){
+  if(!currentGegnerId){showToast('Kein Gegner gewählt.','error');return;}
+  const toreUns=document.getElementById('am-tore-uns').value;
+  const toreGegner=document.getElementById('am-tore-gegner').value;
+  const payload={
+    gegner_id:currentGegnerId,
+    user_id:currentUser.id,
+    datum:document.getElementById('am-datum').value||null,
+    spielort_typ:document.getElementById('am-spielort').value||null,
+    ergebnis_uns:toreUns!==''?parseInt(toreUns):null,
+    ergebnis_gegner:toreGegner!==''?parseInt(toreGegner):null,
+    angriff_system:document.getElementById('am-angriff-system').value||null,
+    angriff_notiz:document.getElementById('am-angriff-notiz').value.trim()||null,
+    abwehr_system:document.getElementById('am-abwehr-system').value||null,
+    abwehr_notiz:document.getElementById('am-abwehr-notiz').value.trim()||null,
+    tendenzen:document.getElementById('am-tendenzen').value.trim()||null,
+    notizen:document.getElementById('am-notizen').value.trim()||null,
+  };
+  let error;
+  if(editAnalyseId){
+    ({error}=await supa.from('gegner_analyse').update(payload).eq('id',editAnalyseId));
+  } else {
+    ({error}=await supa.from('gegner_analyse').insert(payload));
+  }
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast(editAnalyseId?'Analyse aktualisiert':'Analyse gespeichert','success');
+  closeAnalyseModal();
+  await loadAnalysen(currentGegnerId);
+  // Stats refreshen
+  await loadGegner();
+}
+
+async function deleteAnalyse(){
+  if(!editAnalyseId) return;
+  if(!confirm('Analyse wirklich löschen?')) return;
+  const{error}=await supa.from('gegner_analyse').delete().eq('id',editAnalyseId);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast('Analyse gelöscht','success');
+  closeAnalyseModal();
+  await loadAnalysen(currentGegnerId);
+  await loadGegner();
+}
+
+// ── MODAL: SPIELER ───────────────────────────────────────────
+function openSpielerModal(id=null){
+  editSpielerId=id||null;
+  const s=id?currentSpieler.find(x=>x.id===id):null;
+  document.getElementById('sm-title').textContent=s?'Spieler bearbeiten':'Spieler hinzufügen';
+  document.getElementById('sm-id').value=id||'';
+  document.getElementById('sm-name').value=s?.name||'';
+  document.getElementById('sm-nummer').value=s?.nummer||'';
+  document.getElementById('sm-position').value=s?.position||'';
+  document.getElementById('sm-staerken').value=s?.staerken||'';
+  document.getElementById('sm-schwaechen').value=s?.schwaechen||'';
+  document.getElementById('sm-notiz').value=s?.notiz||'';
+  document.getElementById('sm-delete-btn').style.display=id?'':'none';
+  document.getElementById('spieler-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('sm-name').focus(),80);
+}
+
+function closeSpielerModal(){document.getElementById('spieler-modal').classList.remove('open');editSpielerId=null;}
+
+async function saveSpieler(){
+  if(!currentGegnerId){showToast('Kein Gegner gewählt.','error');return;}
+  const name=document.getElementById('sm-name').value.trim();
+  if(!name){showToast('Name ist Pflichtfeld.','error');document.getElementById('sm-name').focus();return;}
+  const nummerVal=document.getElementById('sm-nummer').value;
+  const payload={
+    gegner_id:currentGegnerId,
+    user_id:currentUser.id,
+    name,
+    nummer:nummerVal!==''?parseInt(nummerVal):null,
+    position:document.getElementById('sm-position').value||null,
+    staerken:document.getElementById('sm-staerken').value.trim()||null,
+    schwaechen:document.getElementById('sm-schwaechen').value.trim()||null,
+    notiz:document.getElementById('sm-notiz').value.trim()||null,
+  };
+  let error;
+  if(editSpielerId){
+    ({error}=await supa.from('gegner_spieler').update(payload).eq('id',editSpielerId));
+  } else {
+    ({error}=await supa.from('gegner_spieler').insert(payload));
+  }
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast(editSpielerId?'Spieler aktualisiert':'Spieler hinzugefügt','success');
+  closeSpielerModal();
+  await loadSpieler(currentGegnerId);
+  await loadGegner();
+}
+
+async function deleteSpieler(){
+  if(!editSpielerId) return;
+  if(!confirm('Spieler wirklich löschen?')) return;
+  const{error}=await supa.from('gegner_spieler').delete().eq('id',editSpielerId);
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+  showToast('Spieler gelöscht','success');
+  closeSpielerModal();
+  await loadSpieler(currentGegnerId);
+  await loadGegner();
+}
+
+// ── KEYBOARD + CLICK-OUTSIDE ─────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  ['gegner-modal','analyse-modal','spieler-modal'].forEach(id=>
+    document.getElementById(id).classList.remove('open'));
+});
+
+['gegner-modal','analyse-modal','spieler-modal'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{
+    if(e.target===e.currentTarget) e.currentTarget.classList.remove('open');
+  });
+});
+
+// ── BOOT ─────────────────────────────────────────────────────
+// Sidebar-Status wiederherstellen
+(function(){
+  const col=localStorage.getItem('sidebar_collapsed')==='1';
+  if(col){
+    document.getElementById('sidebar').classList.add('collapsed');
+    document.getElementById('app').classList.add('sidebar-collapsed');
+  }
+})();
+
+supa.auth.getSession().then(({data:{session}})=>{
+  if(session) onAuth(session.user);
+  else {
+    document.getElementById('auth-screen').style.display='flex';
+    setTimeout(()=>window.location.href='index.html',2500);
+  }
+});
+supa.auth.onAuthStateChange((event,session)=>{
+  if(event==='SIGNED_IN'&&session&&!currentUser) onAuth(session.user);
+  if(event==='SIGNED_OUT') window.location.href='index.html';
+});
+</script>
+</body>
+</html>
