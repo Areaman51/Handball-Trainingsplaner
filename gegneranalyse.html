@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260515.1200 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260515.1300 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -1456,24 +1456,32 @@ async function loadStatistikTab(){
 
   const alleSpieleBilanz=spiele||[];
 
-  // Eigener Kader aus Mannschaftsverwaltung — Whitelist für Topscorer-Zuordnung
-  let ownRoster=new Set();
-  const myTeamId=localStorage.getItem('hbs_my_mannschaft_id')||'';
-  if(myTeamId){
+  // ── Eigener Kader laden: alle Mannschaften des Users ──────────
+  // allMannschaften ist bereits in onAuth() befüllt (id + name).
+  // Wir laden den Kader für ALLE eigenen Teams und bauen einen
+  // Set aus normierten Namen. Nur Namenabgleich — Nummern allein
+  // sind nicht eindeutig (Gegner kann gleiche Nummer tragen).
+  const ownRosterNames=new Set();           // normStr(spielerin.name)
+  const ownRosterDisplay=new Map();         // normStr(name) → {name, nummer}
+  if(allMannschaften.length){
+    const teamIds=allMannschaften.map(t=>t.id);
     const{data:kader}=await supa.from('mannschaft_spieler')
-      .select('name,nummer').eq('mannschaft_id',myTeamId);
+      .select('name,nummer').in('mannschaft_id',teamIds);
     (kader||[]).forEach(p=>{
-      if(p.name) ownRoster.add(normStr(p.name));
-      if(p.nummer!=null) ownRoster.add(`#${String(p.nummer).trim()}`);
+      if(!p.name) return;
+      const key=normStr(p.name);
+      ownRosterNames.add(key);
+      if(!ownRosterDisplay.has(key))
+        ownRosterDisplay.set(key,{name:p.name,nummer:p.nummer!=null?String(p.nummer):null});
     });
   }
 
-  // Spielaktionen laden — bench-Feld nötig zur Unterscheidung eigene vs. Gegner-Spieler
+  // ── Spielaktionen laden: alle Tortypen + spieler_lineup-Join ──
   let aktionen=[];
   if(alleSpieleBilanz.length){
     const ids=alleSpieleBilanz.map(s=>s.id);
     const{data:ak}=await supa.from('spielaktionen')
-      .select('spiel_id,type,gegner_name,gegner_nummer,spielminute,spieler_id,spieler_lineup(name,nummer,bench)')
+      .select('spiel_id,type,gegner_name,gegner_nummer,spielminute,spieler_id,spieler_lineup(name,nummer)')
       .in('spiel_id',ids)
       .in('type',['gegner_tor','gegner_2min','gegner_rot','tor','tor_7m']);
     aktionen=ak||[];
@@ -1481,8 +1489,8 @@ async function loadStatistikTab(){
 
   renderBilanzKpis(alleSpieleBilanz,aktionen,g);
   renderBegegnungen(alleSpieleBilanz,g);
-  renderTopscorerGegner(aktionen,ownRoster);
-  renderTopscorerWir(aktionen,ownRoster);
+  renderTopscorerGegner(aktionen,ownRosterNames,ownRosterDisplay);
+  renderTopscorerWir(aktionen,ownRosterNames,ownRosterDisplay);
 
   // iCal-URL vorausfüllen (gespeichert oder aus hbn_url ableiten)
   const input=document.getElementById('hbn-ical-input');
@@ -1570,52 +1578,66 @@ function renderBegegnungen(spiele,g){
   }).join('');
 }
 
-function isOwnPlayer(sl, ownRoster){
-  // Stufe 1: bench-Feld aus spieler_lineup (zuverlässigste Quelle)
-  // bench=false (oder null bei Altdaten) → eigene Spielerin
-  // bench=true  → Gegner-Spieler im Lineup eingetragen (nur für Lookup)
-  if(sl.bench===true) return false;
-  if(sl.bench===false) return true;
-  // Stufe 2: Abgleich mit Kader aus Mannschaftsverwaltung (Whitelist)
-  if(ownRoster.size>0){
-    const nm=normStr(sl.name||'');
-    const nr=sl.nummer!=null?`#${String(sl.nummer).trim()}`:'';
-    return(nm&&ownRoster.has(nm))||(nr&&ownRoster.has(nr));
+// ── TOPSCORER LOGIK ──────────────────────────────────────────
+// Einzige Entscheidungsregel:
+//   Steht der Name in ownRosterNames? → eigene Spielerin.
+//   Nicht drin?                        → Gegner-Spielerin.
+// Nummern allein werden NICHT als Schlüssel verwendet (zu uneindeutig).
+
+// Gibt normalisierten Namen + Nummer einer Aktion zurück,
+// egal ob es eine eigene (spieler_lineup) oder Gegner-Aktion ist.
+function extractGoalPlayer(a){
+  if(a.spieler_lineup&&a.spieler_lineup.name){
+    return{
+      name:a.spieler_lineup.name.trim(),
+      nummer:a.spieler_lineup.nummer!=null?String(a.spieler_lineup.nummer).trim():null
+    };
   }
-  // Stufe 3: Keine Kader-Daten → spieler_lineup-Existenz allein reicht als Signal
-  return true;
+  if(a.gegner_name){
+    return{
+      name:a.gegner_name.trim(),
+      nummer:a.gegner_nummer!=null?String(a.gegner_nummer).trim():null
+    };
+  }
+  // Nur Nummer bekannt, kein Name
+  if(a.gegner_nummer!=null){
+    return{name:null,nummer:String(a.gegner_nummer).trim()};
+  }
+  return null;
 }
 
-function buildScorerMap(rows, nameKey, nummerKey){
-  // Einheitliche Deduplizierung: Nummer als Primärschlüssel (stabil),
-  // Name als Sekundärschlüssel, gegenseitige Anreicherung.
-  const map={};
-  rows.forEach(r=>{
-    const nummer=r[nummerKey]!=null?String(r[nummerKey]).trim():null;
-    const name=(r[nameKey]||'').trim();
-    const key=nummer?`#${nummer}`:(name?normStr(name):'_unbekannt');
-    if(!map[key]) map[key]={name:name||(nummer?`#${nummer}`:'Unbekannt'),nummer,tore:0};
-    if(name&&(map[key].name===''||map[key].name.startsWith('#'))) map[key].name=name;
-    map[key].tore++;
-  });
-  return Object.values(map).sort((a,b)=>b.tore-a.tore).slice(0,8);
-}
-
-function renderTopscorerGegner(aktionen,ownRoster){
+function renderTopscorerGegner(aktionen,ownRosterNames,ownRosterDisplay){
   const el=document.getElementById('stat-topscorer-gegner');
-  // type='gegner_tor': strukturell immer Gegner-Aktion (spieler_id ist null).
-  // Extra-Filter: falls ein Eintrag dennoch einen spieler_lineup-Join hat UND
-  // die Spielerin im eigenen Kader ist, überspringen (Datenfehler-Schutz).
-  const tore=aktionen.filter(a=>{
-    if(a.type!=='gegner_tor') return false;
-    if(a.spieler_lineup&&isOwnPlayer(a.spieler_lineup,ownRoster)) return false;
-    return true;
+
+  // Alle Tore (alle Typen) durchgehen.
+  // Ein Tor gehört dem Gegner, wenn der Spieler-Name NICHT im eigenen Kader steht.
+  const gegnerTore=[];
+  aktionen.filter(a=>a.type==='gegner_tor'||a.type==='tor'||a.type==='tor_7m').forEach(a=>{
+    const p=extractGoalPlayer(a);
+    if(!p) return;
+    // Kein Name → kann nicht zugeordnet werden → Gegner-Aktion wenn type=gegner_tor
+    if(!p.name){
+      if(a.type==='gegner_tor') gegnerTore.push({name:'Unbekannt',nummer:p.nummer});
+      return;
+    }
+    const inRoster=ownRosterNames.has(normStr(p.name));
+    if(!inRoster) gegnerTore.push(p);
   });
-  if(!tore.length){
+
+  if(!gegnerTore.length){
     el.innerHTML='<div style="color:var(--xsoft);font-size:13px;">Keine Daten. Gegner-Tore werden in der Bank-Statistik erfasst.</div>';
     return;
   }
-  const sorted=buildScorerMap(tore,'gegner_name','gegner_nummer');
+
+  // Deduplizierung: Nummer als Primärschlüssel wenn vorhanden, sonst normierter Name
+  const map={};
+  gegnerTore.forEach(p=>{
+    const key=p.nummer?`#${p.nummer}`:(p.name?normStr(p.name):'_unbekannt');
+    if(!map[key]) map[key]={name:p.name||`#${p.nummer}`||'Unbekannt',nummer:p.nummer||null,tore:0};
+    if(p.name&&(map[key].name==='Unbekannt'||map[key].name.startsWith('#'))) map[key].name=p.name;
+    map[key].tore++;
+  });
+  const sorted=Object.values(map).sort((a,b)=>b.tore-a.tore).slice(0,8);
   el.innerHTML=sorted.map((p,i)=>`<div class="topscorer-row">
     <span class="ts-rank">${i+1}</span>
     <div class="ts-nummer" style="background:#dc2626;">${p.nummer||'?'}</div>
@@ -1624,27 +1646,33 @@ function renderTopscorerGegner(aktionen,ownRoster){
   </div>`).join('');
 }
 
-function renderTopscorerWir(aktionen,ownRoster){
+function renderTopscorerWir(aktionen,ownRosterNames,ownRosterDisplay){
   const el=document.getElementById('stat-topscorer-wir');
-  // type='tor'/'tor_7m' + spieler_lineup vorhanden + bench-/Kader-Check.
-  const tore=aktionen.filter(a=>{
-    if(a.type!=='tor'&&a.type!=='tor_7m') return false;
-    if(!a.spieler_lineup) return false;
-    return isOwnPlayer(a.spieler_lineup,ownRoster);
+
+  const eigeneTore=[];
+  aktionen.filter(a=>a.type==='tor'||a.type==='tor_7m'||a.type==='gegner_tor').forEach(a=>{
+    const p=extractGoalPlayer(a);
+    if(!p||!p.name) return;
+    const inRoster=ownRosterNames.has(normStr(p.name));
+    if(!inRoster) return;
+    // Name im Kader → eigene Spielerin. Anzeige-Nummer aus Kader übernehmen (kanonisch).
+    const kaderEntry=ownRosterDisplay.get(normStr(p.name));
+    eigeneTore.push({
+      name:kaderEntry?.name||p.name,
+      nummer:kaderEntry?.nummer||p.nummer||null
+    });
   });
-  if(!tore.length){
+
+  if(!eigeneTore.length){
     el.innerHTML='<div style="color:var(--xsoft);font-size:13px;">Keine Daten. Eigene Tore werden in der Bank-Statistik erfasst.</div>';
     return;
   }
-  // Für eigene Spielerinnen: Name+Nummer aus spieler_lineup als Quelle
-  const rows=tore.map(a=>({
-    _name:(a.spieler_lineup.name||'Unbekannt').trim(),
-    _nummer:a.spieler_lineup.nummer!=null?String(a.spieler_lineup.nummer).trim():null
-  }));
+
+  // Deduplizierung: name+nummer als Key (kanonisch aus Kader)
   const map={};
-  rows.forEach(r=>{
-    const key=`${normStr(r._name)}|${r._nummer||''}`;
-    if(!map[key]) map[key]={name:r._name,nummer:r._nummer,tore:0};
+  eigeneTore.forEach(p=>{
+    const key=`${normStr(p.name)}|${p.nummer||''}`;
+    if(!map[key]) map[key]={name:p.name,nummer:p.nummer,tore:0};
     map[key].tore++;
   });
   const sorted=Object.values(map).sort((a,b)=>b.tore-a.tore).slice(0,8);
