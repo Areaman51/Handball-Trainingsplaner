@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260515.1100 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260515.1130 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -1560,29 +1560,43 @@ function renderBegegnungen(spiele,g){
 
 function renderTopscorerGegner(aktionen){
   const el=document.getElementById('stat-topscorer-gegner');
+  // Nur type='gegner_tor' — spieler_id ist bei diesen Einträgen immer null
   const tore=aktionen.filter(a=>a.type==='gegner_tor');
   if(!tore.length){
     el.innerHTML='<div style="color:var(--xsoft);font-size:13px;">Keine Daten. Gegner-Tore werden in der Bank-Statistik erfasst.</div>';
     return;
   }
+  // Primärschlüssel: Nummer wenn vorhanden (zuverlässiger als Name-Schreibweise),
+  // sonst normierter Name. So taucht dieselbe Person nie doppelt auf.
   const scorerMap={};
   tore.forEach(a=>{
-    const key=a.gegner_name?normStr(a.gegner_name):`nr_${a.gegner_nummer||'?'}`;
-    if(!scorerMap[key]) scorerMap[key]={name:a.gegner_name||'',nummer:a.gegner_nummer||null,tore:0};
+    const nummer=a.gegner_nummer!=null?String(a.gegner_nummer).trim():null;
+    const name=(a.gegner_name||'').trim();
+    const key=nummer?`#${nummer}`:(name?normStr(name):'_unbekannt');
+    if(!scorerMap[key]){
+      scorerMap[key]={name:name||(nummer?`#${nummer}`:'Unbekannt'),nummer,tore:0};
+    }
+    // Name nachträglich anreichern falls nur Nummer bekannt war
+    if(name&&(scorerMap[key].name===''||scorerMap[key].name.startsWith('#'))){
+      scorerMap[key].name=name;
+    }
     scorerMap[key].tore++;
   });
   const sorted=Object.values(scorerMap).sort((a,b)=>b.tore-a.tore).slice(0,8);
   el.innerHTML=sorted.map((p,i)=>`<div class="topscorer-row">
     <span class="ts-rank">${i+1}</span>
     <div class="ts-nummer" style="background:#dc2626;">${p.nummer||'?'}</div>
-    <span class="ts-name">${esc(p.name||'Unbekannt')}</span>
+    <span class="ts-name">${esc(p.name)}</span>
     <span class="ts-tore">${p.tore} T</span>
   </div>`).join('');
 }
 
 function renderTopscorerWir(aktionen){
   const el=document.getElementById('stat-topscorer-wir');
-  const tore=aktionen.filter(a=>(a.type==='tor'||a.type==='tor_7m')&&(a.spieler_id||a.spieler_lineup));
+  // Nur type='tor'/'tor_7m' UND spieler_lineup muss existieren.
+  // spieler_id ist pro Spiel unterschiedlich (Lineup-Eintrag je Spiel),
+  // daher name+nummer als Deduplizierungs-Key — exakt wie in der Bank-Statistik.
+  const tore=aktionen.filter(a=>(a.type==='tor'||a.type==='tor_7m')&&a.spieler_lineup);
   if(!tore.length){
     el.innerHTML='<div style="color:var(--xsoft);font-size:13px;">Keine Daten. Eigene Tore werden in der Bank-Statistik erfasst.</div>';
     return;
@@ -1590,9 +1604,11 @@ function renderTopscorerWir(aktionen){
   const scorerMap={};
   tore.forEach(a=>{
     const sl=a.spieler_lineup;
-    const name=sl?.name||'Unbekannt';
-    const nummer=sl?.nummer||null;
-    const key=a.spieler_id||`name_${normStr(name)}`;
+    if(!sl) return;
+    const name=(sl.name||'Unbekannt').trim();
+    const nummer=sl.nummer!=null?String(sl.nummer).trim():null;
+    // Key: normierter Name + Nummer → gleiche Spielerin über mehrere Spiele zusammenführen
+    const key=`${normStr(name)}|${nummer||''}`;
     if(!scorerMap[key]) scorerMap[key]={name,nummer,tore:0};
     scorerMap[key].tore++;
   });
@@ -1600,7 +1616,7 @@ function renderTopscorerWir(aktionen){
   el.innerHTML=sorted.map((p,i)=>`<div class="topscorer-row">
     <span class="ts-rank">${i+1}</span>
     <div class="ts-nummer" style="background:#15803d;">${p.nummer||'?'}</div>
-    <span class="ts-name">${esc(p.name||'Unbekannt')}</span>
+    <span class="ts-name">${esc(p.name)}</span>
     <span class="ts-tore" style="color:var(--green);">${p.tore} T</span>
   </div>`).join('');
 }
