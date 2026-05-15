@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260514.2200 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260515.1100 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -494,16 +494,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <div class="stat-kpi"><div class="stat-kpi-num" id="kpi-strafen">–</div><div class="stat-kpi-label">Ø 2-min / Spiel</div></div>
           </div>
 
+          <!-- Letzte Begegnungen (volle Breite) -->
+          <div class="stat-section">
+            <div class="stat-section-title">Unsere letzten Begegnungen</div>
+            <div id="stat-begegnungen"><div style="color:var(--xsoft);font-size:13px;">Wird geladen…</div></div>
+          </div>
+
+          <!-- Topscorer nebeneinander -->
           <div class="stat-two-col">
-            <!-- Letzte Begegnungen -->
             <div class="stat-section">
-              <div class="stat-section-title">Unsere letzten Begegnungen</div>
-              <div id="stat-begegnungen"><div style="color:var(--xsoft);font-size:13px;">Wird geladen…</div></div>
+              <div class="stat-section-title">🔴 Ihre Topscorer gegen uns</div>
+              <div id="stat-topscorer-gegner"><div style="color:var(--xsoft);font-size:13px;">Wird geladen…</div></div>
             </div>
-            <!-- Topscorer Gegner gegen uns -->
             <div class="stat-section">
-              <div class="stat-section-title">Ihre Topscorer gegen uns</div>
-              <div id="stat-topscorer"><div style="color:var(--xsoft);font-size:13px;">Wird geladen…</div></div>
+              <div class="stat-section-title">🟢 Unsere besten Schützen</div>
+              <div id="stat-topscorer-wir"><div style="color:var(--xsoft);font-size:13px;">Wird geladen…</div></div>
             </div>
           </div>
 
@@ -1456,15 +1461,16 @@ async function loadStatistikTab(){
   if(alleSpieleBilanz.length){
     const ids=alleSpieleBilanz.map(s=>s.id);
     const{data:ak}=await supa.from('spielaktionen')
-      .select('spiel_id,type,gegner_name,gegner_nummer,spielminute')
+      .select('spiel_id,type,gegner_name,gegner_nummer,spielminute,spieler_id,spieler_lineup(name,nummer)')
       .in('spiel_id',ids)
-      .in('type',['gegner_tor','gegner_2min','gegner_rot']);
+      .in('type',['gegner_tor','gegner_2min','gegner_rot','tor','tor_7m']);
     aktionen=ak||[];
   }
 
   renderBilanzKpis(alleSpieleBilanz,aktionen,g);
   renderBegegnungen(alleSpieleBilanz,g);
-  renderTopscorer(aktionen,alleSpieleBilanz);
+  renderTopscorerGegner(aktionen);
+  renderTopscorerWir(aktionen);
 
   // iCal-URL vorausfüllen (gespeichert oder aus hbn_url ableiten)
   const input=document.getElementById('hbn-ical-input');
@@ -1552,8 +1558,8 @@ function renderBegegnungen(spiele,g){
   }).join('');
 }
 
-function renderTopscorer(aktionen,spiele){
-  const el=document.getElementById('stat-topscorer');
+function renderTopscorerGegner(aktionen){
+  const el=document.getElementById('stat-topscorer-gegner');
   const tore=aktionen.filter(a=>a.type==='gegner_tor');
   if(!tore.length){
     el.innerHTML='<div style="color:var(--xsoft);font-size:13px;">Keine Daten. Gegner-Tore werden in der Bank-Statistik erfasst.</div>';
@@ -1568,9 +1574,34 @@ function renderTopscorer(aktionen,spiele){
   const sorted=Object.values(scorerMap).sort((a,b)=>b.tore-a.tore).slice(0,8);
   el.innerHTML=sorted.map((p,i)=>`<div class="topscorer-row">
     <span class="ts-rank">${i+1}</span>
-    <div class="ts-nummer">${p.nummer||'?'}</div>
+    <div class="ts-nummer" style="background:#dc2626;">${p.nummer||'?'}</div>
     <span class="ts-name">${esc(p.name||'Unbekannt')}</span>
     <span class="ts-tore">${p.tore} T</span>
+  </div>`).join('');
+}
+
+function renderTopscorerWir(aktionen){
+  const el=document.getElementById('stat-topscorer-wir');
+  const tore=aktionen.filter(a=>(a.type==='tor'||a.type==='tor_7m')&&(a.spieler_id||a.spieler_lineup));
+  if(!tore.length){
+    el.innerHTML='<div style="color:var(--xsoft);font-size:13px;">Keine Daten. Eigene Tore werden in der Bank-Statistik erfasst.</div>';
+    return;
+  }
+  const scorerMap={};
+  tore.forEach(a=>{
+    const sl=a.spieler_lineup;
+    const name=sl?.name||'Unbekannt';
+    const nummer=sl?.nummer||null;
+    const key=a.spieler_id||`name_${normStr(name)}`;
+    if(!scorerMap[key]) scorerMap[key]={name,nummer,tore:0};
+    scorerMap[key].tore++;
+  });
+  const sorted=Object.values(scorerMap).sort((a,b)=>b.tore-a.tore).slice(0,8);
+  el.innerHTML=sorted.map((p,i)=>`<div class="topscorer-row">
+    <span class="ts-rank">${i+1}</span>
+    <div class="ts-nummer" style="background:#15803d;">${p.nummer||'?'}</div>
+    <span class="ts-name">${esc(p.name||'Unbekannt')}</span>
+    <span class="ts-tore" style="color:var(--green);">${p.tore} T</span>
   </div>`).join('');
 }
 
