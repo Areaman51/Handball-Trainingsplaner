@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2200</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260516.1200</div>
     </div>
   </aside>
 
@@ -4336,7 +4336,15 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
 
       if (isOwnTeam) {
         // ── Eigener Spieler ──
-        const pid = ev.playerName ? playerMap.get(normName(ev.playerName)) : null;
+        // Primär: Name-basiertes Matching (nur wenn kein reiner Nummern-String)
+        let pid = (ev.playerName && !isNumberOnly(ev.playerName))
+          ? playerMap.get(normName(ev.playerName))
+          : null;
+        // Fallback: Nummern-basiertes Matching (Format B oder Name nicht gefunden)
+        if (!pid && evNummer) {
+          const byNum = myLineup.find(p => String(p.nummer) === String(evNummer));
+          if (byNum) pid = byNum.id;
+        }
         if (!pid) { skippedCount++; continue; }
 
         const k = `${pid}-${mappedType.type}`;
