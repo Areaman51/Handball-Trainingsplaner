@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260516.1400 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260516.1500 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -1730,6 +1730,7 @@ async function loadHbnSaison(){
     if(webUrl){
       try{
         const data=await hbnFetch(webUrl,'spielplan');
+        if(data._debug) console.warn('[spielplan]',data._debug);
         if(data.games&&data.games.length){
           games=data.games;
           hasScores=games.some(g=>g.score_home!=null||g.score_away!=null);
