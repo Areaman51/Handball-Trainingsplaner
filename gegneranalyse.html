@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260516.1500 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260516.1600 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -528,10 +528,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
               <button class="btn btn-secondary btn-sm" id="hbn-sync-btn" onclick="syncHbnErgebnisse()" style="display:none;" title="Ergebnisse in Bank-Statistik übertragen">🔄 Sync</button>
             </div>
             <div style="font-size:11.5px;color:var(--xsoft);margin-bottom:10px;line-height:1.5;" id="hbn-url-hint">
-              Den iCal-Feed des Gegners aus handball.net kopieren (Spielplan → iCal-Link). Ergebnisse werden automatisch geladen, wenn die Edge Function <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px;">spielplan</code> unterstützt.
+              iCal-Feed des Gegners aus handball.net einfügen. Termine werden automatisch aus dem Feed geladen; Ergebnisse werden aus der Bank-Statistik ergänzt (sobald dort Spiele gegen diesen Gegner erfasst wurden).
             </div>
             <div class="hbn-sync-hint" id="hbn-score-hint">
-              ℹ️ Keine Ergebnisse im iCal — nur Termine. Ergebnisse kommen aus der Bank-Statistik. Für Live-Scores die Edge Function um <code style="background:white;padding:1px 5px;border-radius:3px;font-size:11px;">requestType: 'spielplan'</code> erweitern.
+              ℹ️ Noch keine Ergebnisse für diesen Gegner in der Bank-Statistik. Spiele dort eintragen, dann erscheinen die Scores automatisch hier.
             </div>
             <div class="hbn-saison-result" id="hbn-saison-result">
               <div class="hbn-saison-kpi" id="hbn-saison-kpis"></div>
@@ -813,6 +813,7 @@ const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const supa=supabase.createClient(SUPA_URL,SUPA_KEY);
 
 let currentUser=null, allGegner=[], allMannschaften=[], alleSpiele=[];
+let _statistikSpieleCache=[]; // Wird von loadStatistikTab befüllt für iCal-Score-Abgleich
 let currentGegnerId=null, currentAnalysen=[], currentSpieler=[], spieleFuerGegner=[];
 let editGegnerId=null, editAnalyseId=null, editSpielerId=null, activeTab='analysen';
 let toastTimer=null;
@@ -1464,6 +1465,7 @@ async function loadStatistikTab(){
     .order('datum',{ascending:false});
 
   const alleSpieleBilanz=spiele||[];
+  _statistikSpieleCache=alleSpieleBilanz; // für iCal-Score-Abgleich in loadHbnSaison
 
   // ── Eigener Kader laden: alle Mannschaften des Users ──────────
   // allMannschaften ist bereits in onAuth() befüllt (id + name).
@@ -1724,35 +1726,37 @@ async function loadHbnSaison(){
     let hasScores=false;
     let source='ical';
 
-    // Versuch 1: Spielplan-Webseite mit Ergebnissen (requestType: 'spielplan')
-    // Die Edge Function muss __NEXT_DATA__ der handball.net Mannschaftsseite parsen.
-    const webUrl=iCalToSpielplanUrl(url);
-    if(webUrl){
-      try{
-        const data=await hbnFetch(webUrl,'spielplan');
-        if(data._debug) console.warn('[spielplan]',data._debug);
-        if(data.games&&data.games.length){
-          games=data.games;
-          hasScores=games.some(g=>g.score_home!=null||g.score_away!=null);
-          source='spielplan';
-        }
-      }catch(e){
-        // Edge Function unterstützt 'spielplan' noch nicht → iCal-Fallback
-        console.info('spielplan-requestType nicht verfügbar, iCal-Fallback:',e.message);
-      }
-    }
+    // Hinweis: der 'spielplan'-Endpoint von handball.net ist Cloudflare-geschützt
+    // und kann nicht zuverlässig von Edge Functions abgerufen werden.
+    // Scores kommen stattdessen aus unserer eigenen spiele-Tabelle (Bank-Statistik).
 
-    // Fallback: iCal (nur Termine, keine Scores)
-    if(!games.length){
+    // Fallback: iCal (nur Termine)
+    {
       const data=await hbnFetch(url,'ical');
       games=data.games||[];
-      hasScores=false;
       source='ical';
     }
 
     if(!games.length){showToast('Keine Spiele im Feed gefunden.','error');return;}
 
+    // ── Scores aus unserer eigenen DB ergänzen ─────────────────
+    // _statistikSpieleCache wird von loadStatistikTab befüllt.
+    // Abgleich: Datum (exakt) → Score übernehmen wenn vorhanden.
     const g=allGegner.find(x=>x.id===currentGegnerId);
+    if(_statistikSpieleCache.length){
+      games=games.map(game=>{
+        if(!game.datum) return game;
+        const dbSpiel=_statistikSpieleCache.find(sp=>
+          sp.datum===game.datum&&
+          (sp.score_home!=null||sp.score_away!=null)
+        );
+        if(!dbSpiel) return game;
+        // Aus unserer DB: score_home/away immer aus Heim-Perspektive (wie in spiele-Tabelle)
+        return{...game,score_home:dbSpiel.score_home,score_away:dbSpiel.score_away,_fromDb:true};
+      });
+      hasScores=games.some(g=>g.score_home!=null&&g.score_away!=null);
+      if(hasScores) source='DB';
+    }
     const gName=normStr(g?.name||'');
     const today=new Date().toISOString().slice(0,10);
 
@@ -1837,13 +1841,7 @@ async function loadHbnSaison(){
         </div>`;
       }).join('');
 
-    // Sync-Button: nur wenn Ergebnisse vorhanden
-    if(syncBtn&&hasScores&&vergangen>0){
-      syncBtn.style.display='';
-      syncBtn._hbnGames=games;
-    }
-
-    // Hinweis bei fehlenden Scores (iCal-Fallback)
+    // Score-Hinweis: nur anzeigen wenn keine Scores aus DB
     if(scoreHint) scoreHint.style.display=hasScores?'none':'';
 
     document.getElementById('hbn-saison-result').style.display='block';
@@ -1851,7 +1849,7 @@ async function loadHbnSaison(){
     if(!g?.hbn_ical_url){
       document.getElementById('hbn-save-url-btn').style.display='';
     }
-    showToast(`✅ ${games.length} Spiele geladen${hasScores?' · mit Ergebnissen ('+source+')':`' · nur Termine (iCal-Fallback)'`}`,'success');
+    showToast(`✅ ${games.length} Spiele geladen${hasScores?` · ${games.filter(g=>g.score_home!=null).length} Ergebnisse aus Bank-Statistik`:' · noch keine Ergebnisse'}`,'success');
 
   }catch(e){
     showToast('Laden fehlgeschlagen: '+e.message,'error');
