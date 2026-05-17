@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2200</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260516.1200</div>
     </div>
   </aside>
 
@@ -1367,7 +1367,7 @@ const POL={
 };
 const GOAL_TYPES=new Set(['tor','tor_7m']);
 const GEGNER_GOAL_TYPE='gegner_tor';
-const GEGNER_TYPES=new Set(['gegner_tor','gegner_2min','gegner_rot']);
+const GEGNER_TYPES=new Set(['gegner_tor','gegner_2min','gegner_rot','gegner_fw_7m']);
 
 // ════════════════════════════════════════════════════════════
 // AUTH — kein eigener Login, Weiterleitung über index.html
@@ -1980,8 +1980,8 @@ function renderLiveView(){
   ap.innerHTML=`
     <div class="live-hint-bar ${spielMeta.hbn_url ? 'auto' : 'manual'}">
       ${spielMeta.hbn_url
-        ? `<span>🔗</span><span>Tore &amp; 2-Min.-Strafen werden automatisch via handball.net erfasst</span>`
-        : `<span>⚠️</span><span>Tore &amp; 2-Min.-Strafen müssen manuell erfasst werden</span>`}
+        ? `<span>🔗</span><span>Tore, 7m-Tore, 7m-Fehlwürfe und 2min-Strafen werden automatisch via handball.net erfasst · 7m-Paraden/Gegentore werden dem aktiven Torhüter zugeordnet</span>`
+        : `<span>⚠️</span><span>Tore, 7m-Tore, 7m-Fehlwürfe und 2min-Strafen müssen manuell erfasst werden</span>`}
     </div>`;
 
   // Spieler-Kachelansicht
@@ -4304,12 +4304,20 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
     });
 
     // Gegner-Mapping (Ereignisse ohne Treffer im eigenem Lineup)
+    // thType: Wenn gesetzt → automatisch diese Aktion dem aktiven Torhüter hinzufügen
+    //   tor_7m  → kass_7m  (Gegner trifft per 7m → TH kassiert 7m)
+    //   fw_7m   → geh_7m   (Gegner verschießt 7m → TH hält 7m)
     const gegnerTickerMap = {
-      tor:    { type:'gegner_tor',  label:'Tor',        color:'#dc2626', polarity:-1 },
-      tor_7m: { type:'gegner_tor',  label:'Tor 7m',     color:'#dc2626', polarity:-1 },
-      '2min': { type:'gegner_2min', label:'2-Minuten',  color:'#ea580c', polarity: 0 },
-      rot:    { type:'gegner_rot',  label:'Rote Karte', color:'#7f1d1d', polarity: 0 },
+      tor:    { type:'gegner_tor',   label:'Tor',          color:'#dc2626', polarity:-1, thType: null     },
+      tor_7m: { type:'gegner_tor',   label:'Tor 7m',       color:'#dc2626', polarity:-1, thType:'kass_7m' },
+      fw_7m:  { type:'gegner_fw_7m', label:'Fehlwurf 7m',  color:'#16a34a', polarity: 0, thType:'geh_7m'  },
+      '2min': { type:'gegner_2min',  label:'2-Minuten',    color:'#ea580c', polarity: 0, thType: null     },
+      rot:    { type:'gegner_rot',   label:'Rote Karte',   color:'#7f1d1d', polarity: 0, thType: null     },
     };
+
+    // Aktiver Torhüter: eindeutig aus eigenem Lineup → für automatisches kass_7m / geh_7m
+    const _myThs = myLineup.filter(p => p.pos === 'TH');
+    const activeTh = _myThs.length === 1 ? _myThs[0] : null;
 
     const toInsert = [], toGegner = [];
     let importedCount = 0, skippedCount = 0;
@@ -4319,9 +4327,10 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
     const oppNameSeen = {}; // `${type}-${normName}` → Anzahl in diesem Ticker-Lauf
 
     for (const ev of events) {
-      // Nur relevante Aktionen (Tor, 7m, 2min, Rot)
+      // Relevante Aktionen: alle in tickerTypeMap ODER fw_7m (Gegner-Parade)
       const mappedType = tickerTypeMap[ev.type];
-      if (!mappedType) continue;
+      const isGegnerOnly = !mappedType && !!gegnerTickerMap[ev.type]; // z.B. fw_7m vom Gegner
+      if (!mappedType && !isGegnerOnly) continue;
 
       // ── Entscheidung own vs. Gegner über ev.teamName (zuverlässigster Ansatz) ──
       // ev.team ist in der Edge Function nicht konsistent mit spielart home/away,
@@ -4334,9 +4343,17 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       // playerNum ist das korrekte Feld der Edge Function (nicht playerNumber)
       const evNummer = ev.playerNum || ev.playerNumber || null;
 
-      if (isOwnTeam) {
+      if (isOwnTeam && !isGegnerOnly) {
         // ── Eigener Spieler ──
-        const pid = ev.playerName ? playerMap.get(normName(ev.playerName)) : null;
+        // Primär: Name-basiertes Matching (nur wenn kein reiner Nummern-String)
+        let pid = (ev.playerName && !isNumberOnly(ev.playerName))
+          ? playerMap.get(normName(ev.playerName))
+          : null;
+        // Fallback: Nummern-basiertes Matching (Format B oder Name nicht gefunden)
+        if (!pid && evNummer) {
+          const byNum = myLineup.find(p => String(p.nummer) === String(evNummer));
+          if (byNum) pid = byNum.id;
+        }
         if (!pid) { skippedCount++; continue; }
 
         const k = `${pid}-${mappedType.type}`;
@@ -4352,7 +4369,7 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
         });
         importedCount++;
 
-      } else if (gegnerTickerMap[ev.type]) {
+      } else if (!isOwnTeam && gegnerTickerMap[ev.type]) {
         // ── Gegner-Spieler ──
         const gm = gegnerTickerMap[ev.type];
 
@@ -4396,6 +4413,27 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
           gegner_nummer: String(evNummer || oppPlayer?.nummer || '') || null,
         });
         importedCount++;
+
+        // ── Automatische TH-Aktion bei 7m-Ereignissen ──────────────────────────
+        // tor_7m (Gegner trifft) → kass_7m für unseren TH
+        // fw_7m  (Gegner fehlt)  → geh_7m  für unseren TH
+        if (activeTh && gm.thType) {
+          const thK = `${activeTh.id}-${gm.thType}`;
+          tickerOwn[thK] = (tickerOwn[thK]||0) + 1;
+          if (tickerOwn[thK] > (dbOwn[thK]||0)) {
+            const thIsPos  = gm.thType === 'geh_7m';
+            toInsert.push({
+              spiel_id: spielId, spieler_id: activeTh.id,
+              user_id: currentUser.id,
+              type:     gm.thType,
+              label:    thIsPos ? 'Gehalten 7m' : 'Kassiert 7m',
+              color:    thIsPos ? '#166534'      : '#991b1b',
+              polarity: thIsPos ? 1              : -1,
+              spielminute: ev.minute, erstellt_am: new Date().toISOString(),
+            });
+            importedCount++;
+          }
+        }
       } else {
         skippedCount++;
       }
