@@ -4268,6 +4268,15 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
     const _dbgRot  = _dbgAll.filter(e=>e.type==='rot');
     console.log(`2min-Events (${_dbg2min.length}):`, _dbg2min);
     console.log(`rot-Events  (${_dbgRot.length}):`,  _dbgRot);
+    // ── RAW SUSPENSION TEXTS aus HTML ────────────────────────────────────────
+    console.group('%c[TICKER DEBUG] RAW Suspensions aus HTML-li-Elementen', 'color:#dc2626;font-weight:bold');
+    const _rawSusp = ticker._debugRawSusp || [];
+    if (_rawSusp.length === 0) {
+      console.warn('⚠️  KEINE li-Elemente mit 2-Minuten/Strafe im HTML — Edge Function noch nicht neu deployed?');
+    } else {
+      _rawSusp.forEach((t, i) => console.log(`[${String(i).padStart(2,'0')}] ${t}`));
+    }
+    console.groupEnd();
     console.groupEnd();
     // ════════════════════════════════════════════════════════════════
 
