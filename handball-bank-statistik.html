@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260517.DEBUG</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260517.1700</div>
     </div>
   </aside>
 
@@ -4249,47 +4249,6 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
   try {
     const ticker = await hbnFetch(baseUrl + '/ticker', 'ticker');
 
-    // ════ DEBUG START ════════════════════════════════════════════════
-    console.group('%c[TICKER DEBUG] Rohdaten von Edge Function', 'color:#0057ff;font-weight:bold;font-size:13px');
-    console.log('parseMethod :', ticker.parseMethod);
-    console.log('status      :', ticker.status);
-    console.log('score       :', ticker.score_home, ':', ticker.score_away);
-    console.log('heim        :', ticker.heim);
-    console.log('gast        :', ticker.gast);
-    console.log('events total:', (ticker.events||[]).length);
-    console.log('spielMeta.heim     :', spielMeta.heim);
-    console.log('spielMeta.gast     :', spielMeta.gast);
-    console.log('spielMeta.spielart :', spielMeta.spielart);
-
-    const _dbgEvents = ticker.events || [];
-    const _dbg2min   = _dbgEvents.filter(e => e.type === '2min');
-    const _dbgRot    = _dbgEvents.filter(e => e.type === 'rot');
-    console.group('Alle Events (type, team, teamName, playerName, playerNum)');
-    _dbgEvents.forEach((e, i) => {
-      console.log(
-        `[${String(i).padStart(2,'0')}] type=${e.type.padEnd(7)} | team=${String(e.team).padEnd(7)} | teamName="${e.teamName}" | player="${e.playerName}" #${e.playerNum} | min=${e.minute}`
-      );
-    });
-    console.groupEnd();
-
-    console.group(`2-Minuten-Events (${_dbg2min.length})`);
-    if (_dbg2min.length === 0) {
-      console.warn('⚠️  Keine 2min-Events im Ticker gefunden!');
-    } else {
-      _dbg2min.forEach(e => {
-        console.log(`  min=${e.minute} | team="${e.team}" | teamName="${e.teamName}" | player="${e.playerName}" #${e.playerNum}`);
-      });
-    }
-    console.groupEnd();
-
-    console.group(`Rote Karten (${_dbgRot.length})`);
-    _dbgRot.forEach(e => {
-      console.log(`  min=${e.minute} | team="${e.team}" | teamName="${e.teamName}" | player="${e.playerName}" #${e.playerNum}`);
-    });
-    console.groupEnd();
-    console.groupEnd();
-    // ════ DEBUG END ══════════════════════════════════════════════════
-
     // Ticker-Status und Score-Referenz merken
     if (ticker.score_home !== undefined && (ticker.score_home > 0 || ticker.score_away > 0)) {
       spielMeta._ticker_score_home = ticker.score_home;
@@ -4325,29 +4284,29 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
     const oppLineup = lineup.filter(p => p.bench && (p.team||'') === oppSide);
     const oppMap = new Map(oppLineup.map(p => [normName(p.name), p]));
 
-    // ════ DEBUG: Lineup-Kontext ══════════════════════════════════════
-    console.group('%c[TICKER DEBUG] Lineup-Kontext', 'color:#0057ff;font-weight:bold');
-    console.log('myTeamSide :', myTeamSide);
-    console.log('oppSide    :', oppSide);
-    console.log('myLineup   :', myLineup.map(p=>`#${p.nummer} ${p.name} (${p.pos},team=${p.team},bench=${p.bench})`));
-    console.log('oppLineup  :', oppLineup.map(p=>`#${p.nummer} ${p.name} (${p.pos},team=${p.team},bench=${p.bench})`));
-    console.log('_gs.selectedTeam:', _gs.selectedTeam);
-    console.groupEnd();
-    // ════════════════════════════════════════════════════════════════
+    // ── Zählbasiertes Dedup ──────────────────────────────────────
+    // Problem: Edge-Function rundet Minuten (z.B. 3:54 + 4:25 → beide Minute 4)
+    // → Minuten-basiertes Dedup würde zweites Tor als Duplikat erkennen.
+    // Lösung: Zählen wie viele Aktionen pro Spieler+Typ in DB vorhanden sind.
+    // Ticker-Ereignisse werden erst ab dem (n+1)-ten gezählt.
 
     // DB-Zähler: wie viele Aktionen pro Spieler+Typ existieren bereits?
-    const dbOwn = {};
+    const dbOwn = {}; // `${spieler_id}-${type}` → Anzahl in DB
     aktionen.filter(a=>a.spieler_id).forEach(a=>{
       const k = `${a.spieler_id}-${a.type}`;
       dbOwn[k] = (dbOwn[k]||0) + 1;
     });
 
     // DB-Zähler Gegner: wie viele Gegner-Aktionen pro Typ in DB?
-    const dbOpp = {};
+    const dbOpp = {}; // `${type}` → Anzahl in DB
     aktionen.filter(a=>!a.spieler_id&&GEGNER_TYPES.has(a.type)).forEach(a=>{
       dbOpp[a.type] = (dbOpp[a.type]||0) + 1;
     });
 
+    // Gegner-Mapping (Ereignisse ohne Treffer im eigenem Lineup)
+    // thType: Wenn gesetzt → automatisch diese Aktion dem aktiven Torhüter hinzufügen
+    //   tor_7m  → kass_7m  (Gegner trifft per 7m → TH kassiert 7m)
+    //   fw_7m   → geh_7m   (Gegner verschießt 7m → TH hält 7m)
     const gegnerTickerMap = {
       tor:    { type:'gegner_tor',   label:'Tor',          color:'#dc2626', polarity:-1, thType: null     },
       tor_7m: { type:'gegner_tor',   label:'Tor 7m',       color:'#dc2626', polarity:-1, thType:'kass_7m' },
@@ -4356,56 +4315,45 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       rot:    { type:'gegner_rot',   label:'Rote Karte',   color:'#7f1d1d', polarity: 0, thType: null     },
     };
 
+    // Aktiver Torhüter: eindeutig aus eigenem Lineup → für automatisches kass_7m / geh_7m
     const _myThs = myLineup.filter(p => p.pos === 'TH');
     const activeTh = _myThs.length === 1 ? _myThs[0] : null;
 
     const toInsert = [], toGegner = [];
     let importedCount = 0, skippedCount = 0;
-    const tickerOwn = {};
-    const tickerOpp = {};
-    const oppNameSeen = {};
+    const tickerOwn = {};  // Ticker-Zähler eigene Spieler: `${pid}-${type}`
+    const tickerOpp = {};  // Ticker-Zähler Gegner: `${type}`
+    // Innerhalb dieser Session bereits gesehene benannte Gegner-Events
+    const oppNameSeen = {}; // `${type}-${normName}` → Anzahl in diesem Ticker-Lauf
 
     for (const ev of events) {
+      // Relevante Aktionen: alle in tickerTypeMap ODER fw_7m (Gegner-Parade)
       const mappedType = tickerTypeMap[ev.type];
-      const isGegnerOnly = !mappedType && !!gegnerTickerMap[ev.type];
+      const isGegnerOnly = !mappedType && !!gegnerTickerMap[ev.type]; // z.B. fw_7m vom Gegner
       if (!mappedType && !isGegnerOnly) continue;
 
+      // ── Entscheidung own vs. Gegner über ev.teamName (zuverlässigster Ansatz) ──
+      // ev.team ist in der Edge Function nicht konsistent mit spielart home/away,
+      // ev.teamName ("HT Norderstedt") ist eindeutig mit spielMeta.heim/gast vergleichbar
       const myName  = spielMeta.spielart === 'auswaerts' ? spielMeta.gast  : spielMeta.heim;
       const oppName = spielMeta.spielart === 'auswaerts' ? spielMeta.heim  : spielMeta.gast;
       const isOwnTeam = ev.teamName
         ? normName(ev.teamName) === normName(myName||'')
-        : (ev.team === myTeamSide);
+        : (ev.team === myTeamSide); // Fallback auf team-Feld
+      // playerNum ist das korrekte Feld der Edge Function (nicht playerNumber)
       const evNummer = ev.playerNum || ev.playerNumber || null;
-
-      // ════ DEBUG: Entscheidungslog pro Event ══════════════════════
-      if (ev.type === '2min' || ev.type === 'rot') {
-        console.log(
-          `%c[TICKER DEBUG] ${ev.type.toUpperCase()} min=${ev.minute}` +
-          ` | teamName="${ev.teamName}" | team="${ev.team}" | player="${ev.playerName}" #${evNummer}` +
-          ` → myName="${myName}" oppName="${oppName}"` +
-          ` → isOwnTeam=${isOwnTeam} | isGegnerOnly=${isGegnerOnly}` +
-          ` | mappedType=${mappedType?.type} | inGegnerMap=${!!gegnerTickerMap[ev.type]}`,
-          ev.type === '2min' ? 'color:#ea580c;font-weight:bold' : 'color:#7f1d1d;font-weight:bold'
-        );
-      }
-      // ════════════════════════════════════════════════════════════
 
       if (isOwnTeam && !isGegnerOnly) {
         // ── Eigener Spieler ──
+        // Primär: Name-basiertes Matching (nur wenn kein reiner Nummern-String)
         let pid = (ev.playerName && !isNumberOnly(ev.playerName))
           ? playerMap.get(normName(ev.playerName))
           : null;
+        // Fallback: Nummern-basiertes Matching (Format B oder Name nicht gefunden)
         if (!pid && evNummer) {
           const byNum = myLineup.find(p => String(p.nummer) === String(evNummer));
           if (byNum) pid = byNum.id;
         }
-
-        // ════ DEBUG ══════
-        if (ev.type === '2min' || ev.type === 'rot') {
-          console.log(`  → OWN-Pfad: pid=${pid} (${pid ? 'GEFUNDEN → wird gespeichert' : 'NICHT GEFUNDEN → skipped'})`);
-        }
-        // ════════════════
-
         if (!pid) { skippedCount++; continue; }
 
         const k = `${pid}-${mappedType.type}`;
@@ -4425,12 +4373,7 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
         // ── Gegner-Spieler ──
         const gm = gegnerTickerMap[ev.type];
 
-        // ════ DEBUG ══════
-        if (ev.type === '2min' || ev.type === 'rot') {
-          console.log(`  → GEGNER-Pfad: type=${gm.type}`);
-        }
-        // ════════════════
-
+        // Dedup-Key: primär über Nummer, sekundär über Name
         const dedupKey = evNummer
           ? `${gm.type}-nr-${evNummer}`
           : ev.playerName
@@ -4438,6 +4381,7 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
             : null;
 
         if (dedupKey) {
+          // Spieler/Nummer bekannt: nur namentlichen Check nutzen
           oppNameSeen[dedupKey] = (oppNameSeen[dedupKey]||0) + 1;
           const alreadyInDb = aktionen.filter(a =>
             !a.spieler_id && a.type === gm.type && (
@@ -4445,22 +4389,15 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
               (!evNummer && ev.playerName && a.gegner_name && normName(a.gegner_name) === normName(ev.playerName))
             )
           ).length;
-          // ════ DEBUG ══════
-          if (ev.type === '2min' || ev.type === 'rot') {
-            console.log(`  → dedupKey="${dedupKey}" | oppNameSeen=${oppNameSeen[dedupKey]} | alreadyInDb=${alreadyInDb} | ${oppNameSeen[dedupKey] <= alreadyInDb ? 'DEDUP → skip' : 'NEU → einfügen'}`);
-          }
-          // ════════════════
           if (oppNameSeen[dedupKey] <= alreadyInDb) continue;
+          // Namentlich neues Ereignis → direkt einfügen, kein Gesamt-Check nötig
         } else {
+          // Kein Name/Nummer: Gesamt-Zähler als einziges Dedup-Mittel
           tickerOpp[gm.type] = (tickerOpp[gm.type]||0) + 1;
-          // ════ DEBUG ══════
-          if (ev.type === '2min' || ev.type === 'rot') {
-            console.log(`  → kein dedupKey | tickerOpp=${tickerOpp[gm.type]} | dbOpp=${dbOpp[gm.type]||0} | ${tickerOpp[gm.type] <= (dbOpp[gm.type]||0) ? 'DEDUP → skip' : 'NEU → einfügen'}`);
-          }
-          // ════════════════
           if (tickerOpp[gm.type] <= (dbOpp[gm.type]||0)) continue;
         }
 
+        // Gegner aus Lineup suchen für vollständige Info
         const oppByNr   = evNummer ? oppLineup.find(p=>String(p.nummer)===String(evNummer)) : null;
         const oppByName = (!oppByNr && ev.playerName && !isNumberOnly(ev.playerName))
           ? oppMap.get(normName(ev.playerName)) : null;
@@ -4477,6 +4414,9 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
         });
         importedCount++;
 
+        // ── Automatische TH-Aktion bei 7m-Ereignissen ──────────────────────────
+        // tor_7m (Gegner trifft) → kass_7m für unseren TH
+        // fw_7m  (Gegner fehlt)  → geh_7m  für unseren TH
         if (activeTh && gm.thType) {
           const thK = `${activeTh.id}-${gm.thType}`;
           tickerOwn[thK] = (tickerOwn[thK]||0) + 1;
@@ -4495,23 +4435,9 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
           }
         }
       } else {
-        // ════ DEBUG ══════
-        if (ev.type === '2min' || ev.type === 'rot') {
-          console.log(`  → ELSE-Pfad (skipped): isOwnTeam=${isOwnTeam} isGegnerOnly=${isGegnerOnly} inGegnerMap=${!!gegnerTickerMap[ev.type]}`);
-        }
-        // ════════════════
         skippedCount++;
       }
     }
-
-    // ════ DEBUG: Zusammenfassung ════════════════════════════════════
-    console.group('%c[TICKER DEBUG] Ergebnis', 'color:#15803d;font-weight:bold');
-    console.log('toInsert (eigene):', toInsert.length, toInsert);
-    console.log('toGegner         :', toGegner.length, toGegner);
-    console.log('importedCount    :', importedCount);
-    console.log('skippedCount     :', skippedCount);
-    console.groupEnd();
-    // ════════════════════════════════════════════════════════════════
 
     // Eigene Aktionen in DB
     if (toInsert.length) {
@@ -4531,6 +4457,7 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       }
     }
 
+    // Score aus tatsächlichen Aktionen berechnen (Single Source of Truth)
     recalcScore();
     await saveSpielMeta();
     setStatus('ok', `${importedCount} Aktionen importiert`);
