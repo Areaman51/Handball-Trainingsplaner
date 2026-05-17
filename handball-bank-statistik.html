@@ -4628,16 +4628,23 @@ async function confirmGameStart() {
     if (selectedTeam === 'both') { myPlayers = [...heimPlayers,...gastPlayers]; oppPlayers = []; }
 
     // ── N.N. / Nummern-Only aus Kader auflösen (vor DB-Insert) ──────────
-    // Nur für "mein Team" — Gegner-Einträge bleiben so wie von handball.net
+    // Optionaler Schritt — darf den Spielstart niemals blockieren.
+    // Timeout nach 4 s → Auflösung wird übersprungen, Spiel startet trotzdem.
     if (_myTeamId) {
-      const { players: myResolved, count: nnCount, details: nnDetails }
-        = await resolveNNFromKader(myPlayers);
-      if (nnCount > 0) {
-        myPlayers = myResolved;
-        console.log(`[wizard] ${nnCount} N.N. aufgelöst:`, nnDetails);
-        // Auch in heimRoster/gastRoster spiegeln (für spätere Ticker-Zuordnung)
-        if (selectedTeam === 'home') data.heimRoster = myResolved;
-        if (selectedTeam === 'away') data.gastRoster = myResolved;
+      try {
+        const resolveResult = await Promise.race([
+          resolveNNFromKader(myPlayers),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))
+        ]);
+        const { players: myResolved, count: nnCount, details: nnDetails } = resolveResult;
+        if (nnCount > 0) {
+          myPlayers = myResolved;
+          console.log(`[wizard] ${nnCount} N.N. aufgelöst:`, nnDetails);
+          if (selectedTeam === 'home') data.heimRoster = myResolved;
+          if (selectedTeam === 'away') data.gastRoster = myResolved;
+        }
+      } catch(nnErr) {
+        console.warn('[wizard] N.N.-Auflösung übersprungen:', nnErr.message);
       }
     }
 
@@ -4648,6 +4655,9 @@ async function confirmGameStart() {
     await supa.from('spiele').update({ spielart, status: 'live', updated_at: new Date().toISOString() }).eq('id', spielId);
     spielMeta.spielart = spielart;
     spielMeta.status = 'live';
+
+    // Bestehendes Lineup löschen — bei forceWizard (Neustart) ist ein altes vorhanden
+    await supa.from('spieler_lineup').delete().eq('spiel_id', spielId);
 
     if (toInsert.length) {
       let { error } = await supa.from('spieler_lineup').insert(toInsert);
