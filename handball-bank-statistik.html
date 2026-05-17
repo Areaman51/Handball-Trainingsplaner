@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260517.1800</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v2.260517.1930</div>
     </div>
   </aside>
 
@@ -3599,11 +3599,23 @@ async function renderKaderView() {
     (spiele || []).forEach(s => spieleMap[s.id] = s);
 
     // ── 3. Aktionen laden — nach Saison filtern ──
-    const filteredSpielIds = getSpieleFiltered().map(s => s.id);
+    // Wichtig: filteredSpielIds aus der soeben frisch abgerufenen lokalen spiele-Liste
+    // bauen (nicht aus dem möglicherweise veralteten globalen spiele-Array).
+    const filteredSpielIds = (() => {
+      if (!_saisonId) return (spiele || []).map(s => s.id);
+      const range = getSaisonRange(_saisonId);
+      if (!range) return (spiele || []).map(s => s.id);
+      return (spiele || [])
+        .filter(sp => sp.datum && sp.datum >= range.start && sp.datum <= range.end)
+        .map(s => s.id);
+    })();
+
     let aktQuery = supa
       .from('spielaktionen')
       .select('id,type,polarity,spiel_id,spieler_id,spieler_lineup(name,nummer,pos,team)')
-      .eq('user_id', currentUser.id);
+      .eq('user_id', currentUser.id)
+      .limit(10000); // Supabase-Standard ist 1 000 Zeilen – bei vielen Spielen/Aktionen
+                     // werden Daten sonst lautlos abgeschnitten → Spiele fehlen in der Statistik
     if (filteredSpielIds.length && _saisonId) {
       aktQuery = aktQuery.in('spiel_id', filteredSpielIds);
     }
@@ -3622,10 +3634,20 @@ async function renderKaderView() {
     // "Mein Team" = Lineup-Team entspricht der gespielten Spielart
     // spielart 'heim'/'auswaerts' → team 'home'/'away'
     const isMyTeamAktion = (akt) => {
-      const sp = spieleMap[akt.spiel_id];
-      if (!sp) return true;
+      // Gegner-Aktionen ohne spieler_id (z.B. gegner_tor vom Ticker) haben kein Lineup.
+      // Im Eigenen-Modus sollen sie NICHT als "mein Team" gelten – ohne diese Korrektur
+      // verfälschen sie den Spielzähler (seasonSpiele), obwohl sie in der Aggregation
+      // ohnehin übersprungen werden (if !lu).
+      if (!akt.spieler_id && !akt.spieler_lineup) {
+        return _analysisMode !== 'own';
+      }
       const lineupTeam = akt.spieler_lineup?.team;
-      if (!lineupTeam) return true; // Altdaten ohne team-Feld → immer mein Team
+      if (!lineupTeam) {
+        // Altdaten: spieler_id vorhanden, kein team-Feld → als eigenes Team werten
+        return _analysisMode === 'own';
+      }
+      const sp = spieleMap[akt.spiel_id];
+      if (!sp) return _analysisMode === 'own';
       const myLineupSide = sp.spielart === 'auswaerts' ? 'away' : 'home';
       return _analysisMode === 'own'
         ? lineupTeam === myLineupSide
