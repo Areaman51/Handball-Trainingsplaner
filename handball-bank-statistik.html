@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260516.1200</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260517.1530</div>
     </div>
   </aside>
 
@@ -4332,16 +4332,48 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       const isGegnerOnly = !mappedType && !!gegnerTickerMap[ev.type]; // z.B. fw_7m vom Gegner
       if (!mappedType && !isGegnerOnly) continue;
 
-      // ── Entscheidung own vs. Gegner über ev.teamName (zuverlässigster Ansatz) ──
-      // ev.team ist in der Edge Function nicht konsistent mit spielart home/away,
-      // ev.teamName ("HT Norderstedt") ist eindeutig mit spielMeta.heim/gast vergleichbar
+      // ── Entscheidung own vs. Gegner ────────────────────────────────────────────
+      // ev.teamName nutzen wenn vorhanden (Substring-Match, da handball.net kürzt).
+      // Fallback wenn teamName leer: Spieler-Lookup in beiden Lineups (zuverlässiger
+      // als ev.team, da die Edge Function bei leerem teamName wegen des JS-Bugs
+      // heimName.includes('') === true allen Events ev.team='home' zuweist).
       const myName  = spielMeta.spielart === 'auswaerts' ? spielMeta.gast  : spielMeta.heim;
       const oppName = spielMeta.spielart === 'auswaerts' ? spielMeta.heim  : spielMeta.gast;
-      const isOwnTeam = ev.teamName
-        ? normName(ev.teamName) === normName(myName||'')
-        : (ev.team === myTeamSide); // Fallback auf team-Feld
-      // playerNum ist das korrekte Feld der Edge Function (nicht playerNumber)
+
+      // playerNum MUSS vor isOwnTeam stehen (wird im Lineup-Fallback benötigt)
       const evNummer = ev.playerNum || ev.playerNumber || null;
+
+      let isOwnTeam;
+      const evTeamNorm = normName(ev.teamName || '');
+      if (evTeamNorm) {
+        // Substring-Match auf beiden Seiten (robuster als reiner Exakt-Vergleich)
+        const myN  = normName(myName  || '');
+        const oppN = normName(oppName || '');
+        const matchMy  = myN  && (evTeamNorm === myN  || myN.includes(evTeamNorm)  || evTeamNorm.includes(myN));
+        const matchOpp = oppN && (evTeamNorm === oppN || oppN.includes(evTeamNorm) || evTeamNorm.includes(oppN));
+        // Eindeutiger Match hat Vorrang; bei Ambiguität ev.team als Tiebreaker
+        isOwnTeam = (matchMy && !matchOpp) ? true
+                  : (!matchMy && matchOpp) ? false
+                  : ev.team === myTeamSide;
+      } else {
+        // Kein teamName → Spieler in eigenen und Gegner-Lineup suchen,
+        // um den Edge-Function-Bug (alle ohne teamName → 'home') zu umgehen
+        const byNr   = evNummer ? String(evNummer) : null;
+        const byName = (ev.playerName && !isNumberOnly(ev.playerName))
+                       ? normName(ev.playerName) : null;
+        const inOwn  = myLineup.some(p =>
+          (byNr   && String(p.nummer) === byNr)   ||
+          (byName && normName(p.name)  === byName)
+        );
+        const inOpp  = oppLineup.some(p =>
+          (byNr   && String(p.nummer) === byNr)   ||
+          (byName && normName(p.name)  === byName)
+        );
+        // Eindeutiger Lineup-Treffer schlägt ev.team
+        isOwnTeam = (inOwn && !inOpp) ? true
+                  : (!inOwn && inOpp) ? false
+                  : ev.team === myTeamSide; // letzter Fallback
+      }
 
       if (isOwnTeam && !isGegnerOnly) {
         // ── Eigener Spieler ──
