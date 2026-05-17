@@ -5010,10 +5010,15 @@ function extractNumber(s) {
 }
 
 // Globale Hilfsfunktion: ist der Name ein N.N.-Platzhalter (oder leer)?
+// handball.net liefert "N.N. N.N." (Vorname + Nachname getrennt) →
+// nach Normalisierung + Leerzeichen entfernen: "n.n.n.n." → auch abfangen.
 function isNN(name) {
   if (!name) return true;
   const n = normName(name).replace(/\s/g,'');
-  return n === 'n.n.' || n === 'nn' || n === 'nn.';
+  // einfach: "n.n.", "nn", "nn."
+  // doppelt (handball.net): "n.n.n.n.", "nn.nn."
+  return n === 'n.n.' || n === 'nn' || n === 'nn.'
+      || n === 'n.n.n.n.' || n === 'nn.nn.';
 }
 
 // ── Live-View: Ticker-Button ─────────────────────────────────
