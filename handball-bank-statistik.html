@@ -2223,11 +2223,16 @@ async function undoAction(){
 async function enrichLineupFromKader(){
   if(!_myTeamId || !spielId) return;
 
-  // Kader aus Mannschaftsverwaltung laden
-  const{data:kader}=await supa.from('mannschaft_spieler')
-    .select('id,name,nummer,pos')
-    .eq('mannschaft_id',_myTeamId);
-  if(!kader?.length) return;
+  // Kader aus Cache oder DB laden (Cache wird von loadWizardKader() befüllt)
+  let kader = _wizardKaderCache;
+  if(!kader) {
+    const{data}=await supa.from('mannschaft_spieler')
+      .select('id,name,nummer,pos')
+      .eq('mannschaft_id',_myTeamId);
+    kader = data || [];
+    _wizardKaderCache = kader;
+  }
+  if(!kader.length) return;
 
   // Lookup: normierter Name → Kader-Eintrag; Trikotnummer → Kader-Eintrag
   const byName   = new Map(kader.map(k=>[normName(k.name), k]));
@@ -3462,6 +3467,7 @@ async function saveMyTeamConfig() {
     if (teamChanged) {
       _myTeamIcal = '';
       window._icalGamesMain = null;
+      _wizardKaderCache = null;   // Kader-Cache bei Team-Wechsel leeren
       await autoLoadTeamIcal(_myTeamId, true);
     }
   }
@@ -4402,9 +4408,25 @@ async function wizardLoadFromInput() {
 }
 
 function renderWizardBody(data, hCount, gCount) {
-  const rosterPreview = (players) => players.slice(0, 4).map(p =>
-    `<div style="font-size:11.5px;color:var(--soft);padding:2px 0;">#${p.nummer} ${p.name}</div>`
-  ).join('') + (players.length > 4 ? `<div style="font-size:11px;color:var(--xsoft);">+${players.length-4} weitere</div>` : '');
+  // N.N.-Spieler zählen (wird vor DB-Insert aufgelöst, nur zur Vorschau)
+  const countNN = (roster) => (roster||[]).filter(p => isNN(p.name) || isNumberOnly(p.name)).length;
+  const heimNN = countNN(data.heimRoster);
+  const gastNN = countNN(data.gastRoster);
+
+  const nnBadge = (n) => n > 0
+    ? `<span style="display:inline-block;margin-left:5px;font-size:10px;font-weight:700;
+        background:#fff7ed;color:var(--orange);border:1px solid #fed7aa;
+        border-radius:10px;padding:1px 7px;">${n}× N.N.</span>`
+    : '';
+
+  const rosterPreview = (players) => (players||[]).slice(0, 4).map(p => {
+    const isPlaceholder = isNN(p.name) || isNumberOnly(p.name);
+    return `<div style="font-size:11.5px;padding:2px 0;
+      color:${isPlaceholder ? 'var(--orange)' : 'var(--soft)'};">
+      #${p.nummer} ${isPlaceholder ? '<em>N. N.</em>' : p.name}
+    </div>`;
+  }).join('') + ((players||[]).length > 4
+    ? `<div style="font-size:11px;color:var(--xsoft);">+${players.length-4} weitere</div>` : '');
 
   return `
     <!-- Team-Auswahl -->
@@ -4415,14 +4437,18 @@ function renderWizardBody(data, hCount, gCount) {
 
         <div class="wizard-team-card" id="wc-home" onclick="selectWizardTeam('home')"
           style="border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;">
-          <div style="font-size:14px;font-weight:700;margin-bottom:6px;">🏠 ${data.heim || spielMeta.heim}</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">
+            🏠 ${data.heim || spielMeta.heim}${nnBadge(heimNN)}
+          </div>
           <div style="font-size:11.5px;color:var(--soft);margin-bottom:8px;">${hCount} Spieler</div>
           ${hCount ? rosterPreview(data.heimRoster) : '<div style="font-size:11.5px;color:var(--xsoft);">Kein Kader</div>'}
         </div>
 
         <div class="wizard-team-card" id="wc-away" onclick="selectWizardTeam('away')"
           style="border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;">
-          <div style="font-size:14px;font-weight:700;margin-bottom:6px;">✈️ ${data.gast || spielMeta.gast}</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">
+            ✈️ ${data.gast || spielMeta.gast}${nnBadge(gastNN)}
+          </div>
           <div style="font-size:11.5px;color:var(--soft);margin-bottom:8px;">${gCount} Spieler</div>
           ${gCount ? rosterPreview(data.gastRoster) : '<div style="font-size:11.5px;color:var(--xsoft);">Kein Kader</div>'}
         </div>
@@ -4433,6 +4459,12 @@ function renderWizardBody(data, hCount, gCount) {
         color:var(--soft);transition:all .15s;font-family:'DM Sans',sans-serif;">
         ↕ Beide Kader analysieren
       </button>
+      ${(heimNN > 0 || gastNN > 0) && _myTeamId ? `
+        <div style="margin-top:10px;padding:9px 12px;background:#fff7ed;border:1px solid #fed7aa;
+          border-radius:8px;font-size:12px;color:#92400e;line-height:1.5;">
+          ℹ️ N.N.-Einträge im <strong>eigenen Kader</strong> werden beim Spielstart automatisch
+          aus der Mannschaftsverwaltung aufgelöst (per Trikotnummer).
+        </div>` : ''}
     </div>
 
     <hr style="border:none;border-top:1px solid var(--border);margin:16px 0 0;">
@@ -4513,6 +4545,52 @@ function toggleTickerImport(checked) {
   if (label) label.style.borderColor = checked ? 'var(--accent)' : 'var(--border)';
 }
 
+// ════════════════════════════════════════════════════════════
+// N.N.-AUFLÖSUNG IM WIZARD (vor DB-Insert)
+// ════════════════════════════════════════════════════════════
+
+// Kader wird einmal pro Session gecacht (wird bei Team-Wechsel geleert)
+let _wizardKaderCache = null;
+
+async function loadWizardKader() {
+  if (_wizardKaderCache) return _wizardKaderCache;
+  if (!_myTeamId) return [];
+  const { data } = await supa.from('mannschaft_spieler')
+    .select('id,name,nummer,pos')
+    .eq('mannschaft_id', _myTeamId);
+  _wizardKaderCache = data || [];
+  return _wizardKaderCache;
+}
+
+// Löst N.N. / Nummern-Only in einem Spieler-Array per Trikotnummer auf.
+// Gibt { players, count, details } zurück — players ist das angereicherte Array.
+async function resolveNNFromKader(players) {
+  const kader = await loadWizardKader();
+  if (!kader.length) return { players, count: 0, details: [] };
+
+  const byNummer = new Map(
+    kader.filter(k => k.nummer != null).map(k => [String(k.nummer), k])
+  );
+
+  let count = 0;
+  const details = [];
+
+  const resolved = players.map(p => {
+    const pIsNN = isNN(p.name) || isNumberOnly(p.name);
+    if (!pIsNN) return p;
+    const effNum = (p.nummer != null ? String(p.nummer) : null)
+                || extractNumber(p.name);
+    if (!effNum) return p;
+    const kEntry = byNummer.get(effNum);
+    if (!kEntry) return p;
+    count++;
+    details.push({ rawName: p.name || '–', nummer: effNum, resolvedName: kEntry.name });
+    return { ...p, name: kEntry.name, pos: kEntry.pos || p.pos };
+  });
+
+  return { players: resolved, count, details };
+}
+
 async function confirmGameStart() {
   const { data, selectedTeam, timerMode, importTicker, baseUrl, rosterSource } = _gs;
   if (!selectedTeam) return;
@@ -4548,6 +4626,21 @@ async function confirmGameStart() {
     if (selectedTeam === 'home') { myPlayers = heimPlayers; oppPlayers = gastPlayers.map(p=>({...p,bench:true})); }
     if (selectedTeam === 'away') { myPlayers = gastPlayers; oppPlayers = heimPlayers.map(p=>({...p,bench:true})); }
     if (selectedTeam === 'both') { myPlayers = [...heimPlayers,...gastPlayers]; oppPlayers = []; }
+
+    // ── N.N. / Nummern-Only aus Kader auflösen (vor DB-Insert) ──────────
+    // Nur für "mein Team" — Gegner-Einträge bleiben so wie von handball.net
+    if (_myTeamId) {
+      const { players: myResolved, count: nnCount, details: nnDetails }
+        = await resolveNNFromKader(myPlayers);
+      if (nnCount > 0) {
+        myPlayers = myResolved;
+        console.log(`[wizard] ${nnCount} N.N. aufgelöst:`, nnDetails);
+        // Auch in heimRoster/gastRoster spiegeln (für spätere Ticker-Zuordnung)
+        if (selectedTeam === 'home') data.heimRoster = myResolved;
+        if (selectedTeam === 'away') data.gastRoster = myResolved;
+      }
+    }
+
     const toInsert = [...myPlayers, ...oppPlayers];
 
     // Spielart anpassen
