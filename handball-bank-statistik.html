@@ -3621,11 +3621,35 @@ async function renderKaderView() {
     }
     const { data: rawAkt } = await aktQuery;
 
-    if (!rawAkt?.length) {
+    // ── 3b. Lineup-Auftritte laden — für genaue SP-Zählung ──
+    // spielaktionen-basierte SP-Zählung unterschätzt die echte Spielanzahl:
+    // Spiele ohne Ticker-Import oder manuelle Erfassung fehlen komplett.
+    // Stattdessen: spieler_lineup zählen (bench≠true = eigener Spieler).
+    let luSpQuery = supa
+      .from('spieler_lineup')
+      .select('name,nummer,spiel_id')
+      .eq('user_id', currentUser.id)
+      .neq('bench', true)
+      .limit(10000);
+    if (filteredSpielIds.length && _saisonId) {
+      luSpQuery = luSpQuery.in('spiel_id', filteredSpielIds);
+    }
+    const { data: luData } = await luSpQuery;
+
+    // Index: "lowname|nummer" → Set<spiel_id>  (für SP-Abgleich mit Kader)
+    const luByKey = {};
+    (luData || []).forEach(lu => {
+      const k = `${(lu.name||'').toLowerCase().trim()}|${lu.nummer||''}`;
+      if (!luByKey[k]) luByKey[k] = new Set();
+      luByKey[k].add(lu.spiel_id);
+    });
+
+    // Wenn weder Aktionen noch Lineup-Einträge vorhanden sind → leerer State
+    if (!rawAkt?.length && !luData?.length) {
       content.innerHTML = `<div class="kader-empty">
         <div class="kader-empty-icon">📊</div>
         <div style="font-size:15px;font-weight:600;margin-bottom:8px;">Noch keine Daten</div>
-        <div style="font-size:13px;">Erfasse zuerst Spiele mit Live-Erfassung.</div>
+        <div style="font-size:13px;">Erfasse zuerst Spiele mit Live-Erfassung oder importiere Ticker-Daten.</div>
       </div>`;
       return;
     }
@@ -3706,11 +3730,27 @@ async function renderKaderView() {
         });
         // Nummern unter denen der Spieler abseits der Kader-Nummer gespielt hat
         const _altNummern = [...nummerSet].filter(n => String(n) !== String(ks.nummer||''));
+
+        // ── SP aus spieler_lineup — echte Spielanzahl unabhängig von Aktionserfassung ──
+        // Alle luByKey-Einträge die zu diesem Kader-Spieler passen (Name oder Nummer)
+        const luMatchKeys = Object.keys(luByKey).filter(k => {
+          const pipe  = k.indexOf('|');
+          const kname = k.slice(0, pipe);
+          const knum  = k.slice(pipe + 1);
+          return kname === nameLow ||
+                 (ks.nummer && knum && String(knum) === String(ks.nummer));
+        });
+        const luSpiele = new Set();
+        luMatchKeys.forEach(k => luByKey[k].forEach(id => luSpiele.add(id)));
+        // Bevorzuge Lineup-Zählung (genauer); falle auf Aktions-Zählung zurück wenn kein Lineup
+        const spieleCount = luSpiele.size || mergedSpiele.size;
+
         return {
           name: ks.name,
           nummer: ks.nummer || '',
           pos: ks.pos || 'FL',
-          spiele: mergedSpiele.size,
+          spiele: spieleCount,
+          spieleAkt: mergedSpiele.size,  // Spiele mit erfassten Aktionen (für Tooltip)
           s: mergedS,
           aktionen: mergedAkt,
           _altNummern,
@@ -3739,9 +3779,13 @@ async function renderKaderView() {
     }
 
     // ── 7. Render ──
-    const seasonSpiele = new Set(filteredAkt.map(a => a.spiel_id)).size;
+    const spieleMitAkt  = new Set(filteredAkt.map(a => a.spiel_id)).size;
+    const spieleGesamt  = filteredSpielIds.length;
+    const subtitleCount = spieleMitAkt < spieleGesamt
+      ? `${spieleMitAkt} von ${spieleGesamt} Spielen erfasst`
+      : `${spieleGesamt} Spiel${spieleGesamt !== 1 ? 'e' : ''}`;
     document.getElementById('kader-subtitle').textContent =
-      `${seasonSpiele} Spiel${seasonSpiele!==1?'e':''} · ${playerList.length} Spieler`;
+      `${subtitleCount} · ${playerList.length} Spieler`;
 
     if (_kaderPos === 'FL') {
       content.innerHTML = renderKaderTableFL(playerList);
@@ -3787,12 +3831,18 @@ function renderKaderTableFL(players) {
            style="font-size:9.5px;color:var(--xsoft);margin-left:5px;background:var(--bg);
            border:1px solid var(--border);border-radius:4px;padding:1px 5px;cursor:help;">
            ≠#${p._altNummern.join(',')}</span>` : '';
+    // SP-Zelle: zeigt Lineup-basierte Spielanzahl; Tooltip wenn nicht alle Spiele erfasst
+    const aktCount = p.spieleAkt ?? p.spiele;
+    const spTitle  = aktCount < p.spiele
+      ? ` title="Lineup: ${p.spiele} Spiele · Aktionen erfasst: ${aktCount} Spiele"` : '';
+    const spSuffix = aktCount < p.spiele
+      ? `<span style="font-size:9px;color:var(--xsoft);margin-left:3px;">(${aktCount}✓)</span>` : '';
     return `<tr class="kader-player-row" style="${bg}${!hasData?'opacity:.4;':''}">
       <td><span class="kader-rank">${i+1}</span></td>
       <td style="font-weight:600;white-space:nowrap;">
         ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">#${p.nummer}</span>`:''}${p.name}${altNrHint}
       </td>
-      <td style="text-align:center;">${p.spiele||0}</td>
+      <td style="text-align:center;"${spTitle}>${p.spiele||0}${spSuffix}</td>
       <td class="ve">${he!==null?he+'%':'—'}</td>
       <td class="ve">${wq!==null?wq+'%':'—'}</td>
       <td class="vp">${tore}</td>
@@ -3859,12 +3909,17 @@ function renderKaderTableTH(players) {
            style="font-size:9.5px;color:var(--xsoft);margin-left:5px;background:var(--bg);
            border:1px solid var(--border);border-radius:4px;padding:1px 5px;cursor:help;">
            ≠#${p._altNummern.join(',')}</span>` : '';
+    const aktCount = p.spieleAkt ?? p.spiele;
+    const spTitle  = aktCount < p.spiele
+      ? ` title="Lineup: ${p.spiele} Spiele · Aktionen erfasst: ${aktCount} Spiele"` : '';
+    const spSuffix = aktCount < p.spiele
+      ? `<span style="font-size:9px;color:var(--xsoft);margin-left:3px;">(${aktCount}✓)</span>` : '';
     return `<tr class="kader-player-row" style="${bg}${!hasData?'opacity:.4;':''}">
       <td><span class="kader-rank">${i+1}</span></td>
       <td style="font-weight:600;white-space:nowrap;">
         ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">●${p.nummer}</span>`:''}${p.name}${altNrHint}
       </td>
-      <td style="text-align:center;">${p.spiele||0}</td>
+      <td style="text-align:center;"${spTitle}>${p.spiele||0}${spSuffix}</td>
       <td class="ve">${he!==null?he+'%':'—'}</td>
       <td class="ve">${aq!==null?aq+'%':'—'}</td>
       <td class="vp">${geh}</td>
