@@ -686,6 +686,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <div id="saison-picker-kader"></div>
+            <button class="btn btn-ghost btn-sm" id="kader-abgleich-btn"
+              onclick="runKaderAbgleich()" title="N.N. auflösen & Nummernabweichungen prüfen">
+              🔍 Kader-Abgleich
+            </button>
             <button class="btn btn-ghost btn-sm" onclick="renderKaderView()">🔄</button>
           </div>
         </div>
@@ -694,6 +698,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     </div><!-- /content -->
   </main>
+</div>
+
+<!-- ════ MODAL: Kader-Abgleich ════ -->
+<div class="overlay" id="m-kaderabgleich">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <div>
+        <div class="modal-title">🔍 Kader-Abgleich</div>
+        <div class="modal-sub">N.N.-Einträge auflösen · Nummernwechsel erkennen</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('m-kaderabgleich')">✕</button>
+    </div>
+    <div class="modal-body" id="m-kaderabgleich-body" style="padding:0;max-height:70vh;overflow-y:auto;">
+      <div style="padding:40px;text-align:center;color:var(--xsoft);">⏳ Lade…</div>
+    </div>
+  </div>
 </div>
 
 <!-- ════ MODAL: Mein Team konfigurieren ════ -->
@@ -2191,35 +2211,314 @@ async function undoAction(){
 // ════════════════════════════════════════════════════════════
 // LINEUP ↔ KADER ABGLEICH: Torhüter automatisch erkennen
 // ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+// KADER-SYNC: Lineup mit Mannschaftsverwaltung abgleichen
+// ════════════════════════════════════════════════════════════
+//
+// Aufgaben:
+//  a) Positionen korrigieren (Kader ist maßgeblich für TH vs. FL)
+//  b) N.N.-Platzhalter auflösen: wenn ein Eintrag „N. N." heißt und
+//     eine Trikotnummer hat, die im Kader bekannt ist → echten Namen eintragen
+//
 async function enrichLineupFromKader(){
   if(!_myTeamId || !spielId) return;
 
   // Kader aus Mannschaftsverwaltung laden
   const{data:kader}=await supa.from('mannschaft_spieler')
-    .select('name,nummer,pos')
+    .select('id,name,nummer,pos')
     .eq('mannschaft_id',_myTeamId);
   if(!kader?.length) return;
 
-  // Lookup: normierter Name UND Nummer → pos
-  const byName   = new Map(kader.map(k=>[normName(k.name), k.pos]));
-  const byNummer = new Map(kader.map(k=>[String(k.nummer||''), k.pos]));
+  // Lookup: normierter Name → Kader-Eintrag; Trikotnummer → Kader-Eintrag
+  const byName   = new Map(kader.map(k=>[normName(k.name), k]));
+  const byNummer = new Map(kader.filter(k=>k.nummer!=null).map(k=>[String(k.nummer), k]));
 
-  // Eigene Spieler (bench=false) prüfen
   const toUpdate = [];
   lineup.filter(p=>!p.bench).forEach(p=>{
-    const kaderPos = byNummer.get(String(p.nummer||'')) || byName.get(normName(p.name||''));
-    if(kaderPos && kaderPos !== p.pos){
-      p.pos = kaderPos;           // lokal sofort anpassen
-      if(p.id) toUpdate.push({id: p.id, pos: kaderPos});
+    const pIsNN = isNN(p.name);
+
+    // Kader-Eintrag suchen: N.N. nur per Nummer, echter Name per Name (dann Nummer als Fallback)
+    let kaderEntry = null;
+    if(pIsNN) {
+      if(p.nummer) kaderEntry = byNummer.get(String(p.nummer));
+    } else {
+      kaderEntry = byName.get(normName(p.name||''))
+        || (p.nummer ? byNummer.get(String(p.nummer)) : null);
+    }
+    if(!kaderEntry) return;
+
+    const updates = {};
+
+    // (b) N.N. auflösen
+    if(pIsNN && kaderEntry.name) {
+      p.name = kaderEntry.name;
+      updates.name = kaderEntry.name;
+    }
+
+    // (a) Position korrigieren
+    if(kaderEntry.pos && kaderEntry.pos !== p.pos) {
+      p.pos = kaderEntry.pos;
+      updates.pos = kaderEntry.pos;
+    }
+
+    if(Object.keys(updates).length && p.id) {
+      toUpdate.push({id: p.id, ...updates});
     }
   });
 
-  // Geänderte Positionen in DB persistieren
   if(toUpdate.length){
-    await Promise.all(toUpdate.map(u=>
-      supa.from('spieler_lineup').update({pos:u.pos}).eq('id',u.id)
-    ));
-    console.log(`[kader-sync] ${toUpdate.length} Position(en) aktualisiert`);
+    await Promise.all(toUpdate.map(u=>{
+      const{id,...fields}=u;
+      return supa.from('spieler_lineup').update(fields).eq('id',id);
+    }));
+    const nnFixed = toUpdate.filter(u=>u.name).length;
+    const posFixed = toUpdate.filter(u=>u.pos).length;
+    console.log(`[kader-sync] ${nnFixed} N.N. aufgelöst, ${posFixed} Position(en) korrigiert`);
+    if(nnFixed) toast(`${nnFixed} N.N.-Eintrag${nnFixed>1?'e':''} aus Kader aufgelöst ✓`,'success');
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// KADER-ABGLEICH (spielübergreifend)
+// ════════════════════════════════════════════════════════════
+//
+// Prüft ALLE Lineup-Einträge über alle Spiele:
+//  1. N.N.-Einträge mit bekannter Trikotnummer → echten Namen aus Kader auflösen
+//  2. Namenstreffer mit abweichender Trikotnummer → Hinweis (für Langzeitstatistik relevant)
+//
+async function runKaderAbgleich() {
+  if (!_myTeamId) { toast('Kein Team konfiguriert. Bitte zuerst "Mein Team" setzen.', 'error'); return; }
+
+  const btn = document.getElementById('kader-abgleich-btn');
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+
+  try {
+    // Kader laden
+    const { data: kader, error: kErr } = await supa.from('mannschaft_spieler')
+      .select('id,name,nummer,pos')
+      .eq('mannschaft_id', _myTeamId)
+      .order('nummer');
+    if (kErr || !kader?.length) {
+      toast('Kein Kader in der Mannschaftsverwaltung vorhanden.', 'info');
+      return;
+    }
+
+    // ALLE eigenen Lineup-Einträge des aktuellen Users laden (spielübergreifend)
+    const { data: allLineup, error: lErr } = await supa.from('spieler_lineup')
+      .select('id,spiel_id,name,nummer,pos,bench')
+      .eq('user_id', currentUser.id)
+      .eq('bench', false);
+    if (lErr || !allLineup?.length) {
+      toast('Keine Lineup-Einträge gefunden.', 'info');
+      return;
+    }
+
+    // Lookup-Maps für den Kader
+    const byName   = new Map(kader.map(k => [normName(k.name), k]));
+    const byNummer = new Map(kader.filter(k=>k.nummer!=null).map(k => [String(k.nummer), k]));
+
+    // Spiel-Metadaten für Anzeige laden (Datum + Gegner)
+    const spieleIds = [...new Set(allLineup.map(p => p.spiel_id))];
+    const { data: spieleMeta } = await supa.from('spiele')
+      .select('id,datum,heim,gast')
+      .in('id', spieleIds);
+    const spieleMetaMap = Object.fromEntries((spieleMeta||[]).map(s => [s.id, s]));
+
+    // Analyse
+    const nnToResolve   = [];  // { lineup-Einträge die aufgelöst werden können }
+    const nummerAbweich = [];  // { Einträge wo Name stimmt aber Nummer abweicht }
+
+    allLineup.forEach(p => {
+      const pIsNN = isNN(p.name);
+      const numStr = p.nummer != null ? String(p.nummer) : '';
+      const sp = spieleMetaMap[p.spiel_id] || {};
+
+      if (pIsNN && numStr) {
+        // N.N. mit Nummer: kann aus Kader aufgelöst werden?
+        const kEntry = byNummer.get(numStr);
+        if (kEntry) {
+          nnToResolve.push({
+            lineupId:     p.id,
+            spiel_id:     p.spiel_id,
+            spielDatum:   sp.datum || '',
+            spielPaarung: `${sp.heim||''} – ${sp.gast||''}`,
+            nummer:       p.nummer,
+            kaderName:    kEntry.name,
+            kaderPos:     kEntry.pos,
+            currentPos:   p.pos,
+          });
+        }
+      } else if (!pIsNN && p.name && numStr) {
+        // Echter Name: Kader-Match per Name, aber andere Nummer?
+        const kEntry = byName.get(normName(p.name));
+        if (kEntry && kEntry.nummer != null && String(kEntry.nummer) !== numStr) {
+          nummerAbweich.push({
+            lineupId:     p.id,
+            spiel_id:     p.spiel_id,
+            spielDatum:   sp.datum || '',
+            spielPaarung: `${sp.heim||''} – ${sp.gast||''}`,
+            name:         p.name,
+            kaderNummer:  kEntry.nummer,
+            spielNummer:  p.nummer,
+          });
+        }
+      }
+    });
+
+    _abgleichData = { nnToResolve, nummerAbweich, kader };
+    showKaderAbgleichModal(nnToResolve, nummerAbweich);
+
+  } catch(e) {
+    console.error('[kader-abgleich]', e);
+    toast('Fehler: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.textContent = '🔍 Kader-Abgleich'; btn.disabled = false; }
+  }
+}
+
+let _abgleichData = null;
+
+function showKaderAbgleichModal(nnList, numAbwList) {
+  const body = document.getElementById('m-kaderabgleich-body');
+  if (!body) return;
+
+  const fmtD = d => d ? d.split('-').reverse().join('.') : '–';
+
+  // ── Sektion 1: N.N. auflösbar ──────────────────────────────────────
+  let nnHtml = '';
+  if (!nnList.length) {
+    nnHtml = `<div style="padding:12px 16px;font-size:13px;color:var(--soft);">
+      ✅ Keine N.N.-Einträge mit bekannter Trikotnummer – alles sauber!
+    </div>`;
+  } else {
+    const rows = nnList.map(e => `
+      <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;
+        border-bottom:1px solid var(--border);font-size:12.5px;">
+        <div style="font-size:16px;font-weight:800;color:var(--accent);
+          font-family:'DM Mono',monospace;min-width:36px;text-align:center;">#${e.nummer}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;margin-bottom:1px;">
+            N.&nbsp;N. → <span style="color:var(--green);">${e.kaderName}</span>
+            ${e.kaderPos==='TH'?'<span style="font-size:10px;color:var(--purple);margin-left:5px;">● TH</span>':''}
+          </div>
+          <div style="font-size:11px;color:var(--xsoft);">
+            ${fmtD(e.spielDatum)} · ${e.spielPaarung||'–'}
+          </div>
+        </div>
+        <div style="font-size:10px;background:var(--green-l);color:var(--green);
+          border:1px solid var(--green-b);border-radius:5px;padding:2px 8px;flex-shrink:0;white-space:nowrap;">
+          auflösbar
+        </div>
+      </div>`).join('');
+    nnHtml = `
+      <div style="margin-bottom:8px;font-size:12px;color:var(--soft);">
+        ${nnList.length} Eintrag${nnList.length>1?'e':''} können automatisch mit dem echten Namen befüllt werden.
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;max-height:260px;overflow-y:auto;">
+        ${rows}
+      </div>`;
+  }
+
+  // ── Sektion 2: Nummernabweichungen ─────────────────────────────────
+  let numHtml = '';
+  if (!numAbwList.length) {
+    numHtml = `<div style="padding:12px 16px;font-size:13px;color:var(--soft);">
+      ✅ Keine Nummernabweichungen gefunden – Langzeitstatistik ist konsistent.
+    </div>`;
+  } else {
+    const rows = numAbwList.map(e => `
+      <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;
+        border-bottom:1px solid var(--border);font-size:12.5px;">
+        <div style="font-size:13px;font-weight:700;min-width:90px;text-align:center;
+          font-family:'DM Mono',monospace;color:var(--orange);">
+          #${e.kaderNummer}&nbsp;→&nbsp;#${e.spielNummer}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;">${e.name}</div>
+          <div style="font-size:11px;color:var(--xsoft);">
+            Kader: #${e.kaderNummer} · gespielt: #${e.spielNummer}<br>
+            ${fmtD(e.spielDatum)} · ${e.spielPaarung||'–'}
+          </div>
+        </div>
+        <div style="font-size:10px;background:#fff7ed;color:var(--orange);
+          border:1px solid #fed7aa;border-radius:5px;padding:2px 8px;flex-shrink:0;
+          text-align:center;white-space:nowrap;">auto-merged
+        </div>
+      </div>`).join('');
+    numHtml = `
+      <div style="margin-bottom:8px;font-size:12px;color:var(--soft);">
+        ${numAbwList.length} Eintrag${numAbwList.length>1?'e':''} mit abweichender Trikotnummer. Die Langzeitstatistik
+        führt diese bereits automatisch per Name-Match zusammen.
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;max-height:220px;overflow-y:auto;">
+        ${rows}
+      </div>
+      <div style="margin-top:10px;padding:10px 12px;background:#fff7ed;border:1px solid #fed7aa;
+        border-radius:8px;font-size:12px;color:#92400e;line-height:1.5;">
+        💡 Kein Handlungsbedarf: Die abweichende Nummer bleibt für das jeweilige Spiel erhalten.
+        In der Langzeitstatistik erscheint der Spieler korrekt unter dem Kader-Namen.
+      </div>`;
+  }
+
+  body.innerHTML = `
+    <div style="padding:16px 20px 14px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;">👤 N.N.-Einträge auflösen</div>
+          <div style="font-size:11.5px;color:var(--soft);margin-top:2px;">
+            Platzhalter-Namen mit bekannter Trikotnummer → echten Kader-Namen eintragen
+          </div>
+        </div>
+        ${nnList.length ? `<button class="btn btn-primary btn-sm" id="abgleich-nn-btn"
+          onclick="applyKaderAbgleich('nn')" style="flex-shrink:0;margin-left:12px;">
+          ✓ ${nnList.length} auflösen
+        </button>` : ''}
+      </div>
+      ${nnHtml}
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:0;">
+
+    <div style="padding:16px 20px 16px;">
+      <div style="margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;">🔢 Mögliche Nummernwechsel</div>
+        <div style="font-size:11.5px;color:var(--soft);margin-top:2px;">
+          Spieler, die in einem Spiel unter einer anderen Nummer angetreten sind
+        </div>
+      </div>
+      ${numHtml}
+    </div>`;
+
+  openModal('m-kaderabgleich');
+}
+
+async function applyKaderAbgleich(mode) {
+  if (!_abgleichData) return;
+  const btn = document.getElementById('abgleich-nn-btn');
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+
+  try {
+    if (mode === 'nn') {
+      const { nnToResolve } = _abgleichData;
+      if (!nnToResolve.length) return;
+
+      await Promise.all(nnToResolve.map(e => {
+        const fields = { name: e.kaderName };
+        if (e.kaderPos && e.kaderPos !== e.currentPos) fields.pos = e.kaderPos;
+        return supa.from('spieler_lineup').update(fields).eq('id', e.lineupId);
+      }));
+
+      toast(`${nnToResolve.length} N.N.-Eintrag${nnToResolve.length>1?'e':''} aufgelöst ✓`, 'success');
+      closeModal('m-kaderabgleich');
+      _abgleichData = null;
+
+      // Langzeitstatistik neu laden
+      if (document.getElementById('view-kader')?.classList.contains('active')) renderKaderView();
+    }
+  } catch(e) {
+    console.error('[abgleich-apply]', e);
+    toast('Fehler: ' + e.message, 'error');
+    if (btn) { btn.textContent = `✓ ${_abgleichData?.nnToResolve?.length||0} auflösen`; btn.disabled = false; }
   }
 }
 
@@ -2488,8 +2787,7 @@ function renderStatistikGegner(c){
   } else {
     // Hilfsfunktion: Aktion gehört zu Spieler wenn Name ODER Nummer übereinstimmt
     // N.N.-Spieler und namenlose Ticker-Einträge werden über die Nummer gematcht
-    const isNN = name => !name || normName(name)===normName('n. n.')
-      || normName(name)===normName('n.n.') || normName(name).replace(/\s/g,'')===normName('nn');
+    // isNN ist eine globale Funktion (sieh oben)
 
     const matchesPlayer = (a, p) => {
       // 1. Nummer-Match (höchste Priorität — eindeutig und Nummern-only-Fall)
@@ -3313,24 +3611,41 @@ async function renderKaderView() {
     });
 
     // ── 6. Bei "Mein Team"-Modus: auf Kader-Spieler begrenzen / matchen ──
+    // Wichtig: ein Spieler kann in verschiedenen Spielen unter verschiedenen
+    // Nummern gespielt haben (z.B. nach Nummernwechsel oder N.N.-Import).
+    // Alle passenden Einträge werden zusammengeführt → saubere Langzeitstatistik.
     let playerList = [];
 
     if (_analysisMode === 'own' && kaderSpieler.length) {
-      // Kader-Spieler mit gematchten Stats anreichern
       playerList = kaderSpieler.map(ks => {
         const nameLow = (ks.name || '').toLowerCase().trim();
-        // Match: Name UND/ODER Nummer
-        const entry = Object.values(byPlayer).find(p =>
+        // ALLE Einträge sammeln, die zu diesem Kader-Spieler gehören:
+        // Name-Match ODER Nummern-Match (deckt auch Nummernwechsel + aufgelöste N.N. ab)
+        const matchingEntries = Object.values(byPlayer).filter(p =>
           p.name.toLowerCase().trim() === nameLow ||
           (ks.nummer && p.nummer && String(p.nummer) === String(ks.nummer))
         );
+        // Stats aus allen Matches zusammenführen
+        const mergedSpiele = new Set();
+        const mergedS      = {};
+        const mergedAkt    = [];
+        const nummerSet    = new Set();
+        matchingEntries.forEach(e => {
+          e.spiele.forEach(sid => mergedSpiele.add(sid));
+          mergedAkt.push(...e.aktionen);
+          Object.entries(e.s).forEach(([k,v]) => mergedS[k] = (mergedS[k]||0)+v);
+          if(e.nummer) nummerSet.add(String(e.nummer));
+        });
+        // Nummern unter denen der Spieler abseits der Kader-Nummer gespielt hat
+        const _altNummern = [...nummerSet].filter(n => String(n) !== String(ks.nummer||''));
         return {
           name: ks.name,
           nummer: ks.nummer || '',
           pos: ks.pos || 'FL',
-          spiele: entry?.spiele?.size || 0,
-          s: entry?.s || {},
-          aktionen: entry?.aktionen || []
+          spiele: mergedSpiele.size,
+          s: mergedS,
+          aktionen: mergedAkt,
+          _altNummern,
         };
       }).filter(p => _kaderPos === 'all' || p.pos === _kaderPos);
     } else {
@@ -3399,10 +3714,15 @@ function renderKaderTableFL(players) {
     const w = plus-minus;
     const hasData = total > 0;
     const bg = i%2===0?'':'background:rgba(0,0,0,.02);';
+    const altNrHint = p._altNummern?.length
+      ? `<span title="Auch gespielt mit Trikotnummer(n): ${p._altNummern.map(n=>'#'+n).join(', ')}"
+           style="font-size:9.5px;color:var(--xsoft);margin-left:5px;background:var(--bg);
+           border:1px solid var(--border);border-radius:4px;padding:1px 5px;cursor:help;">
+           ≠#${p._altNummern.join(',')}</span>` : '';
     return `<tr class="kader-player-row" style="${bg}${!hasData?'opacity:.4;':''}">
       <td><span class="kader-rank">${i+1}</span></td>
       <td style="font-weight:600;white-space:nowrap;">
-        ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">#${p.nummer}</span>`:''}${p.name}
+        ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">#${p.nummer}</span>`:''}${p.name}${altNrHint}
       </td>
       <td style="text-align:center;">${p.spiele||0}</td>
       <td class="ve">${he!==null?he+'%':'—'}</td>
@@ -3466,10 +3786,15 @@ function renderKaderTableTH(players) {
     const w = plus-minus;
     const hasData = total > 0;
     const bg = i%2===0?'':'background:rgba(0,0,0,.02);';
+    const altNrHint = p._altNummern?.length
+      ? `<span title="Auch gespielt mit Trikotnummer(n): ${p._altNummern.map(n=>'#'+n).join(', ')}"
+           style="font-size:9.5px;color:var(--xsoft);margin-left:5px;background:var(--bg);
+           border:1px solid var(--border);border-radius:4px;padding:1px 5px;cursor:help;">
+           ≠#${p._altNummern.join(',')}</span>` : '';
     return `<tr class="kader-player-row" style="${bg}${!hasData?'opacity:.4;':''}">
       <td><span class="kader-rank">${i+1}</span></td>
       <td style="font-weight:600;white-space:nowrap;">
-        ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">●${p.nummer}</span>`:''}${p.name}
+        ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">●${p.nummer}</span>`:''}${p.name}${altNrHint}
       </td>
       <td style="text-align:center;">${p.spiele||0}</td>
       <td class="ve">${he!==null?he+'%':'—'}</td>
@@ -4549,6 +4874,13 @@ function isNumberOnly(s) {
 function extractNumber(s) {
   const m = (s||'').match(/^(\d+)\.?\s*$/);
   return m ? m[1] : null;
+}
+
+// Globale Hilfsfunktion: ist der Name ein N.N.-Platzhalter (oder leer)?
+function isNN(name) {
+  if (!name) return true;
+  const n = normName(name).replace(/\s/g,'');
+  return n === 'n.n.' || n === 'nn' || n === 'nn.';
 }
 
 // ── Live-View: Ticker-Button ─────────────────────────────────
