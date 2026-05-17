@@ -2303,13 +2303,20 @@ async function runKaderAbgleich() {
       return;
     }
 
-    // ALLE eigenen Lineup-Einträge des aktuellen Users laden (spielübergreifend)
-    const { data: allLineup, error: lErr } = await supa.from('spieler_lineup')
-      .select('id,spiel_id,name,nummer,pos,bench')
-      .eq('user_id', currentUser.id)
-      .eq('bench', false);
-    if (lErr || !allLineup?.length) {
-      toast('Keine Lineup-Einträge gefunden.', 'info');
+    // ALLE Lineup-Einträge des Users laden — KEIN bench-Filter,
+    // weil ältere Einträge bench=null haben können; Gegner-Spieler
+    // werden später per team-Feld / bench=true aussortiert.
+    const { data: allLineupRaw, error: lErr } = await supa.from('spieler_lineup')
+      .select('id,spiel_id,name,nummer,pos,bench,team')
+      .eq('user_id', currentUser.id);
+    if (lErr) { toast('DB-Fehler: ' + lErr.message, 'error'); return; }
+
+    // Eigene Spieler: bench ist false ODER null (ältere Imports ohne bench-Feld)
+    // Gegner-Spieler haben explizit bench=true → ausfiltern
+    const allLineup = (allLineupRaw || []).filter(p => p.bench !== true);
+
+    if (!allLineup.length) {
+      toast('Keine eigenen Lineup-Einträge gefunden. Bitte zuerst ein Spiel mit Aufstellung starten.', 'info');
       return;
     }
 
@@ -2325,31 +2332,38 @@ async function runKaderAbgleich() {
     const spieleMetaMap = Object.fromEntries((spieleMeta||[]).map(s => [s.id, s]));
 
     // Analyse
-    const nnToResolve   = [];  // { lineup-Einträge die aufgelöst werden können }
-    const nummerAbweich = [];  // { Einträge wo Name stimmt aber Nummer abweicht }
+    const nnToResolve   = [];  // Einträge die aufgelöst werden können
+    const nummerAbweich = [];  // Einträge wo Name stimmt aber Nummer abweicht
+    let   debugUnknown  = [];  // Einträge die weder N.N. noch Kader-Match
 
     allLineup.forEach(p => {
-      const pIsNN = isNN(p.name);
+      // Gilt als N.N. wenn: leerer Name, "N. N." / "N.N.", reine Trikotnummer ("17.", "8")
+      const pIsNN = isNN(p.name) || isNumberOnly(p.name);
       const numStr = p.nummer != null ? String(p.nummer) : '';
+      // Bei isNumberOnly-Namen: Nummer aus dem Namen extrahieren wenn keine echte Nummer da ist
+      const effNummer = numStr || (isNumberOnly(p.name) ? extractNumber(p.name) : '');
       const sp = spieleMetaMap[p.spiel_id] || {};
 
-      if (pIsNN && numStr) {
-        // N.N. mit Nummer: kann aus Kader aufgelöst werden?
-        const kEntry = byNummer.get(numStr);
+      if (pIsNN && effNummer) {
+        // N.N. / Nummern-Only mit bekannter Nummer → Kader-Match per Nummer
+        const kEntry = byNummer.get(effNummer);
         if (kEntry) {
           nnToResolve.push({
             lineupId:     p.id,
             spiel_id:     p.spiel_id,
             spielDatum:   sp.datum || '',
             spielPaarung: `${sp.heim||''} – ${sp.gast||''}`,
-            nummer:       p.nummer,
+            rawName:      p.name || '–',
+            nummer:       effNummer,
             kaderName:    kEntry.name,
             kaderPos:     kEntry.pos,
             currentPos:   p.pos,
           });
+        } else {
+          debugUnknown.push({ name: p.name, nummer: effNummer, grund: 'Nummer nicht im Kader' });
         }
       } else if (!pIsNN && p.name && numStr) {
-        // Echter Name: Kader-Match per Name, aber andere Nummer?
+        // Echter Name → Kader-Match per Name, aber andere Nummer?
         const kEntry = byName.get(normName(p.name));
         if (kEntry && kEntry.nummer != null && String(kEntry.nummer) !== numStr) {
           nummerAbweich.push({
@@ -2365,6 +2379,19 @@ async function runKaderAbgleich() {
       }
     });
 
+    // Debug-Log in der Konsole
+    console.group('[Kader-Abgleich] Ergebnis');
+    console.log('Eigene Lineup-Einträge gesamt:', allLineup.length);
+    console.log('N.N./Platzhalter gesamt:', allLineup.filter(p=>isNN(p.name)||isNumberOnly(p.name)).length);
+    console.log('Auflösbar (Kader-Match):', nnToResolve.length);
+    console.log('Nicht auflösbar (Nummer fehlt im Kader):', debugUnknown.length, debugUnknown);
+    console.log('Nummernabweichungen:', nummerAbweich.length);
+    console.log('Kader-Einträge:', kader.length, 'Nummern:', kader.map(k=>k.nummer));
+    console.groupEnd();
+
+    _abgleichData = { nnToResolve, nummerAbweich, kader, debugTotal: allLineup.length, debugNN: allLineup.filter(p=>isNN(p.name)||isNumberOnly(p.name)).length, debugUnknown };
+    showKaderAbgleichModal(nnToResolve, nummerAbweich, _abgleichData);
+
     _abgleichData = { nnToResolve, nummerAbweich, kader };
     showKaderAbgleichModal(nnToResolve, nummerAbweich);
 
@@ -2378,11 +2405,21 @@ async function runKaderAbgleich() {
 
 let _abgleichData = null;
 
-function showKaderAbgleichModal(nnList, numAbwList) {
+function showKaderAbgleichModal(nnList, numAbwList, debug={}) {
   const body = document.getElementById('m-kaderabgleich-body');
   if (!body) return;
 
   const fmtD = d => d ? d.split('-').reverse().join('.') : '–';
+
+  // ── Scan-Zusammenfassung ───────────────────────────────────────────
+  const summaryHtml = `
+    <div style="padding:12px 20px;background:var(--bg);border-bottom:1px solid var(--border);
+      display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--soft);">
+      <span>📋 <strong>${debug.debugTotal||0}</strong> eigene Lineup-Einträge gescannt</span>
+      <span>🔍 <strong>${debug.debugNN||0}</strong> Platzhalter-Einträge (N.N. / Nummern-Only)</span>
+      <span>✅ <strong>${nnList.length}</strong> auflösbar</span>
+      ${debug.debugUnknown?.length ? `<span style="color:var(--orange);">⚠️ <strong>${debug.debugUnknown.length}</strong> Platzhalter ohne Kader-Treffer</span>` : ''}
+    </div>`;
 
   // ── Sektion 1: N.N. auflösbar ──────────────────────────────────────
   let nnHtml = '';
@@ -2398,7 +2435,8 @@ function showKaderAbgleichModal(nnList, numAbwList) {
           font-family:'DM Mono',monospace;min-width:36px;text-align:center;">#${e.nummer}</div>
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;margin-bottom:1px;">
-            N.&nbsp;N. → <span style="color:var(--green);">${e.kaderName}</span>
+            <span style="color:var(--xsoft);font-size:11px;">${e.rawName||'N.N.'}</span>
+            → <span style="color:var(--green);">${e.kaderName}</span>
             ${e.kaderPos==='TH'?'<span style="font-size:10px;color:var(--purple);margin-left:5px;">● TH</span>':''}
           </div>
           <div style="font-size:11px;color:var(--xsoft);">
@@ -2460,7 +2498,7 @@ function showKaderAbgleichModal(nnList, numAbwList) {
       </div>`;
   }
 
-  body.innerHTML = `
+  body.innerHTML = summaryHtml + `
     <div style="padding:16px 20px 14px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
         <div>
@@ -2505,6 +2543,8 @@ async function applyKaderAbgleich(mode) {
       await Promise.all(nnToResolve.map(e => {
         const fields = { name: e.kaderName };
         if (e.kaderPos && e.kaderPos !== e.currentPos) fields.pos = e.kaderPos;
+        // Wenn Nummer bisher nur im Namen stand (z.B. "17."), jetzt ins Feld schreiben
+        if (!e.nummer || e.nummer !== e.nummer) fields.nummer = e.nummer;
         return supa.from('spieler_lineup').update(fields).eq('id', e.lineupId);
       }));
 
