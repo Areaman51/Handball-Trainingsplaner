@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v2.260517.1930</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v2.260518.1430</div>
     </div>
   </aside>
 
@@ -1383,7 +1383,7 @@ const TH_NEG=[
 ];
 const POL={
   tor:1,tor_7m:1,assist:1,'7m_g':1,'2min_p':1,geh:1,geh_7m:1,
-  turnover:-1,fw:-1,fw_7m:-1,tf:-1,fp:-1,'1zu1':-1,'7m_v':-1,rot:-1,kass:-1,kass_7m:-1
+  turnover:-1,fw:-1,fw_7m:-1,tf:-1,fp:-1,'1zu1':-1,'7m_v':-1,'2min':-1,rot:-1,kass:-1,kass_7m:-1
 };
 const GOAL_TYPES=new Set(['tor','tor_7m']);
 const GEGNER_GOAL_TYPE='gegner_tor';
@@ -2942,12 +2942,12 @@ function renderStatistik(){
 
   // ── Field players ──
   if(fl.length){
-    let tt={plus:0,minus:0,tore:0,tor_7m:0,assist:0,'7m_g':0,'2min_p':0,
+    let tt={plus:0,minus:0,tore:0,tor_7m:0,assist:0,'7m_g':0,'2min_p':0,'2min':0,
       turnover:0,fw:0,fw_7m:0,tf:0,fp:0,'1zu1':0,'7m_v':0,rot:0,total:0};
     let rows=fl.map(p=>{
       const{s,plus,minus,total,tore,he,wq}=getFlStats(p.id);
       tt.plus+=plus;tt.minus+=minus;tt.total+=total;tt.tore+=tore;
-      ['tor_7m','assist','7m_g','2min_p','turnover','fw','fw_7m','tf','fp','1zu1','7m_v','rot'].forEach(k=>tt[k]=(tt[k]||0)+(s[k]||0));
+      ['tor_7m','assist','7m_g','2min_p','2min','turnover','fw','fw_7m','tf','fp','1zu1','7m_v','rot'].forEach(k=>tt[k]=(tt[k]||0)+(s[k]||0));
       const w=plus-minus;
       return `<tr>
         <td class="ncol">${p.nummer?'#'+p.nummer:''} ${p.name||'—'}</td>
@@ -2957,7 +2957,7 @@ function renderStatistik(){
         <td class="vp">+${plus}</td>
         <td>${s.turnover||0}</td><td>${s.fw||0}</td><td>${s.fw_7m||0}</td>
         <td>${s.tf||0}</td><td>${s.fp||0}</td><td>${s['1zu1']||0}</td>
-        <td>${s['7m_v']||0}</td><td>${s.rot||0}</td>
+        <td>${s['7m_v']||0}</td><td>${(s['2min']||0)+(s.rot||0)}</td>
         <td class="vn">-${minus}</td>
         <td class="${w>=0?'vp':'vn'}">${w>0?'+':''}${w}</td>
         <td style="color:var(--xsoft)">${total}</td>
@@ -2974,7 +2974,7 @@ function renderStatistik(){
       <td>${tt['7m_g']||0}</td><td>${tt['2min_p']||0}</td><td>+${tt.plus}</td>
       <td>${tt.turnover||0}</td><td>${tt.fw||0}</td><td>${tt.fw_7m||0}</td>
       <td>${tt.tf||0}</td><td>${tt.fp||0}</td><td>${tt['1zu1']||0}</td>
-      <td>${tt['7m_v']||0}</td><td>${tt.rot||0}</td><td>-${tt.minus}</td>
+      <td>${tt['7m_v']||0}</td><td>${(tt['2min']||0)+(tt.rot||0)}</td><td>-${tt.minus}</td>
       <td>${tW>0?'+':''}${tW}</td><td>${tt.total}</td>
     </tr>`;
     c.insertAdjacentHTML('beforeend',`
@@ -3002,7 +3002,7 @@ function renderStatistik(){
         <td>${s.assist||0}</td><td>${s['2min_p']||0}</td>
         <td class="vp">+${plus}</td>
         <td>${s.turnover||0}</td><td>${s.tf||0}</td><td>${s.fp||0}</td>
-        <td>${s['7m_v']||0}</td><td>${s.rot||0}</td>
+        <td>${s['7m_v']||0}</td><td>${(s['2min']||0)+(s.rot||0)}</td>
         <td class="vn">-${minus}</td>
         <td class="${w>=0?'vp':'vn'}">${w>0?'+':''}${w}</td>
         <td style="color:var(--xsoft)">${total}</td>
@@ -3858,7 +3858,7 @@ function renderKaderTableFL(players) {
       <td>${p.s.fp||0}</td>
       <td>${p.s['1zu1']||0}</td>
       <td>${p.s['7m_v']||0}</td>
-      <td>${p.s.rot||0}</td>
+      <td>${(p.s['2min']||0)+(p.s.rot||0)}</td>
       <td class="vn">-${minus}</td>
       <td class="${w>=0?'vp':'vn'}">${w>0?'+':''}${w}</td>
       <td style="color:var(--xsoft);">${total}</td>
@@ -3933,7 +3933,7 @@ function renderKaderTableTH(players) {
       <td>${p.s.tf||0}</td>
       <td>${p.s.fp||0}</td>
       <td>${p.s['7m_v']||0}</td>
-      <td>${p.s.rot||0}</td>
+      <td>${(p.s['2min']||0)+(p.s.rot||0)}</td>
       <td class="vn">-${minus}</td>
       <td class="${w>=0?'vp':'vn'}">${w>0?'+':''}${w}</td>
       <td style="color:var(--xsoft);">${total}</td>
@@ -4906,9 +4906,27 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
 
       const myName  = spielMeta.spielart === 'auswaerts' ? spielMeta.gast  : spielMeta.heim;
       const oppName = spielMeta.spielart === 'auswaerts' ? spielMeta.heim  : spielMeta.gast;
-      const isOwnTeam = ev.teamName
-        ? normName(ev.teamName) === normName(myName||'')
-        : (ev.team === myTeamSide);
+
+      // ── isOwnTeam: ev.team (Edge Function, partielles Namens-Matching) hat Vorrang ──
+      // Problem alt: normName(ev.teamName) === normName(myName) → EXAKTER Vergleich.
+      //   HTML-2min-Events tragen den handball.net-Vollnamen ("Handball-Team Norderstedt"),
+      //   spielMeta enthält oft die Kurzform ("HT Norderstedt") → Match schlägt fehl →
+      //   eigene 2min-Events landen fälschlich im Gegner-Pfad (gegner_2min, kein spieler_id).
+      // Fix: ev.team ('home'/'away'/'unknown') wurde von der Edge Function bereits mit
+      //   partiellem Namens-Matching gesetzt → diesen Wert als primäre Quelle verwenden.
+      //   Nur wenn ev.team='unknown': Namensvergleich mit Partial-Match als Fallback.
+      const _normMyName  = normName(myName  || '');
+      const _normEvName  = normName(ev.teamName || '');
+      const _namePartial = (_normMyName && _normEvName)
+        ? (_normEvName === _normMyName
+           || _normEvName.includes(_normMyName)
+           || _normMyName.includes(_normEvName))
+        : null;
+      const isOwnTeam = ev.team !== 'unknown'
+        ? ev.team === myTeamSide
+        : _namePartial !== null
+          ? _namePartial
+          : false;
       const evNummer = ev.playerNum || ev.playerNumber || null;
 
       // ════ DEBUG pro Event (nur 2min + rot) ══════════════════════
@@ -5076,7 +5094,7 @@ const tickerTypeMap = {
   tor:     { type: 'tor',     label: 'Tor',          color: '#15803d', polarity:  1 },
   tor_7m:  { type: 'tor_7m',  label: 'Tor 7m',       color: '#16a34a', polarity:  1 },
   fw_7m:   { type: 'fw_7m',   label: 'Fehlwurf 7m',  color: '#c2410c', polarity: -1 },
-  '2min':  { type: 'rot',     label: '2min-Strafe',   color: '#991b1b', polarity: -1 },
+  '2min':  { type: '2min',    label: '2-Minuten',     color: '#dc7a00', polarity: -1 },
   rot:     { type: 'rot',     label: 'Rote Karte',    color: '#7f1d1d', polarity: -1 },
 };
 
