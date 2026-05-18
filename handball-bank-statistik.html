@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v2.260518.1600</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v3.260518.1900</div>
     </div>
   </aside>
 
@@ -3610,9 +3610,11 @@ async function renderKaderView() {
         .map(s => s.id);
     })();
 
+    // ── 3. Aktionen laden (kein FK-Join — getrennte Lookup-Map verhindert
+    //        Datenverlust bei verwaisten spieler_ids nach Lineup-Neuanlage) ──
     let aktQuery = supa
       .from('spielaktionen')
-      .select('id,type,polarity,spiel_id,spieler_id,spieler_lineup(name,nummer,pos,team)')
+      .select('id,type,polarity,spiel_id,spieler_id')
       .eq('user_id', currentUser.id)
       .limit(10000); // Supabase-Standard ist 1 000 Zeilen – bei vielen Spielen/Aktionen
                      // werden Daten sonst lautlos abgeschnitten → Spiele fehlen in der Statistik
@@ -3621,28 +3623,37 @@ async function renderKaderView() {
     }
     const { data: rawAkt } = await aktQuery;
 
-    // ── 3b. Lineup-Auftritte laden — für genaue SP-Zählung ──
-    // spielaktionen-basierte SP-Zählung unterschätzt die echte Spielanzahl:
-    // Spiele ohne Ticker-Import oder manuelle Erfassung fehlen komplett.
-    // Stattdessen: spieler_lineup zählen (bench≠true = eigener Spieler).
-    let luSpQuery = supa
+    // ── 3a. Lineup-Lookup-Map: spieler_lineup.id → Lineup-Objekt ──
+    // Getrennte Abfrage statt FK-Join in aktQuery.
+    // Begründung: Der FK-Join liefert null für spieler_ids, deren Lineup-Eintrag
+    // nachträglich gelöscht und neu erstellt wurde (z. B. nach erneutem Wizard-Aufruf).
+    // Diese Aktionen wurden bisher lautlos verworfen → Datenverlust in der Langzeitstatistik.
+    // Mit einer separaten Abfrage + manueller Map-Auflösung entfällt diese FK-Abhängigkeit.
+    let luLookupQuery = supa
       .from('spieler_lineup')
-      .select('name,nummer,spiel_id')
+      .select('id,name,nummer,pos,team,bench,spiel_id')
       .eq('user_id', currentUser.id)
-      .neq('bench', true)
       .limit(10000);
     if (filteredSpielIds.length && _saisonId) {
-      luSpQuery = luSpQuery.in('spiel_id', filteredSpielIds);
+      luLookupQuery = luLookupQuery.in('spiel_id', filteredSpielIds);
     }
-    const { data: luData } = await luSpQuery;
+    const { data: luLookupData } = await luLookupQuery;
 
-    // Index: "lowname|nummer" → Set<spiel_id>  (für SP-Abgleich mit Kader)
+    // Map: id → Lineup-Objekt (für Aktions-Spieler-Zuordnung)
+    const lineupById = {};
+    (luLookupData || []).forEach(l => { lineupById[l.id] = l; });
+
+    // ── 3b. SP-Zählung aus gleicher Lineup-Quelle ──
+    // Eigene Spieler (bench≠true) pro Name|Nummer → Set<spiel_id>
     const luByKey = {};
-    (luData || []).forEach(lu => {
+    (luLookupData || []).filter(lu => !lu.bench).forEach(lu => {
       const k = `${(lu.name||'').toLowerCase().trim()}|${lu.nummer||''}`;
       if (!luByKey[k]) luByKey[k] = new Set();
       luByKey[k].add(lu.spiel_id);
     });
+
+    // luData-Alias für den "Noch keine Daten"-Check weiter unten
+    const luData = luLookupData;
 
     // Wenn weder Aktionen noch Lineup-Einträge vorhanden sind → leerer State
     if (!rawAkt?.length && !luData?.length) {
@@ -3655,19 +3666,24 @@ async function renderKaderView() {
     }
 
     // ── 4. Aktionen filtern: Mein Team vs. Gegner ──
-    // "Mein Team" = Lineup-Team entspricht der gespielten Spielart
-    // spielart 'heim'/'auswaerts' → team 'home'/'away'
+    // Nutzt lineupById (separate Abfrage) statt des FK-Join-Felds spieler_lineup.
+    // Damit werden auch Aktionen korrekt zugeordnet, deren Lineup-Eintrag nachträglich
+    // neu angelegt wurde (verwaiste spieler_ids durch Wizard-Neustart).
     const isMyTeamAktion = (akt) => {
-      // Gegner-Aktionen ohne spieler_id (z.B. gegner_tor vom Ticker) haben kein Lineup.
-      // Im Eigenen-Modus sollen sie NICHT als "mein Team" gelten – ohne diese Korrektur
-      // verfälschen sie den Spielzähler (seasonSpiele), obwohl sie in der Aggregation
-      // ohnehin übersprungen werden (if !lu).
-      if (!akt.spieler_id && !akt.spieler_lineup) {
+      // Gegner-Aktionen haben keine spieler_id (z.B. gegner_tor vom Ticker).
+      if (!akt.spieler_id) {
         return _analysisMode !== 'own';
       }
-      const lineupTeam = akt.spieler_lineup?.team;
+      const lu = lineupById[akt.spieler_id];
+      if (!lu) {
+        // Verwaiste spieler_id: Lineup-Eintrag nicht mehr vorhanden.
+        // Als eigenes Team werten – die Aktion wurde manuell für einen eigenen
+        // Spieler erfasst (logAktion setzt selPlayerId aus dem eigenen Lineup).
+        return _analysisMode === 'own';
+      }
+      const lineupTeam = lu.team;
       if (!lineupTeam) {
-        // Altdaten: spieler_id vorhanden, kein team-Feld → als eigenes Team werten
+        // Altdaten ohne team-Feld → als eigenes Team werten
         return _analysisMode === 'own';
       }
       const sp = spieleMap[akt.spiel_id];
@@ -3684,8 +3700,8 @@ async function renderKaderView() {
     const byPlayer = {}; // key = name|nummer
 
     filteredAkt.forEach(a => {
-      const lu = a.spieler_lineup;
-      if (!lu) return;
+      const lu = lineupById[a.spieler_id];
+      if (!lu) return; // Verwaiste spieler_id (Lineup gelöscht, nicht wiederherstellbar)
       const key = `${(lu.name||'').toLowerCase().trim()}|${lu.nummer||''}`;
       if (!byPlayer[key]) {
         byPlayer[key] = {
@@ -4733,23 +4749,19 @@ async function confirmGameStart() {
     spielMeta.spielart = spielart;
     spielMeta.status = 'live';
 
-    // Bestehendes Lineup löschen — bei forceWizard (Neustart) ist ein altes vorhanden
-    await supa.from('spieler_lineup').delete().eq('spiel_id', spielId);
-
+    // Lineup aktualisieren — IDs erhalten wenn bereits Aktionen existieren (Anti-Orphan-Schutz)
     if (toInsert.length) {
-      let { error } = await supa.from('spieler_lineup').insert(toInsert);
-      if (error) {
-        // Fallback: team-Spalte fehlt noch → ohne team einfügen
-        console.warn('[confirm] Insert mit team fehlgeschlagen, versuche ohne:', error.message);
-        const toInsertFallback = toInsert.map(({team, ...rest}) => rest);
-        const { error: err2 } = await supa.from('spieler_lineup').insert(toInsertFallback);
-        if (err2) {
-          toast('Fehler beim Speichern: ' + err2.message, 'error');
-          const confirmBtn = document.getElementById('gs-confirm');
-          if (confirmBtn) { confirmBtn.textContent = '▶ Spiel starten'; confirmBtn.disabled = false; }
-          return;
-        }
+      try {
+        await safeReplaceLineup(spielId, toInsert);
+      } catch(lineupErr) {
+        toast('Fehler beim Speichern des Lineups: ' + lineupErr.message, 'error');
+        const confirmBtn = document.getElementById('gs-confirm');
+        if (confirmBtn) { confirmBtn.textContent = '▶ Spiel starten'; confirmBtn.disabled = false; }
+        return;
       }
+    } else {
+      // Kein Lineup → nur bestehende Einträge entfernen
+      await supa.from('spieler_lineup').delete().eq('spiel_id', spielId);
     }
 
     // Lineup neu laden
@@ -5144,10 +5156,7 @@ async function confirmGameStartFromKader() {
   }).eq('id', spielId);
   spielMeta.spielart = spielart;
 
-  // Bestehendes Lineup löschen
-  await supa.from('spieler_lineup').delete().eq('spiel_id', spielId);
-
-  // Eigene Spieler einfügen (aus Kader-Auswahl)
+  // Eigene Spieler einfügen (aus Kader-Auswahl) — IDs erhalten wenn möglich (Anti-Orphan-Schutz)
   const toInsert = selected.map((p, i) => ({
     spiel_id: spielId,
     user_id:  currentUser.id,
@@ -5160,8 +5169,13 @@ async function confirmGameStartFromKader() {
     sort_order: i,
   }));
 
-  const { error } = await supa.from('spieler_lineup').insert(toInsert);
-  if (error) { setStatus('err', 'Fehler beim Speichern'); toast('Fehler: ' + error.message, 'error'); return; }
+  try {
+    await safeReplaceLineup(spielId, toInsert);
+  } catch(e) {
+    setStatus('err', 'Fehler beim Speichern');
+    toast('Fehler: ' + e.message, 'error');
+    return;
+  }
 
   // Lineup neu laden
   const { data: pl } = await supa.from('spieler_lineup').select('*').eq('spiel_id', spielId).order('sort_order');
@@ -5187,6 +5201,130 @@ async function liveRefreshTicker() {
   if (akFresh) { aktionen = akFresh; enrichGegnerAktionen(); }
   await autoImportTickerActions(baseUrl, _gs.timerMode || 'manual');
   renderLog();
+}
+
+// ════════════════════════════════════════════════════════════
+// SAFE REPLACE LINEUP
+// Ersetzt das naive "löschen + neu einfügen"-Muster.
+// Wenn bereits Spielaktionen für dieses Spiel existieren, werden
+// bestehende Lineup-Einträge AKTUALISIERT statt gelöscht — damit
+// bleiben die UUIDs erhalten und die spieler_id-Referenzen in
+// spielaktionen verwaisen nicht (Anti-Orphan-Schutz).
+// ════════════════════════════════════════════════════════════
+async function safeReplaceLineup(spielId, newEntries) {
+  // 1. Gibt es bereits Aktionen, die auf Lineup-Einträge dieses Spiels zeigen?
+  const { data: linkedCheck } = await supa
+    .from('spielaktionen')
+    .select('spieler_id')
+    .eq('spiel_id', spielId)
+    .not('spieler_id', 'is', null)
+    .limit(1);
+
+  const hasLinkedActions = (linkedCheck?.length > 0);
+
+  if (!hasLinkedActions) {
+    // Keine verknüpften Aktionen → sicher löschen und neu einfügen
+    await supa.from('spieler_lineup').delete().eq('spiel_id', spielId);
+    if (newEntries.length) {
+      const { error } = await supa.from('spieler_lineup').insert(newEntries);
+      if (error) {
+        // Fallback: team-Spalte noch nicht in DB
+        const fallback = newEntries.map(({ team, ...rest }) => rest);
+        const { error: err2 } = await supa.from('spieler_lineup').insert(fallback);
+        if (err2) throw new Error('Lineup Insert fehlgeschlagen: ' + err2.message);
+      }
+    }
+    return;
+  }
+
+  // Aktionen vorhanden → IDs möglichst erhalten
+  // 2. Bestehendes Lineup laden
+  const { data: existing } = await supa
+    .from('spieler_lineup')
+    .select('id,name,nummer,pos,team,bench')
+    .eq('spiel_id', spielId);
+  const existingEntries = existing || [];
+
+  // 3. Welche Lineup-IDs sind mit Aktionen verknüpft?
+  const { data: allLinked } = await supa
+    .from('spielaktionen')
+    .select('spieler_id')
+    .eq('spiel_id', spielId)
+    .not('spieler_id', 'is', null);
+  const linkedIds = new Set((allLinked || []).map(a => a.spieler_id));
+
+  const normStr = s => (s || '').toLowerCase().trim();
+
+  // 4. Neue Einträge auf bestehende mappen (ID erhalten)
+  const used       = new Set();
+  const updates    = [];
+  const inserts    = [];
+
+  for (const np of newEntries) {
+    // Primär: Nummer + Team-Seite (präziseste Übereinstimmung)
+    let match = existingEntries.find(e =>
+      !used.has(e.id) &&
+      e.team === np.team &&
+      np.nummer != null && e.nummer != null &&
+      String(np.nummer) === String(e.nummer)
+    );
+    // Fallback: Name + Team-Seite
+    if (!match) {
+      match = existingEntries.find(e =>
+        !used.has(e.id) &&
+        e.team === np.team &&
+        np.name && e.name &&
+        normStr(np.name) === normStr(e.name)
+      );
+    }
+
+    if (match) {
+      used.add(match.id);
+      updates.push({
+        id:         match.id,
+        name:       np.name,
+        pos:        np.pos,
+        nummer:     np.nummer,
+        bench:      np.bench ?? false,
+        sort_order: np.sort_order ?? null,
+      });
+    } else {
+      inserts.push(np);
+    }
+  }
+
+  // 5. Nicht mehr benötigte Einträge löschen — nur wenn KEINE Aktionen verknüpft
+  const toDelete = existingEntries
+    .filter(e => !used.has(e.id) && !linkedIds.has(e.id))
+    .map(e => e.id);
+
+  // 6. Alle Änderungen parallel ausführen
+  const tasks = [
+    ...updates.map(u =>
+      supa.from('spieler_lineup')
+        .update({ name: u.name, pos: u.pos, nummer: u.nummer,
+                  bench: u.bench, sort_order: u.sort_order })
+        .eq('id', u.id)
+    ),
+  ];
+
+  if (inserts.length) {
+    tasks.push(
+      supa.from('spieler_lineup').insert(inserts).then(async ({ error }) => {
+        if (error) {
+          // Fallback ohne team-Spalte
+          const fallback = inserts.map(({ team, ...rest }) => rest);
+          await supa.from('spieler_lineup').insert(fallback);
+        }
+      })
+    );
+  }
+
+  if (toDelete.length) {
+    tasks.push(supa.from('spieler_lineup').delete().in('id', toDelete));
+  }
+
+  await Promise.all(tasks);
 }
 
 // forceWizard: Wizard auch bei bestehendem Lineup erzwingen
