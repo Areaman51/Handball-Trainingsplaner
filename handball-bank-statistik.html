@@ -3610,39 +3610,48 @@ async function renderKaderView() {
         .map(s => s.id);
     })();
 
-    // ── 3. Aktionen laden (kein FK-Join — getrennte Lookup-Map verhindert
-    //        Datenverlust bei verwaisten spieler_ids nach Lineup-Neuanlage) ──
-    // WICHTIG: Filter nach spiel_id statt user_id — in einem Multi-User-Setup
-    // erfassen Trainer/Manager Aktionen unter ihrer eigenen user_id.
-    // Die Spiele gehören dem Admin (user_id-Filter oben), aber die Aktionen
-    // dazu können von jedem angemeldeten Nutzer stammen.
-    // → Filter nach spiel_id (Admin-Spiele) statt user_id vermeidet Datenverlust.
-    let aktQuery = supa
-      .from('spielaktionen')
-      .select('id,type,polarity,spiel_id,spieler_id')
-      .limit(10000);
-
-    if (filteredSpielIds.length) {
-      aktQuery = aktQuery.in('spiel_id', filteredSpielIds);
-    } else {
-      // Keine Spiele vorhanden → leere Ergebnismenge erzwingen
-      aktQuery = aktQuery.eq('spiel_id', '00000000-0000-0000-0000-000000000000');
+    // ── Hilfsfunktion: alle Seiten laden (überwindet Supabase max_rows = 1000) ──
+    // PostgREST liefert serverseitig maximal 1000 Zeilen pro Request, auch wenn
+    // .limit(10000) im Client gesetzt ist. Bei mehr als 1000 Aktionen in einer Saison
+    // werden die letzten Spiele lautlos abgeschnitten → Paginierung notwendig.
+    async function fetchAllPages(table, selectFields, filterFn) {
+      const PAGE = 1000;
+      let from = 0;
+      const all = [];
+      while (true) {
+        let q = supa.from(table).select(selectFields).range(from, from + PAGE - 1);
+        q = filterFn(q);
+        const { data, error } = await q;
+        if (error) { console.warn(`[fetchAllPages] Fehler in ${table}:`, error.message); break; }
+        if (!data?.length) break;
+        all.push(...data);
+        if (data.length < PAGE) break; // letzte Seite
+        from += PAGE;
+      }
+      return all;
     }
-    const { data: rawAkt } = await aktQuery;
 
-    // ── 3a. Lineup-Lookup-Map: spieler_lineup.id → Lineup-Objekt ──
-    // Ebenfalls nach spiel_id statt user_id filtern (gleiche Begründung wie oben).
-    let luLookupQuery = supa
-      .from('spieler_lineup')
-      .select('id,name,nummer,pos,team,bench,spiel_id')
-      .limit(10000);
+    // ── 3. Aktionen laden — paginiert, nach spiel_id gefiltert ──
+    // Filter nach spiel_id statt user_id: in einem Multi-User-Setup erfassen
+    // Trainer/Manager Aktionen unter ihrer eigenen user_id. Die Spiele gehören
+    // dem Admin — alle Aktionen für diese Spiele sind gemeint.
+    const DEAD_ID = '00000000-0000-0000-0000-000000000000';
+    const rawAkt = await fetchAllPages(
+      'spielaktionen',
+      'id,type,polarity,spiel_id,spieler_id',
+      q => filteredSpielIds.length
+        ? q.in('spiel_id', filteredSpielIds)
+        : q.eq('spiel_id', DEAD_ID)
+    );
 
-    if (filteredSpielIds.length) {
-      luLookupQuery = luLookupQuery.in('spiel_id', filteredSpielIds);
-    } else {
-      luLookupQuery = luLookupQuery.eq('spiel_id', '00000000-0000-0000-0000-000000000000');
-    }
-    const { data: luLookupData } = await luLookupQuery;
+    // ── 3a. Lineup-Lookup-Map — paginiert ──
+    const luLookupData = await fetchAllPages(
+      'spieler_lineup',
+      'id,name,nummer,pos,team,bench,spiel_id',
+      q => filteredSpielIds.length
+        ? q.in('spiel_id', filteredSpielIds)
+        : q.eq('spiel_id', DEAD_ID)
+    );
 
     // Map: id → Lineup-Objekt (für Aktions-Spieler-Zuordnung)
     const lineupById = {};
