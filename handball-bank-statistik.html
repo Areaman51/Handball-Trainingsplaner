@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v2.260518.1430</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v2.260518.1600</div>
     </div>
   </aside>
 
@@ -4907,26 +4907,26 @@ async function autoImportTickerActions(baseUrl, timerMode='manual') {
       const myName  = spielMeta.spielart === 'auswaerts' ? spielMeta.gast  : spielMeta.heim;
       const oppName = spielMeta.spielart === 'auswaerts' ? spielMeta.heim  : spielMeta.gast;
 
-      // ── isOwnTeam: ev.team (Edge Function, partielles Namens-Matching) hat Vorrang ──
-      // Problem alt: normName(ev.teamName) === normName(myName) → EXAKTER Vergleich.
-      //   HTML-2min-Events tragen den handball.net-Vollnamen ("Handball-Team Norderstedt"),
-      //   spielMeta enthält oft die Kurzform ("HT Norderstedt") → Match schlägt fehl →
-      //   eigene 2min-Events landen fälschlich im Gegner-Pfad (gegner_2min, kein spieler_id).
-      // Fix: ev.team ('home'/'away'/'unknown') wurde von der Edge Function bereits mit
-      //   partiellem Namens-Matching gesetzt → diesen Wert als primäre Quelle verwenden.
-      //   Nur wenn ev.team='unknown': Namensvergleich mit Partial-Match als Fallback.
-      const _normMyName  = normName(myName  || '');
-      const _normEvName  = normName(ev.teamName || '');
-      const _namePartial = (_normMyName && _normEvName)
-        ? (_normEvName === _normMyName
-           || _normEvName.includes(_normMyName)
-           || _normMyName.includes(_normEvName))
-        : null;
-      const isOwnTeam = ev.team !== 'unknown'
-        ? ev.team === myTeamSide
-        : _namePartial !== null
-          ? _namePartial
-          : false;
+      // ── isOwnTeam: partielle Namensübereinstimmung ──────────────────────────
+      // Problem alt: exakter Vergleich schlägt fehl wenn ev.teamName den handball.net-
+      //   Vollnamen trägt ("Handball-Team Norderstedt") und myName eine Kurzform ist
+      //   ("HT Norderstedt"). Betrifft vor allem HTML-geparste 2min-Events.
+      // Fix: Namensvergleich bleibt PRIMÄR (verhindert home/away-Verwechslung durch
+      //   ev.team), aber wird um Teilstring- und Wort-Matching erweitert.
+      //   ev.team dient weiterhin als Fallback wenn kein teamName vorhanden.
+      const _evTeamNorm = normName(ev.teamName || '');
+      const _myNameNorm = normName(myName || '');
+      const _nameMatch = (_evTeamNorm && _myNameNorm)
+        ? _evTeamNorm === _myNameNorm                            // Exakter Match
+          || _evTeamNorm.includes(_myNameNorm)                  // z.B. Vollname enthält Kürzel
+          || _myNameNorm.includes(_evTeamNorm)                  // z.B. Kürzel enthält Vollname-Bestandteil
+          || _myNameNorm.split(/[\s\-]+/).filter(w=>w.length>3) // Wortbasiert: jedes signifikante
+              .some(w => _evTeamNorm.split(/[\s\-]+/).includes(w)) //  Wort (>3 Zeichen) aus myName
+        : null;                                                  //  in den Tokens von evTeam suchen
+
+      const isOwnTeam = ev.teamName
+        ? _nameMatch === true
+        : ev.team === myTeamSide;
       const evNummer = ev.playerNum || ev.playerNumber || null;
 
       // ════ DEBUG pro Event (nur 2min + rot) ══════════════════════
