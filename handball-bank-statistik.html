@@ -3612,30 +3612,35 @@ async function renderKaderView() {
 
     // ── 3. Aktionen laden (kein FK-Join — getrennte Lookup-Map verhindert
     //        Datenverlust bei verwaisten spieler_ids nach Lineup-Neuanlage) ──
+    // WICHTIG: Filter nach spiel_id statt user_id — in einem Multi-User-Setup
+    // erfassen Trainer/Manager Aktionen unter ihrer eigenen user_id.
+    // Die Spiele gehören dem Admin (user_id-Filter oben), aber die Aktionen
+    // dazu können von jedem angemeldeten Nutzer stammen.
+    // → Filter nach spiel_id (Admin-Spiele) statt user_id vermeidet Datenverlust.
     let aktQuery = supa
       .from('spielaktionen')
       .select('id,type,polarity,spiel_id,spieler_id')
-      .eq('user_id', currentUser.id)
-      .limit(10000); // Supabase-Standard ist 1 000 Zeilen – bei vielen Spielen/Aktionen
-                     // werden Daten sonst lautlos abgeschnitten → Spiele fehlen in der Statistik
-    if (filteredSpielIds.length && _saisonId) {
+      .limit(10000);
+
+    if (filteredSpielIds.length) {
       aktQuery = aktQuery.in('spiel_id', filteredSpielIds);
+    } else {
+      // Keine Spiele vorhanden → leere Ergebnismenge erzwingen
+      aktQuery = aktQuery.eq('spiel_id', '00000000-0000-0000-0000-000000000000');
     }
     const { data: rawAkt } = await aktQuery;
 
     // ── 3a. Lineup-Lookup-Map: spieler_lineup.id → Lineup-Objekt ──
-    // Getrennte Abfrage statt FK-Join in aktQuery.
-    // Begründung: Der FK-Join liefert null für spieler_ids, deren Lineup-Eintrag
-    // nachträglich gelöscht und neu erstellt wurde (z. B. nach erneutem Wizard-Aufruf).
-    // Diese Aktionen wurden bisher lautlos verworfen → Datenverlust in der Langzeitstatistik.
-    // Mit einer separaten Abfrage + manueller Map-Auflösung entfällt diese FK-Abhängigkeit.
+    // Ebenfalls nach spiel_id statt user_id filtern (gleiche Begründung wie oben).
     let luLookupQuery = supa
       .from('spieler_lineup')
       .select('id,name,nummer,pos,team,bench,spiel_id')
-      .eq('user_id', currentUser.id)
       .limit(10000);
-    if (filteredSpielIds.length && _saisonId) {
+
+    if (filteredSpielIds.length) {
       luLookupQuery = luLookupQuery.in('spiel_id', filteredSpielIds);
+    } else {
+      luLookupQuery = luLookupQuery.eq('spiel_id', '00000000-0000-0000-0000-000000000000');
     }
     const { data: luLookupData } = await luLookupQuery;
 
@@ -3793,6 +3798,142 @@ async function renderKaderView() {
       </div>`;
       return;
     }
+
+    // ════════════════════════════════════════════════════════════
+    // DEBUG — LANGZEITSTATISTIK (dauerhaft, schreibt nichts in DB)
+    // In der Browser-Konsole aufrufbar als: window._kaderDebug
+    // ════════════════════════════════════════════════════════════
+    (() => {
+      const gespielteIds = filteredSpielIds.filter(id => {
+        const sp = spieleMap[id];
+        return sp && (sp.status === 'live' || sp.status === 'beendet');
+      });
+      const geplantIds = filteredSpielIds.filter(id => {
+        const sp = spieleMap[id];
+        return !sp || sp.status === 'geplant' || !sp.status;
+      });
+
+      // Aktionen pro Spiel
+      const aktBySpiel = {};
+      (rawAkt || []).forEach(a => {
+        if (!aktBySpiel[a.spiel_id]) aktBySpiel[a.spiel_id] = { gesamt: 0, mitSpieler: 0, ohneLineup: 0, gegner: 0 };
+        aktBySpiel[a.spiel_id].gesamt++;
+        if (a.spieler_id) {
+          aktBySpiel[a.spiel_id].mitSpieler++;
+          if (!lineupById[a.spieler_id]) aktBySpiel[a.spiel_id].ohneLineup++;
+        } else {
+          aktBySpiel[a.spiel_id].gegner++;
+        }
+      });
+
+      const spieleMitAktGesamt   = gespielteIds.filter(id => aktBySpiel[id]);
+      const spieleOhneAkt        = gespielteIds.filter(id => !aktBySpiel[id]);
+      const spieleMitWaisenAkt   = gespielteIds.filter(id => aktBySpiel[id]?.ohneLineup > 0);
+
+      console.group('%c[KADER DEBUG] Langzeitstatistik', 'color:#0057ff;font-weight:bold;font-size:13px');
+
+      // ── Überblick ──
+      console.group('%c1. Überblick', 'color:#6b7280;font-weight:700');
+      console.log('Modus          :', _analysisMode === 'own' ? 'Mein Team' : 'Gegner');
+      console.log('Positionsfilter:', _kaderPos);
+      console.log('Saison         :', _saisonId ? (saisons.find(s=>s.id===_saisonId)?.name||_saisonId) : 'Alle');
+      console.log('Kader-Spieler  :', kaderSpieler.length);
+      console.groupEnd();
+
+      // ── Spiele ──
+      console.group('%c2. Spiele', 'color:#6b7280;font-weight:700');
+      console.log(`Gesamt (User)    : ${filteredSpielIds.length}`);
+      console.log(`Gespielt         : ${gespielteIds.length} (live/beendet)`);
+      console.log(`Geplant/kein Stat: ${geplantIds.length}`);
+      console.log(`Mit Aktionen     : ${spieleMitAktGesamt.length}`);
+      console.log(`Ohne Aktionen    : ${spieleOhneAkt.length}`);
+      if (spieleOhneAkt.length) {
+        console.group(`Spiele OHNE Aktionen (${spieleOhneAkt.length})`);
+        spieleOhneAkt.forEach(id => {
+          const sp = spieleMap[id];
+          console.log(`  ${sp?.datum||'?'} | ${sp?.heim||'?'} vs ${sp?.gast||'?'} | status=${sp?.status||'?'} | id=${id}`);
+        });
+        console.groupEnd();
+      }
+      if (spieleMitWaisenAkt.length) {
+        console.group(`%cSpiele mit VERWAISTEN spieler_ids (${spieleMitWaisenAkt.length}) — Lineup wurde neu angelegt`,
+          'color:#dc2626;font-weight:700');
+        spieleMitWaisenAkt.forEach(id => {
+          const sp = spieleMap[id];
+          const akt = aktBySpiel[id];
+          console.log(`  ${sp?.datum||'?'} | ${sp?.heim||'?'} vs ${sp?.gast||'?'} | gesamt=${akt.gesamt} mitSpieler=${akt.mitSpieler} ohneLineup=${akt.ohneLineup}`);
+        });
+        console.groupEnd();
+      }
+      console.groupEnd();
+
+      // ── Aktionen ──
+      console.group('%c3. Aktionen', 'color:#6b7280;font-weight:700');
+      console.log('rawAkt gesamt      :', (rawAkt||[]).length);
+      console.log('davon mit spieler_id:', (rawAkt||[]).filter(a=>a.spieler_id).length);
+      console.log('davon ohne spieler_id (Gegner):', (rawAkt||[]).filter(a=>!a.spieler_id).length);
+      const waisenAkt = (rawAkt||[]).filter(a=>a.spieler_id && !lineupById[a.spieler_id]);
+      console.log('%cVerwaiste spieler_ids (kein Lineup-Eintrag mehr):', 'color:#dc2626', waisenAkt.length);
+      if (waisenAkt.length) {
+        const waisenBySpiel = {};
+        waisenAkt.forEach(a => { waisenBySpiel[a.spiel_id] = (waisenBySpiel[a.spiel_id]||0)+1; });
+        console.log('  Verteilt auf Spiele:', Object.entries(waisenBySpiel).map(([sid,cnt]) => {
+          const sp = spieleMap[sid];
+          return `${sp?.datum||'?'} ${sp?.heim||'?'} vs ${sp?.gast||'?'}: ${cnt} Akt.`;
+        }));
+      }
+      console.log('filteredAkt (Mein Team):', filteredAkt.length);
+      console.groupEnd();
+
+      // ── Lineup-Map ──
+      console.group('%c4. Lineup-Map', 'color:#6b7280;font-weight:700');
+      console.log('luLookupData gesamt :', (luLookupData||[]).length);
+      console.log('davon eigene (bench=false):', (luLookupData||[]).filter(l=>!l.bench).length);
+      console.log('davon Gegner (bench=true) :', (luLookupData||[]).filter(l=>l.bench).length);
+      const lineupSpiele = new Set((luLookupData||[]).map(l=>l.spiel_id));
+      console.log('Spiele mit Lineup-Eintrag :', lineupSpiele.size);
+      console.groupEnd();
+
+      // ── Spieler-Matching ──
+      console.group('%c5. Spieler-Matching (Kader ↔ byPlayer)', 'color:#6b7280;font-weight:700');
+      console.log('byPlayer-Einträge (aus Aktionen):', Object.keys(byPlayer).length);
+      if (kaderSpieler.length) {
+        console.group('Kader-Spieler und ihre Aktionen');
+        playerList.forEach(p => {
+          const hasData = Object.values(p.s||{}).reduce((s,v)=>s+v,0) > 0;
+          console.log(
+            `${hasData ? '✅' : '⚠️ '} #${p.nummer||'?'} ${p.name}` +
+            ` | SP-Lineup=${p.spiele} | SP-Akt=${p.spieleAkt??'–'}` +
+            ` | Akt-Typen: ${JSON.stringify(p.s||{})}`
+          );
+        });
+        console.groupEnd();
+
+        const ohneMatch = kaderSpieler.filter(ks => {
+          const nl = ks.name.toLowerCase().trim();
+          return !Object.values(byPlayer).some(p =>
+            p.name.toLowerCase().trim() === nl ||
+            (ks.nummer && p.nummer && String(p.nummer) === String(ks.nummer))
+          );
+        });
+        if (ohneMatch.length) {
+          console.group(`%c${ohneMatch.length} Kader-Spieler OHNE Aktions-Match`, 'color:#ea580c;font-weight:700');
+          ohneMatch.forEach(ks => console.log(`  #${ks.nummer||'?'} ${ks.name} (${ks.pos})`));
+          console.groupEnd();
+        }
+      }
+      console.groupEnd();
+
+      // Globales Debug-Objekt für manuelle Inspektion in der Konsole
+      window._kaderDebug = {
+        kaderSpieler, spieleMap, filteredSpielIds, gespielteIds, geplantIds,
+        rawAkt, filteredAkt, luLookupData, lineupById, byPlayer, playerList,
+        aktBySpiel, spieleMitWaisenAkt, spieleOhneAkt,
+      };
+      console.log('%c→ Vollständige Daten: window._kaderDebug', 'color:#0057ff');
+      console.groupEnd();
+    })();
+    // ════════════════════════════════════════════════════════════
 
     // ── 7. Render ──
     // Nenner: nur tatsächlich gespielte Spiele (live + beendet) — keine geplanten/zukünftigen
