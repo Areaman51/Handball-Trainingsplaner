@@ -3795,11 +3795,26 @@ async function renderKaderView() {
     }
 
     // ── 7. Render ──
-    const spieleMitAkt  = new Set(filteredAkt.map(a => a.spiel_id)).size;
-    const spieleGesamt  = filteredSpielIds.length;
-    const subtitleCount = spieleMitAkt < spieleGesamt
-      ? `${spieleMitAkt} von ${spieleGesamt} Spielen erfasst`
-      : `${spieleGesamt} Spiel${spieleGesamt !== 1 ? 'e' : ''}`;
+    // Nenner: nur tatsächlich gespielte Spiele (live + beendet) — keine geplanten/zukünftigen
+    const gespielteIdSet = new Set(
+      filteredSpielIds.filter(id => {
+        const sp = spieleMap[id];
+        return sp && (sp.status === 'live' || sp.status === 'beendet');
+      })
+    );
+    const spieleGesamt = gespielteIdSet.size;
+
+    // Zähler: Spiele mit IRGENDWELCHEN Aktionen (rawAkt, nicht nur eigene filteredAkt).
+    // Damit werden auch Spiele gezählt, bei denen Lineup-Neuanlage spieler_ids verwaist hat.
+    const spieleMitAkt = new Set(
+      (rawAkt || []).filter(a => gespielteIdSet.has(a.spiel_id)).map(a => a.spiel_id)
+    ).size;
+
+    const subtitleCount = spieleGesamt === 0
+      ? 'Keine gespielten Spiele'
+      : spieleMitAkt < spieleGesamt
+        ? `${spieleMitAkt} von ${spieleGesamt} gespielten Spielen erfasst`
+        : `${spieleGesamt} Spiel${spieleGesamt !== 1 ? 'e' : ''}`;
     document.getElementById('kader-subtitle').textContent =
       `${subtitleCount} · ${playerList.length} Spieler`;
 
