@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v4.260523.1115</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v5.260523.1145</div>
     </div>
   </aside>
 
@@ -1504,26 +1504,29 @@ async function signOut(){
 async function loadSpiele(){
   setStatus('saving','Lade Spiele…');
 
-  // ── Dual-Query: mannschaft_id (neu) + user_id ohne Mannschaft (Legacy) ──
-  // Damit sehen freigegebene Trainer die Spiele der Mannschaft, deren Eigentümer
-  // der Admin ist. Die RLS-Policy auf `spiele` muss entsprechend konfiguriert sein
-  // (siehe SQL-Kommentar in der Supabase-Konsole).
+  // ── Strikte Trennung: nur Spiele der gewählten Mannschaft ──
+  // Legacy-Spiele (mannschaft_id IS NULL) erscheinen NICHT automatisch in
+  // einer anderen Mannschaft. Stattdessen wird deren Anzahl separat gemerkt
+  // und dem Nutzer per Banner zur Zuordnung angeboten.
   if (_myTeamId) {
-    const [r1, r2] = await Promise.all([
-      // Neue Spiele mit direktem Mannschaft-Bezug
-      supa.from('spiele').select('*').eq('mannschaft_id', _myTeamId).order('datum', { ascending: false }),
-      // Legacy-Spiele des aktuellen Users ohne Mannschaft-Zuordnung
-      supa.from('spiele').select('*').eq('user_id', currentUser.id).is('mannschaft_id', null).order('datum', { ascending: false })
-    ]);
-    const seen = new Set();
-    spiele = [...(r1.data || []), ...(r2.data || [])].filter(s => {
-      if (seen.has(s.id)) return false;
-      seen.add(s.id); return true;
-    }).sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
+    const { data, error } = await supa.from('spiele')
+      .select('*')
+      .eq('mannschaft_id', _myTeamId)
+      .order('datum', { ascending: false });
+    if (error) { setStatus('err', 'Fehler beim Laden'); return; }
+    spiele = data || [];
+
+    // Zähle unverknüpfte Spiele (nur eigene, nicht freigegebene)
+    const { count } = await supa.from('spiele')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id)
+      .is('mannschaft_id', null);
+    window._legacyGameCount = count || 0;
   } else {
     const { data, error } = await supa.from('spiele').select('*').eq('user_id', currentUser.id).order('datum', { ascending: false });
     if (error) { setStatus('err', 'Fehler beim Laden'); return; }
     spiele = data || [];
+    window._legacyGameCount = 0;
   }
 
   await loadSaisons();
@@ -3219,8 +3222,32 @@ function renderSpieleList(){
     : 'Alle Saisons';
   document.getElementById('spiele-subtitle').textContent=
     `${filtered.length} Spiel${filtered.length!==1?'e':''} · ${saisonLabel}`;
+  // ── Legacy-Banner: unverknüpfte Spiele anbieten ──
+  const _lc = window._legacyGameCount || 0;
+  const _legacyBanner = (_lc > 0 && _myTeamId)
+    ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radius);
+        padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;
+        gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
+          <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:3px;">
+            📋 ${_lc} Spiel${_lc!==1?'e':''} ohne Mannschaftszuordnung
+          </div>
+          <div style="font-size:12px;color:#78350f;line-height:1.5;">
+            Diese Spiele sind keiner Mannschaft zugeordnet und erscheinen daher nicht in der Liste.
+            Klicke auf &bdquo;Zuordnen&ldquo;, um alle <strong>${_myTeamName}</strong> zuzuweisen.
+          </div>
+        </div>
+        <button class="btn btn-sm" onclick="linkLegacyGamesToTeam()"
+          style="background:#ea580c;color:white;border:none;flex-shrink:0;white-space:nowrap;">
+          Alle zuordnen
+        </button>
+      </div>`
+    : '';
+
   if(!filtered.length){
-    c.innerHTML='<div class="empty"><div class="e-icon">📋</div><p>Keine Spiele im gewählten Zeitraum.</p></div>';
+    c.innerHTML = _legacyBanner +
+      '<div class="empty"><div class="e-icon">📋</div>' +
+      '<p>Keine Spiele' + (_myTeamId ? ' dieser Mannschaft.' : ' im gewählten Zeitraum.') + '</p></div>';
     return;
   }
   const grid=document.createElement('div');
@@ -3263,8 +3290,29 @@ function renderSpieleList(){
       </div>`;
     grid.appendChild(card);
   });
-  c.innerHTML='';
+  c.innerHTML = _legacyBanner;
   c.appendChild(grid);
+}
+
+async function linkLegacyGamesToTeam() {
+  if (!_myTeamId) return;
+  const lc = window._legacyGameCount || 0;
+  if (!lc) return;
+  if (!confirm(`${lc} nicht zugeordnete Spiele der Mannschaft „${_myTeamName}" zuweisen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.`)) return;
+  setStatus('saving', 'Ordne Spiele zu…');
+  const { error } = await supa.from('spiele')
+    .update({ mannschaft_id: _myTeamId })
+    .eq('user_id', currentUser.id)
+    .is('mannschaft_id', null);
+  if (error) {
+    toast('Fehler: ' + error.message, 'error');
+    setStatus('err', 'Fehler');
+    return;
+  }
+  window._legacyGameCount = 0;
+  toast(`${lc} Spiele zugeordnet ✓`, 'success');
+  await loadSpiele();
+  setStatus('ok', '');
 }
 
 async function openStatistik(spId){
@@ -3635,10 +3683,8 @@ async function saveMyTeamConfig() {
       // Spiele neu laden (jetzt mit korrekter mannschaft_id)
       await loadSpiele();
 
-      // ── Aktiven Spielkontext zurücksetzen ──────────────────────
-      // Das bisher geladene Spiel gehört zum alten Team; alle Views
-      // die auf spielId / lineup / aktionen zugreifen müssen geleert
-      // werden, damit keine Fremddaten sichtbar bleiben.
+      // ── Aktiven Spielkontext zurücksetzen ────────────────────────────
+      // Das geladene Spiel gehörte zum alten Team — alle Views leeren.
       spielId      = null;
       spielMeta    = {};
       lineup       = [];
@@ -3649,17 +3695,17 @@ async function saveMyTeamConfig() {
       timerOffset  = 0;
       timerStartedAt = null;
 
-      // Live-View leeren (wird sonst mit alten Spieler-Kacheln angezeigt)
-      const liveViewEl = document.getElementById('view-live');
-      if (liveViewEl) liveViewEl.innerHTML = '';
+      // Live-View leeren
+      const _liveViewEl = document.getElementById('view-live');
+      if (_liveViewEl) _liveViewEl.innerHTML = '';
 
-      // Statistik-View aktualisieren wenn gerade aktiv
-      const statActive = document.getElementById('view-statistik')?.classList.contains('active');
-      if (statActive) renderStatistik();
-
-      // Live-View aktiv → zurück zu "Meine Spiele" wechseln
-      const liveActive = document.getElementById('view-live')?.classList.contains('active');
-      if (liveActive) showView('spiele');
+      // Aktive View aktualisieren
+      const _statActive  = document.getElementById('view-statistik')?.classList.contains('active');
+      const _kaderActive = document.getElementById('view-kader')?.classList.contains('active');
+      const _liveActive  = document.getElementById('view-live')?.classList.contains('active');
+      if (_statActive)  renderStatistik();
+      else if (_kaderActive) renderKaderView();
+      else if (_liveActive)  showView('spiele');
     }
   }
   renderMyTeamWidget();
@@ -3781,25 +3827,15 @@ async function renderKaderView() {
       kaderSpieler = ks || [];
     }
 
-    // ── 2. Alle Spiele der aktiven Mannschaft (eigene + freigegebene) ──
+    // ── 2. Alle Spiele der aktiven Mannschaft ──
+    // Strikte Trennung: nur Spiele mit mannschaft_id = _myTeamId.
+    // Legacy-Spiele (mannschaft_id IS NULL) werden NICHT mehr automatisch
+    // eingemischt — das erzeugt exakt die Statistiktrennung, die der Nutzer erwartet.
     let spiele2Query;
     if (_myTeamId) {
-      // Primär nach mannschaft_id — deckt Admin-Spiele und freigegebene Trainer-Spiele ab
-      const [rMannschaft, rLegacy] = await Promise.all([
-        supa.from('spiele')
-          .select('id,heim,gast,datum,spielart,status,score_home,score_away')
-          .eq('mannschaft_id', _myTeamId),
-        // Legacy: eigene Spiele ohne mannschaft_id (Altdaten)
-        supa.from('spiele')
-          .select('id,heim,gast,datum,spielart,status,score_home,score_away')
-          .eq('user_id', currentUser.id)
-          .is('mannschaft_id', null)
-      ]);
-      const seenK = new Set();
-      const merged = [...(rMannschaft.data || []), ...(rLegacy.data || [])].filter(s => {
-        if (seenK.has(s.id)) return false; seenK.add(s.id); return true;
-      });
-      spiele2Query = { data: merged };
+      spiele2Query = await supa.from('spiele')
+        .select('id,heim,gast,datum,spielart,status,score_home,score_away')
+        .eq('mannschaft_id', _myTeamId);
     } else {
       spiele2Query = await supa.from('spiele')
         .select('id,heim,gast,datum,spielart,status,score_home,score_away')
