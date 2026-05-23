@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v4.260522.1800</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v4.260523.1115</div>
     </div>
   </aside>
 
@@ -3634,6 +3634,32 @@ async function saveMyTeamConfig() {
       await autoLoadTeamIcal(_myTeamId, true);
       // Spiele neu laden (jetzt mit korrekter mannschaft_id)
       await loadSpiele();
+
+      // ── Aktiven Spielkontext zurücksetzen ──────────────────────
+      // Das bisher geladene Spiel gehört zum alten Team; alle Views
+      // die auf spielId / lineup / aktionen zugreifen müssen geleert
+      // werden, damit keine Fremddaten sichtbar bleiben.
+      spielId      = null;
+      spielMeta    = {};
+      lineup       = [];
+      aktionen     = [];
+      selPlayerId  = null;
+      clearInterval(timerIv);
+      timerRunning = false;
+      timerOffset  = 0;
+      timerStartedAt = null;
+
+      // Live-View leeren (wird sonst mit alten Spieler-Kacheln angezeigt)
+      const liveViewEl = document.getElementById('view-live');
+      if (liveViewEl) liveViewEl.innerHTML = '';
+
+      // Statistik-View aktualisieren wenn gerade aktiv
+      const statActive = document.getElementById('view-statistik')?.classList.contains('active');
+      if (statActive) renderStatistik();
+
+      // Live-View aktiv → zurück zu "Meine Spiele" wechseln
+      const liveActive = document.getElementById('view-live')?.classList.contains('active');
+      if (liveActive) showView('spiele');
     }
   }
   renderMyTeamWidget();
