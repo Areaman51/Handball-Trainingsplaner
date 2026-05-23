@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v3.260518.1900</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v4.260522.1800</div>
     </div>
   </aside>
 
@@ -991,6 +991,72 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 // ════════════════════════════════════════════════════════════
 // SUPABASE
 // ════════════════════════════════════════════════════════════
+// ┌─────────────────────────────────────────────────────────┐
+// │  DATENBANK-MIGRATION (einmalig in Supabase SQL-Editor)  │
+// │                                                         │
+// │  1. Spalte mannschaft_id zu spiele hinzufügen:          │
+// │                                                         │
+// │  ALTER TABLE spiele                                     │
+// │    ADD COLUMN IF NOT EXISTS mannschaft_id UUID          │
+// │    REFERENCES mannschaften(id) ON DELETE SET NULL;      │
+// │                                                         │
+// │  CREATE INDEX IF NOT EXISTS                             │
+// │    spiele_mannschaft_id_idx ON spiele(mannschaft_id);   │
+// │                                                         │
+// │  2. RLS-Policy: freigegebene Trainer können lesen       │
+// │                                                         │
+// │  -- Bestehende SELECT-Policy auf spiele ersetzen:       │
+// │  DROP POLICY IF EXISTS "spiele_select" ON spiele;       │
+// │  CREATE POLICY "spiele_select" ON spiele                │
+// │    FOR SELECT USING (                                   │
+// │      auth.uid() = user_id                               │
+// │      OR mannschaft_id IN (                              │
+// │        SELECT mannschaft_id                             │
+// │        FROM mannschaft_freigaben                        │
+// │        WHERE user_id = auth.uid()                       │
+// │      )                                                  │
+// │    );                                                   │
+// │                                                         │
+// │  -- Gleiche Policy für spieler_lineup:                  │
+// │  DROP POLICY IF EXISTS "lineup_select" ON spieler_lineup;
+// │  CREATE POLICY "lineup_select" ON spieler_lineup        │
+// │    FOR SELECT USING (                                   │
+// │      auth.uid() = user_id                               │
+// │      OR spiel_id IN (                                   │
+// │        SELECT id FROM spiele WHERE mannschaft_id IN (   │
+// │          SELECT mannschaft_id FROM mannschaft_freigaben │
+// │          WHERE user_id = auth.uid()                     │
+// │        )                                                │
+// │      )                                                  │
+// │    );                                                   │
+// │                                                         │
+// │  -- Gleiche Policy für spielaktionen:                   │
+// │  DROP POLICY IF EXISTS "aktionen_select" ON spielaktionen;
+// │  CREATE POLICY "aktionen_select" ON spielaktionen       │
+// │    FOR SELECT USING (                                   │
+// │      auth.uid() = user_id                               │
+// │      OR spiel_id IN (                                   │
+// │        SELECT id FROM spiele WHERE mannschaft_id IN (   │
+// │          SELECT mannschaft_id FROM mannschaft_freigaben │
+// │          WHERE user_id = auth.uid()                     │
+// │        )                                                │
+// │      )                                                  │
+// │    );                                                   │
+// │                                                         │
+// │  3. Bestehende Spiele einmalig mit mannschaft_id        │
+// │     verknüpfen (anpassen an echte Daten):               │
+// │                                                         │
+// │  -- Beispiel: alle Spiele eines Users einer Mannschaft  │
+// │  -- zuordnen wenn die Mannschaft eindeutig ist:         │
+// │  UPDATE spiele s                                        │
+// │    SET mannschaft_id = m.id                             │
+// │  FROM mannschaften m                                    │
+// │  WHERE s.user_id = m.user_id                            │
+// │    AND s.mannschaft_id IS NULL                          │
+// │    AND (SELECT COUNT(*) FROM mannschaften               │
+// │         WHERE user_id = m.user_id) = 1;                 │
+// └─────────────────────────────────────────────────────────┘
+
 const SUPA_URL = 'https://dlofjsmnkwltuutpxoer.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
 const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
@@ -1419,8 +1485,9 @@ async function onAuth(user){
   const roleLabels={admin:'👑 Admin',manager:'🔧 Manager',trainer:'🏋 Trainer'};
   const roleBadge=document.getElementById('topbar-role');
   if(roleBadge&&roleLabels[profile?.role]){roleBadge.textContent=roleLabels[profile.role];roleBadge.style.display='';}
+  // Team-Erkennung VOR Spiele-Laden: damit mannschaft_id-Query greift
+  await initMyTeam();
   await loadSpiele();
-  initMyTeam();
 
   // ── URL-Parameter-Handler (Navigation von kalender.html) ──
   await handleUrlParams();
@@ -1436,9 +1503,29 @@ async function signOut(){
 // ════════════════════════════════════════════════════════════
 async function loadSpiele(){
   setStatus('saving','Lade Spiele…');
-  const{data,error}=await supa.from('spiele').select('*').eq('user_id',currentUser.id).order('datum',{ascending:false});
-  if(error){setStatus('err','Fehler beim Laden');return;}
-  spiele=data||[];
+
+  // ── Dual-Query: mannschaft_id (neu) + user_id ohne Mannschaft (Legacy) ──
+  // Damit sehen freigegebene Trainer die Spiele der Mannschaft, deren Eigentümer
+  // der Admin ist. Die RLS-Policy auf `spiele` muss entsprechend konfiguriert sein
+  // (siehe SQL-Kommentar in der Supabase-Konsole).
+  if (_myTeamId) {
+    const [r1, r2] = await Promise.all([
+      // Neue Spiele mit direktem Mannschaft-Bezug
+      supa.from('spiele').select('*').eq('mannschaft_id', _myTeamId).order('datum', { ascending: false }),
+      // Legacy-Spiele des aktuellen Users ohne Mannschaft-Zuordnung
+      supa.from('spiele').select('*').eq('user_id', currentUser.id).is('mannschaft_id', null).order('datum', { ascending: false })
+    ]);
+    const seen = new Set();
+    spiele = [...(r1.data || []), ...(r2.data || [])].filter(s => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id); return true;
+    }).sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
+  } else {
+    const { data, error } = await supa.from('spiele').select('*').eq('user_id', currentUser.id).order('datum', { ascending: false });
+    if (error) { setStatus('err', 'Fehler beim Laden'); return; }
+    spiele = data || [];
+  }
+
   await loadSaisons();
   setStatus('ok',`${spiele.length} Spiel${spiele.length!==1?'e':''} geladen`);
   renderSpieleList();
@@ -1648,6 +1735,7 @@ async function saveSpiel(){
   setStatus('saving','Speichere…');
   const payload={
     user_id:currentUser.id,
+    mannschaft_id: _myTeamId || null,
     heim,gast,
     datum:document.getElementById('sp-datum').value||null,
     uhrzeit:document.getElementById('sp-uhrzeit').value||null,
@@ -2308,13 +2396,33 @@ async function runKaderAbgleich() {
       return;
     }
 
-    // ALLE Lineup-Einträge des Users laden — KEIN bench-Filter,
-    // weil ältere Einträge bench=null haben können; Gegner-Spieler
-    // werden später per team-Feld / bench=true aussortiert.
-    const { data: allLineupRaw, error: lErr } = await supa.from('spieler_lineup')
-      .select('id,spiel_id,name,nummer,pos,bench,team')
-      .eq('user_id', currentUser.id);
-    if (lErr) { toast('DB-Fehler: ' + lErr.message, 'error'); return; }
+    // ALLE Lineup-Einträge der aktiven Mannschaft — paginiert laden
+    // Schließt freigegebene Spiele ein (über mannschaft_id), nicht nur eigene user_id
+    let allLineupRaw = [];
+    if (_myTeamId) {
+      // Schritt 1: Alle relevanten spiel_ids ermitteln (eigene + freigegebene)
+      const [rM, rL] = await Promise.all([
+        supa.from('spiele').select('id').eq('mannschaft_id', _myTeamId),
+        supa.from('spiele').select('id').eq('user_id', currentUser.id).is('mannschaft_id', null)
+      ]);
+      const abgleichIds = [...new Set([
+        ...(rM.data || []).map(s => s.id),
+        ...(rL.data || []).map(s => s.id)
+      ])];
+      if (abgleichIds.length) {
+        const { data: lu, error: lErr } = await supa.from('spieler_lineup')
+          .select('id,spiel_id,name,nummer,pos,bench,team')
+          .in('spiel_id', abgleichIds);
+        if (lErr) { toast('DB-Fehler: ' + lErr.message, 'error'); return; }
+        allLineupRaw = lu || [];
+      }
+    } else {
+      const { data: lu, error: lErr } = await supa.from('spieler_lineup')
+        .select('id,spiel_id,name,nummer,pos,bench,team')
+        .eq('user_id', currentUser.id);
+      if (lErr) { toast('DB-Fehler: ' + lErr.message, 'error'); return; }
+      allLineupRaw = lu || [];
+    }
 
     // Eigene Spieler: bench ist false ODER null (ältere Imports ohne bench-Feld)
     // Gegner-Spieler haben explizit bench=true → ausfiltern
@@ -2659,9 +2767,24 @@ function renderLog(){
 // SAISON-VERWALTUNG
 // ════════════════════════════════════════════════════════════
 async function loadSaisons() {
-  const { data } = await supa.from('saisons')
+  // Eigene Saisons immer laden
+  const { data: ownSaisons } = await supa.from('saisons')
     .select('*').eq('user_id', currentUser.id).order('end_date');
-  saisons = data || [];
+  let merged = ownSaisons || [];
+
+  // Bei freigegebener Mannschaft: Saisons des Eigentümers ergänzen
+  if (_isSharedTeam && _myTeamOwnerId && _myTeamOwnerId !== currentUser.id) {
+    const { data: ownerSaisons } = await supa.from('saisons')
+      .select('*').eq('user_id', _myTeamOwnerId).order('end_date');
+    if (ownerSaisons?.length) {
+      // Deduplizieren nach Name + end_date
+      const seen = new Set(merged.map(s => `${s.name}|${s.end_date}`));
+      const extra = ownerSaisons.filter(s => !seen.has(`${s.name}|${s.end_date}`));
+      merged = [...merged, ...extra].sort((a,b) => (a.end_date||'').localeCompare(b.end_date||''));
+    }
+  }
+
+  saisons = merged;
 }
 
 // Gibt {start, end} als ISO-Datumsstrings zurück, oder null für "Alle"
@@ -3107,10 +3230,13 @@ function renderSpieleList(){
     card.className='spiel-card';
     card.dataset.spielId = sp.id;
     const statusLabel={geplant:'Geplant',live:'🔴 Live',beendet:'Beendet'};
+    // Schreibschutz: Spiel gehört einem anderen User (freigegebene Mannschaft)
+    const isReadOnly = !!sp.user_id && sp.user_id !== currentUser.id;
     card.innerHTML=`
       <div class="spiel-card-header">
         <span class="spiel-status-badge ${sp.status||'geplant'}">${statusLabel[sp.status]||'Geplant'}</span>
         <span class="spiel-datum">${fmtDate(sp.datum)}</span>
+        ${isReadOnly ? '<span style="font-size:10px;background:rgba(0,87,255,.15);color:#93c5fd;border-radius:8px;padding:1px 7px;font-weight:700;">🔓 freigegeben</span>' : ''}
       </div>
       <div class="spiel-teams">${sp.heim||'–'} vs. ${sp.gast||'–'}</div>
       <div class="spiel-score">${sp.score_home||0} : ${sp.score_away||0}</div>
@@ -3126,11 +3252,14 @@ function renderSpieleList(){
           <button class="btn btn-primary btn-sm" onclick="openLive('${sp.id}')">▶ Live öffnen</button>
           <button class="btn btn-ghost btn-sm" onclick="openStatistik('${sp.id}')">📊 Statistik</button>
         </div>
-        <div class="spiel-actions-row">
+        ${!isReadOnly ? `<div class="spiel-actions-row">
           ${sp.hbn_url ? `<button class="btn btn-ghost btn-sm" onclick="forceWizard('${sp.id}')" title="Team neu auswählen / Aufstellung neu laden">⚙️ Einrichten</button>` : ''}
           <button class="btn btn-ghost btn-sm" onclick="openSpielModal('${sp.id}')">✏️ Bearbeiten</button>
           <button class="btn btn-danger btn-sm" onclick="deleteSpiel('${sp.id}')" style="margin-left:auto;">🗑</button>
-        </div>
+        </div>` : `<div class="spiel-actions-row">
+          ${sp.hbn_url ? `<button class="btn btn-ghost btn-sm" onclick="forceWizard('${sp.id}')" title="Aufstellung neu laden">⚙️ Einrichten</button>` : ''}
+          <span style="font-size:11px;color:var(--xsoft);padding:5px 0;">👁 Nur Lesen · Spiel gehört dem Admin</span>
+        </div>`}
       </div>`;
     grid.appendChild(card);
   });
@@ -3169,11 +3298,13 @@ function setStatus(type,msg){
 
 let _myTeamName = '';
 let _myTeamId   = '';      // mannschaft_id
+let _myTeamOwnerId = '';   // user_id des Mannschaft-Eigentümers (leer = ich bin Eigentümer)
+let _isSharedTeam = false; // true wenn Mannschaft durch Admin freigegeben wurde
 let _myTeamIcal = '';      // gespeicherte iCal-URL
 let _analysisMode = 'own'; // 'own' | 'opponent'
 let _kaderPos = 'FL';      // 'FL' | 'TH' — aktive Position in Kader-View
 
-function initMyTeam() {
+async function initMyTeam() {
   _myTeamName   = localStorage.getItem('hbs_my_team')          || '';
   _myTeamId     = localStorage.getItem('hbs_my_mannschaft_id') || '';
   _myTeamIcal   = localStorage.getItem('hbs_ical_url')         || '';
@@ -3189,15 +3320,15 @@ function initMyTeam() {
     }
   }
   renderMyTeamWidget();
-  // Immer frisch aus Supabase abgleichen (async, blockiert nicht)
-  autoDetectTeam();
+  // Team-Erkennung abwarten (wichtig: _myTeamId muss vor loadSpiele gesetzt sein)
+  await autoDetectTeam();
 }
 
 async function autoDetectTeam() {
   if (!currentUser) return;
   const { data, error } = await supa
     .from('mannschaften')
-    .select('id,name,verein,farbe_geplant')
+    .select('id,name,verein,farbe_geplant,user_id')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
   if (error || !data?.length) return;
@@ -3224,6 +3355,16 @@ async function autoDetectTeam() {
       renderMyTeamWidget();
     }
     window._availableMannschaften = data;
+  }
+
+  // Freigabe-Status ermitteln: gehört die Mannschaft mir oder einem anderen Admin?
+  if (_myTeamId) {
+    const currentTeam = (data || []).find(m => m.id === _myTeamId);
+    if (currentTeam) {
+      _myTeamOwnerId  = currentTeam.user_id || '';
+      _isSharedTeam   = !!_myTeamOwnerId && _myTeamOwnerId !== currentUser.id;
+    }
+    renderMyTeamWidget();
   }
 
   // Spielplan-Feeds immer laden wenn noch nicht aus DB geholt
@@ -3340,7 +3481,12 @@ function renderMyTeamWidget() {
   const multiTeam = teams && teams.length > 1;
 
   if (_myTeamName) {
-    nameEl.textContent = _myTeamName;
+    // Freigegebene Mannschaft: Badge anzeigen
+    nameEl.innerHTML = _isSharedTeam
+      ? `${_myTeamName} <span style="font-size:9px;background:rgba(0,87,255,.25);color:#93c5fd;
+          border-radius:8px;padding:1px 6px;font-weight:700;vertical-align:middle;
+          white-space:nowrap;">🔓 freigegeben</span>`
+      : _myTeamName;
     nameEl.classList.remove('empty');
     // ⚙ nur bei mehreren Mannschaften sichtbar
     if (cfgIcon) cfgIcon.style.opacity = multiTeam ? '1' : '0.2';
@@ -3404,7 +3550,7 @@ async function loadMannschaftenForConfig() {
     list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--xsoft);font-size:13px;">Lade…</div>';
     const { data, error } = await supa
       .from('mannschaften')
-      .select('id,name,verein,farbe_geplant')
+      .select('id,name,verein,farbe_geplant,user_id')
       .order('sort_order', {ascending:true})
       .order('created_at', {ascending:true});
     teams = data || [];
@@ -3419,16 +3565,27 @@ async function loadMannschaftenForConfig() {
     return;
   }
 
-  list.innerHTML = teams.map(m => `
+  list.innerHTML = teams.map(m => {
+    const isShared = !!m.user_id && m.user_id !== currentUser.id;
+    const badge = isShared
+      ? `<span style="font-size:9.5px;background:rgba(0,87,255,.15);color:#3b82f6;
+          border-radius:8px;padding:1px 7px;font-weight:700;white-space:nowrap;">🔓 freigegeben</span>`
+      : `<span style="font-size:9.5px;background:var(--green-l);color:var(--green);
+          border-radius:8px;padding:1px 7px;font-weight:700;white-space:nowrap;">👑 Meine Mannschaft</span>`;
+    return `
     <div class="mannschaft-option ${m.id === _myTeamId ? 'selected' : ''}"
       onclick="selectMannschaftOption('${m.id}','${m.name.replace(/'/g,"\\'")}',this)">
       <div class="mo-icon">🤾</div>
-      <div style="flex:1;">
+      <div style="flex:1;min-width:0;">
         <div style="font-size:13.5px;font-weight:600;">${m.name}</div>
-        ${m.verein ? `<div style="font-size:11.5px;color:var(--soft);">${m.verein}</div>` : ''}
+        <div style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap;">
+          ${m.verein ? `<div style="font-size:11.5px;color:var(--soft);">${m.verein}</div>` : ''}
+          ${badge}
+        </div>
       </div>
-      ${m.id === _myTeamId ? '<div style="color:var(--accent);font-size:14px;">✓</div>' : ''}
-    </div>`).join('');
+      ${m.id === _myTeamId ? '<div style="color:var(--accent);font-size:14px;flex-shrink:0;">✓</div>' : ''}
+    </div>`;
+  }).join('');
 }
 
 let _pendingTeamId = '';
@@ -3463,12 +3620,20 @@ async function saveMyTeamConfig() {
       hbs_my_team: _myTeamName,
       hbs_my_mannschaft_id: _myTeamId
     }}).catch(()=>{});
-    // Bei Teamwechsel: iCal-Cache leeren und neu laden
     if (teamChanged) {
+      // Freigabe-Status neu ermitteln
+      const teams = window._availableMannschaften || [];
+      const sel = teams.find(m => m.id === _myTeamId);
+      _myTeamOwnerId = sel?.user_id || '';
+      _isSharedTeam  = !!_myTeamOwnerId && _myTeamOwnerId !== currentUser.id;
+      // iCal-Cache leeren und neu laden
       _myTeamIcal = '';
       window._icalGamesMain = null;
       _wizardKaderCache = null;   // Kader-Cache bei Team-Wechsel leeren
+      window._teamIcalFeeds = undefined;
       await autoLoadTeamIcal(_myTeamId, true);
+      // Spiele neu laden (jetzt mit korrekter mannschaft_id)
+      await loadSpiele();
     }
   }
   renderMyTeamWidget();
@@ -3590,11 +3755,31 @@ async function renderKaderView() {
       kaderSpieler = ks || [];
     }
 
-    // ── 2. Alle Spiele des Users ──
-    const { data: spiele } = await supa
-      .from('spiele')
-      .select('id,heim,gast,datum,spielart,status,score_home,score_away')
-      .eq('user_id', currentUser.id);
+    // ── 2. Alle Spiele der aktiven Mannschaft (eigene + freigegebene) ──
+    let spiele2Query;
+    if (_myTeamId) {
+      // Primär nach mannschaft_id — deckt Admin-Spiele und freigegebene Trainer-Spiele ab
+      const [rMannschaft, rLegacy] = await Promise.all([
+        supa.from('spiele')
+          .select('id,heim,gast,datum,spielart,status,score_home,score_away')
+          .eq('mannschaft_id', _myTeamId),
+        // Legacy: eigene Spiele ohne mannschaft_id (Altdaten)
+        supa.from('spiele')
+          .select('id,heim,gast,datum,spielart,status,score_home,score_away')
+          .eq('user_id', currentUser.id)
+          .is('mannschaft_id', null)
+      ]);
+      const seenK = new Set();
+      const merged = [...(rMannschaft.data || []), ...(rLegacy.data || [])].filter(s => {
+        if (seenK.has(s.id)) return false; seenK.add(s.id); return true;
+      });
+      spiele2Query = { data: merged };
+    } else {
+      spiele2Query = await supa.from('spiele')
+        .select('id,heim,gast,datum,spielart,status,score_home,score_away')
+        .eq('user_id', currentUser.id);
+    }
+    const { data: spiele } = spiele2Query;
     const spieleMap = {};
     (spiele || []).forEach(s => spieleMap[s.id] = s);
 
@@ -4359,6 +4544,7 @@ async function createGameFromIcal(idx){
 
   const payload={
     user_id:currentUser.id,
+    mannschaft_id: _myTeamId || null,
     heim:g.heim||'',gast:g.gast||'',
     datum:g.datum||null,uhrzeit:g.uhrzeit||null,
     ort:g.ort||'',
