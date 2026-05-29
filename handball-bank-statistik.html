@@ -3801,6 +3801,7 @@ function guessMyTeamSide(heimName, gastName) {
 let _kaderCache = null; // { spieler, spieleMap, aktionenByPlayer }
 let _kaderSpieleMap = {};         // spiel_id → Spielobjekt  (für Player-Detail-Modal)
 let _kaderPlayerListGlobal = [];  // vollständige Spielerliste mit .aktionen[]
+let _kaderDetailMap = [];         // index → player object (Render-Reihenfolge der Tabelle)
 
 async function renderKaderView() {
   const content = document.getElementById('kader-content');
@@ -4265,6 +4266,7 @@ function renderKaderTableFL(players) {
     const heB=totB>0?(Object.entries(b.s).filter(([k])=>POL[k]>0).reduce((s,[,v])=>s+v,0)/totB):0;
     return heB-heA || tB-tA;
   });
+  _kaderDetailMap = sorted; // Index-Lookup für Player-Detail-Modal
 
   const rows = sorted.map((p,i) => {
     const total = Object.values(p.s).reduce((s,v)=>s+v,0);
@@ -4288,7 +4290,7 @@ function renderKaderTableFL(players) {
       ? ` title="Lineup: ${p.spiele} Spiele · Aktionen erfasst: ${aktCount} Spiele"` : '';
     const spSuffix = aktCount < p.spiele
       ? `<span style="font-size:9px;color:var(--xsoft);margin-left:3px;">(${aktCount}✓)</span>` : '';
-    return `<tr class="kader-player-row" style="cursor:pointer;${bg}${!hasData?'opacity:.4;':''}" onclick="openPlayerDetail(${JSON.stringify(p.name)},${JSON.stringify(String(p.nummer||''))})">
+    return `<tr class="kader-player-row" style="cursor:pointer;${bg}${!hasData?'opacity:.4;':''}" onclick="openPlayerDetail(${i})">
       <td><span class="kader-rank">${i+1}</span></td>
       <td style="font-weight:600;white-space:nowrap;">
         ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">#${p.nummer}</span>`:''}${p.name}${altNrHint}
@@ -4343,6 +4345,7 @@ function renderKaderTableTH(players) {
     const aqA=shA>0?gA/shA:0, aqB=shB>0?((b.s.geh||0)+(b.s.geh_7m||0))/shB:0;
     return aqB-aqA;
   });
+  _kaderDetailMap = sorted; // Index-Lookup für Player-Detail-Modal
 
   const rows = sorted.map((p,i) => {
     const total = Object.values(p.s).reduce((s,v)=>s+v,0);
@@ -4366,7 +4369,7 @@ function renderKaderTableTH(players) {
       ? ` title="Lineup: ${p.spiele} Spiele · Aktionen erfasst: ${aktCount} Spiele"` : '';
     const spSuffix = aktCount < p.spiele
       ? `<span style="font-size:9px;color:var(--xsoft);margin-left:3px;">(${aktCount}✓)</span>` : '';
-    return `<tr class="kader-player-row" style="cursor:pointer;${bg}${!hasData?'opacity:.4;':''}" onclick="openPlayerDetail(${JSON.stringify(p.name)},${JSON.stringify(String(p.nummer||''))})">
+    return `<tr class="kader-player-row" style="cursor:pointer;${bg}${!hasData?'opacity:.4;':''}" onclick="openPlayerDetail(${i})">
       <td><span class="kader-rank">${i+1}</span></td>
       <td style="font-weight:600;white-space:nowrap;">
         ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">●${p.nummer}</span>`:''}${p.name}${altNrHint}
@@ -4415,11 +4418,9 @@ function renderKaderTableTH(players) {
 // Öffnet eine Spiel-für-Spiel-Aufschlüsselung aller Aktionen
 // einer Spielerin – primär zur Fehleranalyse (z.B. 91 × 7m-Tor).
 // ════════════════════════════════════════════════════════════
-function openPlayerDetail(name, nummer) {
-  // Spielerin in der zuletzt gerenderten Liste suchen
-  const player = _kaderPlayerListGlobal.find(p =>
-    p.name === name && String(p.nummer ?? '') === String(nummer)
-  );
+function openPlayerDetail(idx) {
+  // Spielerin per Index aus der zuletzt gerenderten Tabelle holen
+  const player = _kaderDetailMap[idx];
   if (!player) {
     toast('Spielerdaten nicht verfügbar – bitte Statistik neu laden.', 'error');
     return;
