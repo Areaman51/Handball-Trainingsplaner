@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260529.1200 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260529.1530 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -439,6 +439,46 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .home-tile{padding:16px 14px;gap:12px;}
   .home-tile-icon{font-size:22px;width:34px;}
   .home-tile-title{font-size:14px;}
+}
+
+/* ── ANWESENHEITSLISTE ── */
+.aw-view{padding:0;display:none;}
+.aw-stats-bar{display:flex;align-items:center;gap:14px;padding:13px 22px;background:white;border-radius:var(--radius) var(--radius) 0 0;border:1px solid var(--border);border-bottom:none;flex-wrap:wrap;}
+.aw-stat{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:600;}
+.aw-stat-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.aw-stat-dot.anwesend{background:#16a34a;}
+.aw-stat-dot.abwesend{background:#9ca3af;}
+.aw-stat-dot.verletzt{background:#f59e0b;}
+.aw-stat-num{font-size:18px;font-family:'DM Mono',monospace;font-weight:700;}
+.aw-stat-lbl{font-size:11.5px;color:var(--soft);font-weight:500;}
+.aw-stats-right{margin-left:auto;font-size:12px;color:var(--xsoft);}
+.aw-group{background:white;border:1px solid var(--border);border-bottom:none;}
+.aw-group:last-child{border-bottom:1px solid var(--border);border-radius:0 0 var(--radius) var(--radius);}
+.aw-group-header{padding:8px 22px;background:#f7f8fa;border-bottom:1px solid var(--border);border-top:2px solid var(--border);display:flex;align-items:center;gap:8px;}
+.aw-group-label{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);}
+.aw-group-count{font-size:10.5px;color:var(--xsoft);margin-left:auto;font-family:'DM Mono',monospace;}
+.aw-player{display:flex;align-items:center;gap:12px;padding:11px 22px;border-bottom:1px solid var(--border);transition:background .1s;}
+.aw-player:last-child{border-bottom:none;}
+.aw-player:hover{background:#f8f9ff;}
+.aw-nr{font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--soft);width:28px;text-align:right;flex-shrink:0;}
+.aw-name{flex:1;font-size:14px;font-weight:500;color:var(--text);min-width:0;}
+.aw-pos{font-size:11px;color:var(--xsoft);flex-shrink:0;width:18px;text-align:center;}
+.aw-status-btn{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;min-width:120px;text-align:center;}
+.aw-status-btn.anwesend{background:#dcfce7;color:#15803d;}
+.aw-status-btn.anwesend:hover{background:#bbf7d0;}
+.aw-status-btn.abwesend{background:#f3f4f6;color:#6b7280;}
+.aw-status-btn.abwesend:hover{background:#e5e7eb;}
+.aw-status-btn.verletzt{background:#fef3c7;color:#92400e;}
+.aw-status-btn.verletzt:hover{background:#fde68a;}
+.aw-empty{padding:40px 24px;text-align:center;color:var(--xsoft);font-size:13.5px;line-height:1.7;background:white;border:1px solid var(--border);border-radius:var(--radius);}
+.aw-loading{padding:32px 24px;text-align:center;color:var(--xsoft);font-size:13px;background:white;border:1px solid var(--border);border-radius:var(--radius);}
+@media(max-width:600px){
+  .aw-stats-bar{padding:10px 14px;gap:10px;}
+  .aw-group-header{padding:8px 14px;}
+  .aw-player{padding:11px 14px;gap:8px;}
+  .aw-nr{width:22px;font-size:12px;}
+  .aw-name{font-size:13px;}
+  .aw-status-btn{min-width:90px;padding:6px 10px;font-size:11.5px;}
 }
 
 /* ── PLAYER PICKER ── */
@@ -926,7 +966,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
       <!-- Content Toolbar -->
       <div class="content-toolbar" id="content-toolbar" style="display:none;">
-        <div class="ctb-row">
+        <div class="ctb-row" id="ctb-planung-row">
           <button class="ctb-btn ctb-save" id="save-btn" onclick="saveAll()">💾 Speichern</button>
           <button class="ctb-btn ctb-add" onclick="openAddModal(-1)">+ Übung</button>
           <div class="ctb-spacer"></div>
@@ -934,11 +974,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <button class="ctb-btn ctb-ghost" onclick="goHome()">🏠 Startseite</button>
           <button class="ctb-btn ctb-danger" onclick="resetEinheit()" title="Alle Übungen dieser Einheit löschen und auf Null setzen">↺ Zurücksetzen</button>
         </div>
-        <div class="ctb-sections-row">
+        <div class="ctb-sections-row" id="ctb-sections-row">
           <span class="ctb-sections-label">Abschnitte einfügen:</span>
           <button class="ctb-btn ctb-section ctb-aufwaermen" onclick="insertSection('aufwaermen')" title="Abschnitt ‚Aufwärmen' einfügen">÷ Aufwärmen</button>
           <button class="ctb-btn ctb-section ctb-hauptteil" onclick="insertSection('hauptteil')" title="Abschnitt ‚Hauptteil' einfügen">÷ Hauptteil</button>
           <button class="ctb-btn ctb-section ctb-ausklang" onclick="insertSection('ausklang')" title="Abschnitt ‚Abschluss' einfügen">÷ Abschluss</button>
+        </div>
+        <!-- Anwesenheit-Toolbar (nur wenn Anwesenheit-Tab aktiv) -->
+        <div class="ctb-row" id="ctb-aw-row" style="display:none;">
+          <button class="ctb-btn ctb-save" id="aw-save-btn" onclick="saveAnwesenheit()">💾 Anwesenheit speichern</button>
+          <button class="ctb-btn ctb-ghost" onclick="setAllAnwesenheit('anwesend')" title="Alle Spielerinnen auf Anwesend setzen">✅ Alle anwesend</button>
+          <button class="ctb-btn ctb-ghost" onclick="setAllAnwesenheit('abwesend')" title="Alle Spielerinnen auf Abwesend setzen">❌ Alle abwesend</button>
+          <div class="ctb-spacer"></div>
+          <button class="ctb-btn ctb-ghost" onclick="goHome()">🏠 Startseite</button>
+          <button class="ctb-btn ctb-ghost" onclick="syncPlayerCountFromAnwesenheit()" title="Anwesende Spieleranzahl in die Einheit übernehmen">👥 → Spieleranzahl</button>
         </div>
       </div>
 
@@ -973,8 +1022,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div id="s-notes-text" style="font-size:13px;color:#92400e;white-space:pre-wrap;"></div>
         </div>
         <div class="tabs" onclick="event.stopPropagation()">
-          <div class="tab active">Planung</div>
-          <div class="tab">Anwesenheit</div>
+          <div class="tab active" id="tab-planung" onclick="switchSessionTab('planung')">Planung</div>
+          <div class="tab" id="tab-anwesenheit" onclick="switchSessionTab('anwesenheit')">👥 Anwesenheit</div>
         </div>
       </div>
 
@@ -1030,6 +1079,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div class="empty-text">Noch keine Übungen geplant.<br>Klicke auf <strong>+ Übung hinzufügen</strong> oder öffne die <strong>Übungsdatenbank</strong>.</div>
         </div>
       </div>
+
+      <!-- Anwesenheits-View -->
+      <div class="aw-view" id="anwesenheit-view"></div>
 
       <!-- Mobile FAB -->
       <button onclick="openAddModal(-1)" style="
@@ -3678,16 +3730,26 @@ function closeMehrMenu() {
 
 // VIEW SWITCHER
 let currentView = 'home';
+let sessionTab  = 'planung';   // 'planung' | 'anwesenheit'
 function showView(view) {
   currentView = view;
   const hv = document.getElementById('home-view');
   if (hv) hv.style.display = view === 'home' ? 'block' : 'none';
-  document.getElementById('plan-card').style.display = view === 'planer' ? '' : 'none';
+  document.getElementById('plan-card').style.display = view === 'planer' && sessionTab === 'planung' ? '' : 'none';
   document.getElementById('kalender-view').style.display = view === 'kalender' ? '' : 'none';
+  const awv = document.getElementById('anwesenheit-view');
+  if(awv) awv.style.display = view === 'planer' && sessionTab === 'anwesenheit' ? '' : 'none';
   const sh = document.querySelector('.session-header');
   if (sh) sh.style.display = view === 'planer' ? '' : 'none';
   const ct = document.getElementById('content-toolbar');
   if (ct) ct.style.display = view === 'planer' ? '' : 'none';
+  // Toolbar-Rows je nach sessionTab
+  const ctbPlan = document.getElementById('ctb-planung-row');
+  const ctbSec  = document.getElementById('ctb-sections-row');
+  const ctbAw   = document.getElementById('ctb-aw-row');
+  if(ctbPlan) ctbPlan.style.display = (view==='planer' && sessionTab==='planung') ? '' : 'none';
+  if(ctbSec)  ctbSec.style.display  = (view==='planer' && sessionTab==='planung') ? '' : 'none';
+  if(ctbAw)   ctbAw.style.display   = (view==='planer' && sessionTab==='anwesenheit') ? '' : 'none';
   document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
   if(view==='kalender' && document.getElementById('nav-kalender')) document.getElementById('nav-kalender').classList.add('active');
   if(view==='planer' && document.getElementById('nav-planer')) document.getElementById('nav-planer').classList.add('active');
@@ -3876,6 +3938,9 @@ function newEinheit(datePrefill=''){
   document.getElementById('s-title').innerText = 'Trainingseinheit';
   const btn = document.getElementById('share-btn');
   if(btn) btn.style.color = '';
+  // Tab auf Planung zurücksetzen
+  sessionTab = 'planung';
+  _syncTabUI();
   expandSidebar();
   showView('planer');
   render();
@@ -3960,6 +4025,10 @@ async function loadEinheit(id){
     const btn=document.getElementById('share-btn');
     if(btn) btn.style.color=(ef&&ef.length>0)?'var(--accent)':'';
   });
+  // Tab auf Planung zurücksetzen, Anwesenheits-Cache leeren
+  sessionTab='planung';
+  _syncTabUI();
+  anwesenheitDaten={};
   showView('planer'); render();
 }
 
@@ -4448,6 +4517,280 @@ function openIcalTrainingByDate(dateStr, group, time, name){
   render();
   showToast('📅 Termin vorbelegt – Übungen hinzufügen','info');
 }
+
+// ══════════════════════════════════════════
+// ANWESENHEITSLISTE
+// ══════════════════════════════════════════
+let kaderCache      = {};   // mannschaft_id → [{id,name,nummer,pos}]
+let anwesenheitDaten= {};   // spieler_id → 'anwesend'|'abwesend'|'verletzt'
+let anwesenheitDirty= false;
+
+// ── Tab-UI synchronisieren (ohne Inhalte neu zu laden) ──
+function _syncTabUI(){
+  document.getElementById('tab-planung')?.classList.toggle('active', sessionTab==='planung');
+  document.getElementById('tab-anwesenheit')?.classList.toggle('active', sessionTab==='anwesenheit');
+}
+
+// ── Tab wechseln ──
+async function switchSessionTab(tab){
+  // Dirty-Check vor Verlassen des Anwesenheits-Tabs
+  if(sessionTab==='anwesenheit' && anwesenheitDirty && tab==='planung'){
+    const ok=confirm('Anwesenheit hat ungespeicherte Änderungen. Jetzt speichern?');
+    if(ok) await saveAnwesenheit();
+  }
+  sessionTab=tab;
+  _syncTabUI();
+  showView('planer');            // showView kümmert sich um plan-card / aw-view sichtbarkeit
+  if(tab==='anwesenheit') await loadAnwesenheit();
+}
+
+// ── Kader laden + Anwesenheitsdaten aus DB ──
+async function loadAnwesenheit(){
+  const el=document.getElementById('anwesenheit-view');
+  if(!el) return;
+  el.innerHTML='<div class="aw-loading">⏳ Kader wird geladen…</div>';
+
+  const teamName=(sessionMeta.group||'').trim()||(localStorage.getItem('hbs_my_team')||'').trim();
+  const team=allMannschaften.find(t=>(t.name||'').trim()===teamName);
+
+  if(!team){
+    el.innerHTML=`<div class="aw-empty">
+      <div style="font-size:28px;margin-bottom:8px;">👥</div>
+      Keine Mannschaft zugewiesen.<br>
+      <span style="font-size:12px;color:var(--xsoft);">Bitte zuerst die Mannschaft in der Einheit einstellen.</span>
+    </div>`;
+    return;
+  }
+
+  // Kader laden (mit Cache)
+  if(!kaderCache[team.id]){
+    const {data,error}=await supa.from('mannschaft_spieler')
+      .select('id,name,nummer,pos')
+      .eq('mannschaft_id',team.id)
+      .order('pos',{ascending:true}).order('nummer',{ascending:true,nullsFirst:false});
+    if(error){ el.innerHTML=`<div class="aw-empty">❌ Kader konnte nicht geladen werden.<br><small>${error.message}</small></div>`; return; }
+    kaderCache[team.id]=data||[];
+  }
+  const players=kaderCache[team.id];
+
+  if(!players.length){
+    el.innerHTML=`<div class="aw-empty">
+      <div style="font-size:28px;margin-bottom:8px;">👥</div>
+      Noch keine Spielerinnen im Kader von <strong>${teamName}</strong>.<br>
+      <a href="mannschaftsverwaltung.html" style="color:var(--accent);font-weight:600;">→ Zur Mannschaftsverwaltung</a>
+    </div>`;
+    return;
+  }
+
+  // Gespeicherte Anwesenheit laden (nur wenn Einheit bereits in DB)
+  if(currentEinheitId && !Object.keys(anwesenheitDaten).length){
+    const {data:eData}=await supa.from('einheiten')
+      .select('anwesenheit')
+      .eq('id',currentEinheitId)
+      .maybeSingle();
+    anwesenheitDaten={};
+    (eData?.anwesenheit?.spieler||[]).forEach(s=>{ anwesenheitDaten[s.id]=s.status||'anwesend'; });
+  }
+
+  anwesenheitDirty=false;
+  renderAnwesenheit(players, teamName);
+}
+
+// ── Anwesenheits-View rendern ──
+function renderAnwesenheit(players, teamName){
+  const el=document.getElementById('anwesenheit-view');
+  if(!el) return;
+
+  const tw=players.filter(p=>p.pos==='TH');
+  const fl=players.filter(p=>p.pos==='FL');
+
+  const stats=_getAwStats(players);
+  const total=players.length;
+
+  function playerRow(p){
+    const status=anwesenheitDaten[p.id]||'anwesend';
+    const labels={anwesend:'✅ Anwesend',abwesend:'❌ Abwesend',verletzt:'🤕 Verletzt'};
+    const nr=p.nummer!=null?String(p.nummer).padStart(2,'0'):'–';
+    return `<div class="aw-player" id="awp-${p.id}">
+      <div class="aw-nr">#${nr}</div>
+      <div class="aw-name">${_escHtml(p.name)}</div>
+      <div class="aw-pos">${p.pos==='TH'?'●':'▲'}</div>
+      <button class="aw-status-btn ${status}" onclick="toggleAwStatus('${p.id}')">${labels[status]}</button>
+    </div>`;
+  }
+
+  function posGroup(label, list){
+    if(!list.length) return '';
+    const anwCnt=list.filter(p=>(anwesenheitDaten[p.id]||'anwesend')==='anwesend').length;
+    return `<div class="aw-group">
+      <div class="aw-group-header">
+        <span class="aw-group-label">${label}</span>
+        <span class="aw-group-count">${anwCnt}/${list.length}</span>
+      </div>
+      ${list.map(playerRow).join('')}
+    </div>`;
+  }
+
+  el.innerHTML=`
+    <div class="aw-stats-bar">
+      <div class="aw-stat">
+        <div class="aw-stat-dot anwesend"></div>
+        <div>
+          <div class="aw-stat-num" id="aw-cnt-anwesend">${stats.anwesend}</div>
+          <div class="aw-stat-lbl">Anwesend</div>
+        </div>
+      </div>
+      <div class="aw-stat">
+        <div class="aw-stat-dot abwesend"></div>
+        <div>
+          <div class="aw-stat-num" id="aw-cnt-abwesend">${stats.abwesend}</div>
+          <div class="aw-stat-lbl">Abwesend</div>
+        </div>
+      </div>
+      <div class="aw-stat">
+        <div class="aw-stat-dot verletzt"></div>
+        <div>
+          <div class="aw-stat-num" id="aw-cnt-verletzt">${stats.verletzt}</div>
+          <div class="aw-stat-lbl">Verletzt</div>
+        </div>
+      </div>
+      <div class="aw-stats-right">${total} Spielerinnen im Kader · <strong>${teamName}</strong></div>
+    </div>
+    ${posGroup('● Torhüterinnen',tw)}
+    ${posGroup('▲ Feldspielerinnen',fl)}
+  `;
+}
+
+// ── Status eines Spielers weiterschalten ──
+function toggleAwStatus(id){
+  const cycle=['anwesend','abwesend','verletzt'];
+  const current=anwesenheitDaten[id]||'anwesend';
+  const next=cycle[(cycle.indexOf(current)+1)%cycle.length];
+  anwesenheitDaten[id]=next;
+  anwesenheitDirty=true;
+
+  // Button in-place aktualisieren
+  const btn=document.querySelector(`#awp-${id} .aw-status-btn`);
+  if(btn){
+    const labels={anwesend:'✅ Anwesend',abwesend:'❌ Abwesend',verletzt:'🤕 Verletzt'};
+    btn.className='aw-status-btn '+next;
+    btn.textContent=labels[next];
+  }
+
+  // Stat-Counter aktualisieren
+  const teamName=(sessionMeta.group||'').trim()||(localStorage.getItem('hbs_my_team')||'').trim();
+  const team=allMannschaften.find(t=>(t.name||'').trim()===teamName);
+  if(team && kaderCache[team.id]){
+    const stats=_getAwStats(kaderCache[team.id]);
+    const cntA=document.getElementById('aw-cnt-anwesend');
+    const cntAb=document.getElementById('aw-cnt-abwesend');
+    const cntV=document.getElementById('aw-cnt-verletzt');
+    if(cntA) cntA.textContent=stats.anwesend;
+    if(cntAb) cntAb.textContent=stats.abwesend;
+    if(cntV) cntV.textContent=stats.verletzt;
+
+    // Positions-Gruppen-Zähler aktualisieren
+    const player=kaderCache[team.id].find(p=>p.id===id);
+    if(player){
+      const grpPlayers=kaderCache[team.id].filter(p=>p.pos===player.pos);
+      const anwCnt=grpPlayers.filter(p=>(anwesenheitDaten[p.id]||'anwesend')==='anwesend').length;
+      // Finde aw-group-count des richtigen Blocks → suche über aw-player
+      const playerEl=document.getElementById('awp-'+id);
+      const grpEl=playerEl?.closest('.aw-group');
+      const cntEl=grpEl?.querySelector('.aw-group-count');
+      if(cntEl) cntEl.textContent=`${anwCnt}/${grpPlayers.length}`;
+    }
+  }
+}
+
+// ── Alle auf einen Status setzen ──
+function setAllAnwesenheit(status){
+  const teamName=(sessionMeta.group||'').trim()||(localStorage.getItem('hbs_my_team')||'').trim();
+  const team=allMannschaften.find(t=>(t.name||'').trim()===teamName);
+  if(!team||!kaderCache[team.id]) return;
+  kaderCache[team.id].forEach(p=>{ anwesenheitDaten[p.id]=status; });
+  anwesenheitDirty=true;
+  renderAnwesenheit(kaderCache[team.id], teamName);
+}
+
+// ── Anwesenheit in DB speichern ──
+async function saveAnwesenheit(){
+  if(!currentUser) return;
+  const btn=document.getElementById('aw-save-btn');
+
+  // Falls noch keine Einheit in DB → zuerst Einheit speichern
+  if(!currentEinheitId){
+    showToast('Einheit wird zuerst gespeichert…','info');
+    await saveAll();
+    if(!currentEinheitId){ showToast('❌ Einheit konnte nicht gespeichert werden','info'); return; }
+  }
+
+  if(btn){ btn.textContent='⏳…'; btn.disabled=true; }
+
+  const teamName=(sessionMeta.group||'').trim()||(localStorage.getItem('hbs_my_team')||'').trim();
+  const team=allMannschaften.find(t=>(t.name||'').trim()===teamName);
+  const players=team&&kaderCache[team.id] ? kaderCache[team.id] : [];
+
+  const payload={
+    spieler: players.map(p=>({
+      id:    p.id,
+      name:  p.name,
+      nummer:p.nummer,
+      pos:   p.pos,
+      status:anwesenheitDaten[p.id]||'anwesend'
+    })),
+    gespeichert_am: new Date().toISOString()
+  };
+
+  const {error}=await supa.from('einheiten')
+    .update({anwesenheit: payload})
+    .eq('id', currentEinheitId);
+
+  if(btn){ btn.textContent='💾 Anwesenheit speichern'; btn.disabled=false; }
+
+  if(error){
+    if(error.code==='PGRST204'||error.message?.includes('column')||error.message?.includes('anwesenheit')){
+      showToast('⚠️ Spalte fehlt – bitte SQL-Migration ausführen (siehe Konsole)','info');
+      console.warn('SQL-Migration erforderlich:\nALTER TABLE einheiten ADD COLUMN IF NOT EXISTS anwesenheit jsonb;');
+    } else {
+      showToast('❌ '+error.message,'info');
+    }
+    return;
+  }
+  anwesenheitDirty=false;
+  showToast('✅ Anwesenheit gespeichert','success');
+}
+
+// ── Anwesende Spieleranzahl in Spieleranzahl-Picker übernehmen ──
+function syncPlayerCountFromAnwesenheit(){
+  const teamName=(sessionMeta.group||'').trim()||(localStorage.getItem('hbs_my_team')||'').trim();
+  const team=allMannschaften.find(t=>(t.name||'').trim()===teamName);
+  if(!team||!kaderCache[team.id]){ showToast('Kein Kader geladen','info'); return; }
+
+  const players=kaderCache[team.id];
+  const anwesend=players.filter(p=>(anwesenheitDaten[p.id]||'anwesend')==='anwesend');
+  const tw=anwesend.filter(p=>p.pos==='TH').length;
+  const fl=anwesend.filter(p=>p.pos==='FL').length;
+  const total=anwesend.length;
+
+  // Spieleranzahl als "Gesamt"-String setzen
+  sessionMeta.players=`${total} (${tw} TW, ${fl} FL)`;
+  render();
+  showToast(`👥 ${total} Spielerinnen übernommen (${tw} TW · ${fl} FL)`,'success');
+}
+
+// ── Stat-Helfer ──
+function _getAwStats(players){
+  let anwesend=0, abwesend=0, verletzt=0;
+  players.forEach(p=>{
+    const s=anwesenheitDaten[p.id]||'anwesend';
+    if(s==='anwesend') anwesend++;
+    else if(s==='abwesend') abwesend++;
+    else if(s==='verletzt') verletzt++;
+  });
+  return {anwesend,abwesend,verletzt};
+}
+function _escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 async function openOtherTeamEinheit(){
   const firstOther=allMannschaften.filter(m=>(m.name||'').trim()!==(localStorage.getItem('hbs_my_team')||'').trim())[0];
   if(!firstOther) return;
