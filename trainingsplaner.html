@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260512.1600 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260529.1200 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -3832,10 +3832,14 @@ async function renderKalender() {
         const bg=isSpiel?ev.farbe_geplant:ev.farbe_ungeplant;
         const time=ev.dtstart?ev.dtstart.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
         const ds=icalDateStr(ev.dtstart);
+        // Sicheres Encoding: Anführungszeichen in Datennamen escapen
+        const safeGroup=(ev.mannschaftName||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        const safeName=(ev.summary||('Training '+(ev.mannschaftName||''))).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        const safeTime=time.replace(/'/g,"\\'");
         return {
           sortKey:ds+(time||''),
           html:`<div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:${isSpiel?'default':'pointer'};"
-            ${!isSpiel?`onclick="newEinheit('${ds}');sessionMeta.group='${ev.mannschaftName||''}';sessionMeta.time='${time}';sessionMeta.name='Training ${ev.mannschaftName}';render();showToast('📋 Datum vorbelegt','info');"`:''}>
+            ${!isSpiel?`onclick="openIcalTrainingByDate('${ds}','${safeGroup}','${safeTime}','${safeName}')"`:''}> 
             <div style="width:4px;height:38px;background:${bg};border-radius:2px;flex-shrink:0;"></div>
             <div style="width:32px;text-align:center;font-size:13px;font-weight:700;color:${bg};flex-shrink:0;">${ev.dtstart.getDate()}</div>
             <div style="flex:1;min-width:0;">
@@ -4145,6 +4149,8 @@ async function refreshAllFeeds(){
     showToast(fail>0?`⚠️ ${ok} Feeds geladen, ${fail} Fehler`:`✅ ${newEvents.length} Feed-Termine geladen`,fail>0?'info':'success');
   }
   if(currentView==='kalender') renderKalender();
+  // Home-Kacheln neu befüllen: iCal-Termine jetzt verfügbar
+  if(currentView==='home') loadHomeData();
 }
 
 // Auto-laden beim Start (nach Login)
@@ -4175,6 +4181,7 @@ function expandSidebar(){
 
 // ── HOME VIEW LOGIC ──
 let homeLastEinheit=null, homeNextEinheit=null, homeTeamToPlan=null, homeOtherTeamEinheit=null;
+let homeIcalNext=null, homeOtherIcalNext=null;
 
 function computeGreeting(){
   const h=new Date().getHours();
@@ -4241,7 +4248,7 @@ async function loadHomeData(){
   const activeName=(activeTeam?.name||'').trim();
   console.log('[HomeData] activeTeam:', activeName);
 
-  // Nächste Einheit des aktiven Teams
+  // Nächste Einheit des aktiven Teams (nur dieser Mannschaft – kein team-übergreifender Fallback)
   let activeNext=null;
   if(activeName){
     const {data:ad}=await supa.from('einheiten')
@@ -4251,21 +4258,27 @@ async function loadHomeData(){
       .limit(1).maybeSingle();
     activeNext=ad||null;
   }
-  if(!activeNext){
-    // Fallback ohne group_name-Filter
-    const {data:ad}=await supa.from('einheiten')
-      .select('id,name,date,time,group_name')
-      .eq('user_id',currentUser.id).gte('date',todayStr)
-      .order('date',{ascending:true}).limit(1).maybeSingle();
-    activeNext=ad||null;
+
+  // ── iCal-Fallback: kein Supabase-Eintrag → nächsten Feed-Termin suchen ──
+  homeIcalNext=null;
+  if(!activeNext && activeName && icalEvents.length>0){
+    const todayDate=new Date(); todayDate.setHours(0,0,0,0);
+    const upcoming=icalEvents
+      .filter(ev=>
+        ev.typ==='training' &&
+        (ev.mannschaftName||'').trim()===activeName &&
+        ev.dtstart instanceof Date && ev.dtstart>=todayDate
+      )
+      .sort((a,b)=>a.dtstart-b.dtstart);
+    homeIcalNext=upcoming[0]||null;
   }
-  console.log('[HomeData] activeNext:', activeNext?.name, activeNext?.group_name);
+  console.log('[HomeData] activeNext:', activeNext?.name, '| homeIcalNext:', homeIcalNext?.summary);
 
   homeNextEinheit=activeNext||null;
 
-  // Unverplante Mannschaft
+  // Unverplante Mannschaft – nur anzeigen wenn weder Einheit noch iCal-Termin vorhanden
   homeTeamToPlan=null;
-  if(!activeNext && activeTeam) homeTeamToPlan=activeTeam;
+  if(!activeNext && !homeIcalNext && activeTeam) homeTeamToPlan=activeTeam;
 
   // ── Kachel 2: Nächste Einheit aktives Team ──
   const nextSub=document.getElementById('tile-next-sub');
@@ -4282,6 +4295,18 @@ async function loadHomeData(){
       if(nextTitle) nextTitle.textContent='Nächste Einheit bearbeiten';
       if(nextTile) nextTile.classList.remove('tile-disabled');
       if(nextIcon) nextIcon.textContent='⏭';
+    } else if(homeIcalNext){
+      // Feed-Termin vorhanden, aber noch keine Einheit angelegt
+      const ds=icalDateStr(homeIcalNext.dtstart);
+      const tim=homeIcalNext.dtstart.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+      const parts=[homeIcalNext.summary||('Training '+homeIcalNext.mannschaftName)];
+      parts.push(fmtDate(ds));
+      if(tim) parts.push(tim+' Uhr');
+      if(homeIcalNext.mannschaftName) parts.push(homeIcalNext.mannschaftName);
+      nextSub.textContent=parts.join(' · ');
+      if(nextTitle) nextTitle.textContent='Training planen';
+      if(nextTile) nextTile.classList.remove('tile-disabled');
+      if(nextIcon) nextIcon.textContent='📅';
     } else if(homeTeamToPlan){
       nextSub.textContent=`Für ${homeTeamToPlan.name} ist kein Training geplant`;
       if(nextTitle) nextTitle.textContent='Neue Einheit planen';
@@ -4304,6 +4329,7 @@ async function loadHomeData(){
   const otherTitle=document.getElementById('tile-other-title');
 
   homeOtherTeamEinheit=null;
+  homeOtherIcalNext=null;
   if(otherTile){
     if(otherTeams.length>0){
       otherTile.style.display='flex';
@@ -4323,7 +4349,15 @@ async function loadHomeData(){
           .order('updated_at',{ascending:false}).limit(1).maybeSingle();
         if(ld) otherNext=ld;
       }
-      console.log('[HomeData] otherNext:', otherNext?.name, '| team:', firstOther.name);
+      // iCal-Fallback: kein Einheit-Eintrag → Feed-Termin prüfen
+      if(!otherNext && icalEvents.length>0){
+        const todayDate=new Date(); todayDate.setHours(0,0,0,0);
+        const nextIcal=icalEvents
+          .filter(ev=>ev.typ==='training'&&(ev.mannschaftName||'').trim()===firstOther.name.trim()&&ev.dtstart instanceof Date&&ev.dtstart>=todayDate)
+          .sort((a,b)=>a.dtstart-b.dtstart)[0];
+        if(nextIcal) homeOtherIcalNext=nextIcal;
+      }
+      console.log('[HomeData] otherNext:', otherNext?.name, '| otherIcal:', homeOtherIcalNext?.summary, '| team:', firstOther.name);
       homeOtherTeamEinheit=otherNext||null;
 
       if(otherTitle) otherTitle.textContent=otherTeams.length===1
@@ -4335,6 +4369,14 @@ async function loadHomeData(){
           if(otherNext.date) parts.push(fmtDate(otherNext.date));
           if(otherNext.time) parts.push(otherNext.time+' Uhr');
           otherSub.textContent=parts.join(' · ');
+        } else if(homeOtherIcalNext){
+          const ds=icalDateStr(homeOtherIcalNext.dtstart);
+          const tim=homeOtherIcalNext.dtstart.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+          const parts=[homeOtherIcalNext.summary||('Training '+homeOtherIcalNext.mannschaftName)];
+          parts.push(fmtDate(ds));
+          if(tim) parts.push(tim+' Uhr');
+          otherSub.textContent=parts.join(' · ')+' · 📅 noch nicht geplant';
+          if(otherTile) otherTile.classList.remove('tile-disabled');
         } else {
           otherSub.textContent=`${firstOther.name} – noch kein Training geplant`;
         }
@@ -4354,6 +4396,23 @@ async function openNextEinheit(){
   if(homeNextEinheit){
     expandSidebar();
     await loadEinheit(homeNextEinheit.id);
+    return;
+  }
+  if(homeIcalNext){
+    // Feed-Termin: Planer mit vorausgefüllten Daten öffnen
+    const ds=icalDateStr(homeIcalNext.dtstart);
+    const tim=homeIcalNext.dtstart.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    const name=homeIcalNext.summary||('Training '+homeIcalNext.mannschaftName);
+    expandSidebar();
+    newEinheit(ds);
+    sessionMeta.group=homeIcalNext.mannschaftName||'';
+    sessionMeta.time=tim;
+    sessionMeta.name=name;
+    document.getElementById('s-title').innerText=name;
+    const sg=document.getElementById('s-group');
+    if(sg) sg.textContent='Gruppe: '+(homeIcalNext.mannschaftName||'');
+    render();
+    showToast('📅 Termin vorbelegt – jetzt Übungen hinzufügen','info');
     return;
   }
   if(homeTeamToPlan){
@@ -4379,9 +4438,20 @@ function openFromKalender(){
   expandSidebar();
   showView('kalender');
 }
+// ── Hilfsfunktion: iCal-Termin im Planer öffnen (sicher, ohne raw string eval) ──
+function openIcalTrainingByDate(dateStr, group, time, name){
+  expandSidebar();
+  newEinheit(dateStr);
+  if(group){ sessionMeta.group=group; const sg=document.getElementById('s-group'); if(sg) sg.textContent='Gruppe: '+group; }
+  if(time)  sessionMeta.time=time;
+  if(name){ sessionMeta.name=name; document.getElementById('s-title').innerText=name; }
+  render();
+  showToast('📅 Termin vorbelegt – Übungen hinzufügen','info');
+}
 async function openOtherTeamEinheit(){
-  if(!homeOtherTeamEinheit) return;
-  const teamName=(homeOtherTeamEinheit.group_name||'').trim();
+  const firstOther=allMannschaften.filter(m=>(m.name||'').trim()!==(localStorage.getItem('hbs_my_team')||'').trim())[0];
+  if(!firstOther) return;
+  const teamName=firstOther.name.trim();
   const currentTeam=(localStorage.getItem('hbs_my_team')||'').trim();
   if(teamName && teamName!==currentTeam){
     const ok=confirm(`Zu Mannschaft „${teamName}" wechseln?\n\nDie Mannschaft wird als aktives Team gesetzt, damit Anwesenheitslisten und Spielerdaten korrekt zugeordnet werden.`);
@@ -4390,8 +4460,31 @@ async function openOtherTeamEinheit(){
     initMyTeamWidget();
     showToast(`✅ Mannschaft gewechselt: ${teamName}`,'success');
   }
-  expandSidebar();
-  await loadEinheit(homeOtherTeamEinheit.id);
+  if(homeOtherTeamEinheit){
+    expandSidebar();
+    await loadEinheit(homeOtherTeamEinheit.id);
+  } else if(homeOtherIcalNext){
+    const ds=icalDateStr(homeOtherIcalNext.dtstart);
+    const tim=homeOtherIcalNext.dtstart.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    const name=homeOtherIcalNext.summary||('Training '+homeOtherIcalNext.mannschaftName);
+    expandSidebar();
+    newEinheit(ds);
+    sessionMeta.group=homeOtherIcalNext.mannschaftName||'';
+    sessionMeta.time=tim;
+    sessionMeta.name=name;
+    document.getElementById('s-title').innerText=name;
+    const sg=document.getElementById('s-group');
+    if(sg) sg.textContent='Gruppe: '+(homeOtherIcalNext.mannschaftName||'');
+    render();
+    showToast('📅 Termin vorbelegt – jetzt Übungen hinzufügen','info');
+  } else {
+    expandSidebar();
+    newEinheit();
+    sessionMeta.group=teamName;
+    const sg=document.getElementById('s-group');
+    if(sg) sg.textContent='Gruppe: '+teamName;
+    render();
+  }
 }
 
 // ── SIDEBAR TOGGLE ──
