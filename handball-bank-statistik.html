@@ -553,7 +553,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v5.260523.1145</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v5.260529.1600</div>
     </div>
   </aside>
 
@@ -980,6 +980,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="modal-footer" id="gs-footer" style="display:none;">
       <button class="btn btn-ghost" onclick="closeModal('m-gamestart')">Abbrechen</button>
       <button class="btn btn-primary" id="gs-confirm" onclick="confirmGameStart()">▶ Spiel starten</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: Spielerin-Detail (Statistik je Spiel) ════ -->
+<div class="overlay" id="m-player-detail">
+  <div class="modal" style="max-width:960px;width:96vw;">
+    <div class="modal-hdr">
+      <div>
+        <div class="modal-title" id="pd-title">Spielerin-Detail</div>
+        <div class="modal-sub" id="pd-sub">Statistik je Spiel · Fehleranalyse</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('m-player-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="pd-body" style="padding:0;max-height:78vh;overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('m-player-detail')">Schließen</button>
     </div>
   </div>
 </div>
@@ -3782,6 +3799,8 @@ function guessMyTeamSide(heimName, gastName) {
 // ════════════════════════════════════════════════════════════
 
 let _kaderCache = null; // { spieler, spieleMap, aktionenByPlayer }
+let _kaderSpieleMap = {};         // spiel_id → Spielobjekt  (für Player-Detail-Modal)
+let _kaderPlayerListGlobal = [];  // vollständige Spielerliste mit .aktionen[]
 
 async function renderKaderView() {
   const content = document.getElementById('kader-content');
@@ -4215,6 +4234,10 @@ async function renderKaderView() {
     document.getElementById('kader-subtitle').textContent =
       `${subtitleCount} · ${playerList.length} Spieler`;
 
+    // Für Player-Detail-Modal global verfügbar machen
+    _kaderSpieleMap        = spieleMap;
+    _kaderPlayerListGlobal = playerList;
+
     if (_kaderPos === 'FL') {
       content.innerHTML = renderKaderTableFL(playerList);
     } else {
@@ -4265,10 +4288,11 @@ function renderKaderTableFL(players) {
       ? ` title="Lineup: ${p.spiele} Spiele · Aktionen erfasst: ${aktCount} Spiele"` : '';
     const spSuffix = aktCount < p.spiele
       ? `<span style="font-size:9px;color:var(--xsoft);margin-left:3px;">(${aktCount}✓)</span>` : '';
-    return `<tr class="kader-player-row" style="${bg}${!hasData?'opacity:.4;':''}">
+    return `<tr class="kader-player-row" style="cursor:pointer;${bg}${!hasData?'opacity:.4;':''}" onclick="openPlayerDetail(${JSON.stringify(p.name)},${JSON.stringify(String(p.nummer||''))})">
       <td><span class="kader-rank">${i+1}</span></td>
       <td style="font-weight:600;white-space:nowrap;">
         ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">#${p.nummer}</span>`:''}${p.name}${altNrHint}
+        <span style="font-size:9px;color:var(--xsoft);margin-left:4px;opacity:.6;" title="Klicken für Spiel-Detailansicht">↗</span>
       </td>
       <td style="text-align:center;"${spTitle}>${p.spiele||0}${spSuffix}</td>
       <td class="ve">${he!==null?he+'%':'—'}</td>
@@ -4342,10 +4366,11 @@ function renderKaderTableTH(players) {
       ? ` title="Lineup: ${p.spiele} Spiele · Aktionen erfasst: ${aktCount} Spiele"` : '';
     const spSuffix = aktCount < p.spiele
       ? `<span style="font-size:9px;color:var(--xsoft);margin-left:3px;">(${aktCount}✓)</span>` : '';
-    return `<tr class="kader-player-row" style="${bg}${!hasData?'opacity:.4;':''}">
+    return `<tr class="kader-player-row" style="cursor:pointer;${bg}${!hasData?'opacity:.4;':''}" onclick="openPlayerDetail(${JSON.stringify(p.name)},${JSON.stringify(String(p.nummer||''))})">
       <td><span class="kader-rank">${i+1}</span></td>
       <td style="font-weight:600;white-space:nowrap;">
         ${p.nummer?`<span style="font-size:11px;color:var(--xsoft);margin-right:4px;">●${p.nummer}</span>`:''}${p.name}${altNrHint}
+        <span style="font-size:9px;color:var(--xsoft);margin-left:4px;opacity:.6;" title="Klicken für Spiel-Detailansicht">↗</span>
       </td>
       <td style="text-align:center;"${spTitle}>${p.spiele||0}${spSuffix}</td>
       <td class="ve">${he!==null?he+'%':'—'}</td>
@@ -4383,6 +4408,200 @@ function renderKaderTableTH(players) {
       <tbody>${rows}</tbody>
     </table></div>
   </div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// SPIELERIN-DETAIL-MODAL
+// Öffnet eine Spiel-für-Spiel-Aufschlüsselung aller Aktionen
+// einer Spielerin – primär zur Fehleranalyse (z.B. 91 × 7m-Tor).
+// ════════════════════════════════════════════════════════════
+function openPlayerDetail(name, nummer) {
+  // Spielerin in der zuletzt gerenderten Liste suchen
+  const player = _kaderPlayerListGlobal.find(p =>
+    p.name === name && String(p.nummer ?? '') === String(nummer)
+  );
+  if (!player) {
+    toast('Spielerdaten nicht verfügbar – bitte Statistik neu laden.', 'error');
+    return;
+  }
+
+  const isFL = player.pos !== 'TH';
+  const posSym = isFL ? '▲' : '●';
+  const numLbl = player.nummer ? ` #${player.nummer}` : '';
+  document.getElementById('pd-title').textContent = `${posSym} ${player.name}${numLbl}`;
+
+  // ── Aktionen nach spiel_id gruppieren ──
+  const bySpiel = {};  // spiel_id → { type: count }
+  (player.aktionen || []).forEach(a => {
+    if (!bySpiel[a.spiel_id]) bySpiel[a.spiel_id] = {};
+    bySpiel[a.spiel_id][a.type] = (bySpiel[a.spiel_id][a.type] || 0) + 1;
+  });
+
+  // Spiele chronologisch sortieren
+  const spielIds = Object.keys(bySpiel).sort((a, b) => {
+    const da = _kaderSpieleMap[a]?.datum || '';
+    const db = _kaderSpieleMap[b]?.datum || '';
+    return da.localeCompare(db);
+  });
+
+  document.getElementById('pd-sub').textContent =
+    `Statistik je Spiel · ${spielIds.length} Spiele mit erfassten Aktionen`;
+
+  // ── Spalten je Position ──
+  const flCols = [
+    { key: 'tor',      label: 'Tor',   cls: 'vp', warn: 12 },
+    { key: 'tor_7m',   label: '7m⚽',  cls: '',   warn: 6  },
+    { key: 'assist',   label: 'Asst',  cls: '',   warn: 10 },
+    { key: '7m_g',     label: '7m↑',   cls: '',   warn: 8  },
+    { key: '2min_p',   label: '2m↑',   cls: '',   warn: 4  },
+    { key: 'turnover', label: 'TO',    cls: 'vn', warn: 8  },
+    { key: 'fw',       label: 'FW',    cls: 'vn', warn: 10 },
+    { key: 'fw_7m',    label: 'FW7',   cls: 'vn', warn: 6  },
+    { key: 'tf',       label: 'TF',    cls: 'vn', warn: 5  },
+    { key: 'fp',       label: 'FP',    cls: 'vn', warn: 5  },
+    { key: '1zu1',     label: '1:1',   cls: 'vn', warn: 8  },
+    { key: '7m_v',     label: '7m↓',   cls: 'vn', warn: 5  },
+    { key: '2min',     label: '2min',  cls: 'vn', warn: 3  },
+    { key: 'rot',      label: 'Rot',   cls: 'vn', warn: 2  },
+  ];
+  const thCols = [
+    { key: 'geh',      label: 'Geh.',   cls: 'vp', warn: 25 },
+    { key: 'geh_7m',   label: '7m🧤',  cls: 'vp', warn: 8  },
+    { key: 'kass',     label: 'Kass.',  cls: 'vn', warn: 30 },
+    { key: 'kass_7m',  label: '7m💥',  cls: 'vn', warn: 10 },
+    { key: 'assist',   label: 'Asst',   cls: '',   warn: 10 },
+    { key: '2min_p',   label: '2m↑',   cls: '',   warn: 4  },
+    { key: 'turnover', label: 'TO',    cls: 'vn', warn: 8  },
+    { key: 'tf',       label: 'TF',    cls: 'vn', warn: 5  },
+    { key: 'fp',       label: 'FP',    cls: 'vn', warn: 5  },
+    { key: '7m_v',     label: '7m↓',   cls: 'vn', warn: 5  },
+    { key: '2min',     label: '2min',  cls: 'vn', warn: 3  },
+    { key: 'rot',      label: 'Rot',   cls: 'vn', warn: 2  },
+  ];
+  const cols = isFL ? flCols : thCols;
+
+  // ── Spaltensummen berechnen ──
+  const colSums = {};
+  cols.forEach(c => {
+    colSums[c.key] = spielIds.reduce((sum, sid) => sum + (bySpiel[sid][c.key] || 0), 0);
+  });
+  const totalSum = spielIds.reduce((s, sid) =>
+    s + Object.values(bySpiel[sid]).reduce((x, v) => x + v, 0), 0
+  );
+
+  // ── Kopfzeile der Zusammenfassung (Gesamtwerte) ──
+  const summaryCards = cols.map(c => {
+    const v = colSums[c.key] || 0;
+    if (!v) return '';
+    const isHot = c.warn && v >= c.warn * 3; // Summe ≥ 3× Einzelspiel-Schwelle = kritisch
+    return `<div style="text-align:center;min-width:44px;">
+      <div style="font-size:20px;font-weight:800;${isHot ? 'color:var(--red);' : ''}">${v}</div>
+      <div style="font-size:9.5px;color:var(--xsoft);text-transform:uppercase;letter-spacing:.05em;">${c.label}</div>
+    </div>`;
+  }).join('');
+
+  // ── Zeilen der Spiel-Detailtabelle ──
+  const colHeaders = cols.map(c =>
+    `<th style="text-align:center;min-width:38px;">${c.label}</th>`
+  ).join('');
+
+  const rows = spielIds.map((sid, i) => {
+    const sp = _kaderSpieleMap[sid] || {};
+    const datumRaw = sp.datum || '';
+    const datum = datumRaw
+      ? new Date(datumRaw).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })
+      : '–';
+    const isAway  = sp.spielart === 'auswaerts';
+    const gegner  = isAway ? (sp.heim || '–') : (sp.gast || '–');
+    const spielart = isAway ? '@ ' : 'vs ';
+    const score   = (sp.score_home != null && sp.score_away != null)
+      ? `${sp.score_home}:${sp.score_away}` : '–';
+    const bg = i % 2 === 0 ? '' : 'background:rgba(0,0,0,.025);';
+    const rowTotal = Object.values(bySpiel[sid]).reduce((s, v) => s + v, 0);
+
+    const cells = cols.map(c => {
+      const v = bySpiel[sid][c.key] || 0;
+      // Zelle hervorheben wenn Wert ≥ Warnschwelle
+      const hot   = c.warn && v >= c.warn;
+      const style = hot
+        ? 'background:#fef3c7;color:#92400e;font-weight:800;border-radius:4px;'
+        : '';
+      return `<td style="text-align:center;${style}">${v || 0}</td>`;
+    }).join('');
+
+    // Gesamt-Zelle: rot wenn > 40 Aktionen in einem Spiel (klar außergewöhnlich)
+    const totHot  = rowTotal >= 40;
+    const totStyle = totHot ? 'color:var(--red);font-weight:800;' : 'font-weight:600;';
+
+    return `<tr style="${bg}">
+      <td style="white-space:nowrap;padding:6px 10px;font-size:11.5px;color:var(--soft);">${datum}</td>
+      <td style="white-space:nowrap;padding:6px 10px;font-size:11.5px;">${spielart}${gegner}</td>
+      <td style="text-align:center;font-size:11.5px;color:var(--soft);">${score}</td>
+      ${cells}
+      <td style="text-align:center;${totStyle}">${rowTotal}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Summenzeile (fett, blaue Hinterlegung) ──
+  const sumCells = cols.map(c => {
+    const v = colSums[c.key] || 0;
+    const hot = c.warn && v >= c.warn * 3;
+    const style = hot
+      ? 'background:#fee2e2;color:var(--red);font-weight:800;'
+      : 'font-weight:700;color:var(--accent);';
+    return `<td style="text-align:center;${style}">${v}</td>`;
+  }).join('');
+
+  // ── Gesamt-HTML ──
+  const noData = spielIds.length === 0;
+  const html = `
+    <!-- Zusammenfassung oben -->
+    <div style="padding:14px 20px 12px;border-bottom:1px solid var(--border);background:var(--bg);">
+      <div style="font-size:11px;color:var(--xsoft);margin-bottom:8px;font-weight:600;
+                  text-transform:uppercase;letter-spacing:.06em;">Gesamtübersicht</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="text-align:center;min-width:44px;">
+          <div style="font-size:20px;font-weight:800;">${spielIds.length}</div>
+          <div style="font-size:9.5px;color:var(--xsoft);text-transform:uppercase;letter-spacing:.05em;">Spiele</div>
+        </div>
+        <div style="width:1px;background:var(--border);align-self:stretch;margin:0 4px;"></div>
+        ${summaryCards || '<div style="color:var(--xsoft);font-size:13px;">Keine Aktionen erfasst</div>'}
+      </div>
+      ${noData ? '' : '<div style="margin-top:10px;font-size:11px;color:var(--xsoft);">💡 Klicke auf eine Zeile, um direkt ins Spiel zu springen (in Kürze). Gelbe Zellen = ungewöhnlich hohe Werte → möglicher Erfassungsfehler.</div>'}
+    </div>
+
+    <!-- Detailtabelle je Spiel -->
+    <div style="overflow-x:auto;">
+      <table class="stbl" style="min-width:680px;font-size:11.5px;">
+        <thead>
+          <tr>
+            <th style="text-align:left;min-width:70px;">Datum</th>
+            <th style="text-align:left;min-width:140px;">Spiel</th>
+            <th style="text-align:center;min-width:52px;">Erg.</th>
+            ${colHeaders}
+            <th style="text-align:center;min-width:38px;">Akt</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || `<tr><td colspan="20" style="text-align:center;padding:28px;color:var(--xsoft);">
+            Keine Aktionen für diese Spielerin in den gefilterten Spielen erfasst.
+          </td></tr>`}
+        </tbody>
+        ${spielIds.length > 0 ? `
+        <tfoot>
+          <tr class="tot-row">
+            <td colspan="3" style="text-align:left;padding:8px 10px;font-weight:700;font-size:12px;">
+              Gesamt (${spielIds.length} Spiele)
+            </td>
+            ${sumCells}
+            <td style="text-align:center;font-weight:700;color:var(--accent);">${totalSum}</td>
+          </tr>
+        </tfoot>` : ''}
+      </table>
+    </div>`;
+
+  document.getElementById('pd-body').innerHTML = html;
+  openModal('m-player-detail');
 }
 
 // ════════════════════════════════════════════════════════════
