@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260529.1530 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260531.1430 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -882,7 +882,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260511.1500</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260531.1430</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -4601,8 +4601,11 @@ function renderAnwesenheit(players, teamName){
   const el=document.getElementById('anwesenheit-view');
   if(!el) return;
 
-  const tw=players.filter(p=>p.pos==='TH');
-  const fl=players.filter(p=>p.pos==='FL');
+  // Torhüter = TH/TW/Tor…; alle übrigen Positionswerte (FL, RL, RM, RR, LA, RA, KM,
+  // leer, null, unbekannt) gelten als Feldspieler → kein Spieler fällt durchs Raster.
+  const _istTH=p=>{const v=String(p.pos||'').trim().toUpperCase();return v==='TH'||v==='TW'||v.startsWith('TOR');};
+  const tw=players.filter(_istTH);
+  const fl=players.filter(p=>!_istTH(p));
 
   const stats=_getAwStats(players);
   const total=players.length;
@@ -4614,7 +4617,7 @@ function renderAnwesenheit(players, teamName){
     return `<div class="aw-player" id="awp-${p.id}">
       <div class="aw-nr">#${nr}</div>
       <div class="aw-name">${_escHtml(p.name)}</div>
-      <div class="aw-pos">${p.pos==='TH'?'●':'▲'}</div>
+      <div class="aw-pos">${_istTH(p)?'●':'▲'}</div>
       <button class="aw-status-btn ${status}" onclick="toggleAwStatus('${p.id}')">${labels[status]}</button>
     </div>`;
   }
