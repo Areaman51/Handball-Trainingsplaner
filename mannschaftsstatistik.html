@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<!-- Handball Coaching Tools v1.260531.2200 — Mannschaftsstatistik -->
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>🤾 Mannschaftsstatistik</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f2f4f8;--white:#fff;--sidebar:#141820;--sidebar-h:#1e2535;
+  --accent:#0057ff;--accent-l:#e6eeff;
+  --text:#111827;--soft:#6b7280;--xsoft:#9ca3af;--border:#e5e7eb;
+  --shadow:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 16px rgba(0,0,0,.10);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.14);--radius:12px;
+  --green:#15803d;--green-l:#f0fdf4;--green-b:#86efac;
+  --red:#dc2626;--red-l:#fee2e2;--red-b:#fca5a5;
+  --orange:#ea580c;--yellow:#d97706;--purple:#7c3aed;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{overflow-x:hidden;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;min-height:100vh;background:var(--sidebar);display:flex;
+  flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:20;
+  transition:transform .25s ease;flex-shrink:0;}
+.sidebar.collapsed{transform:translateX(-220px);}
+.burger-btn{background:none;border:none;border-radius:6px;padding:4px 8px;
+  cursor:pointer;color:var(--soft);font-size:20px;line-height:1;display:none;
+  align-items:center;justify-content:center;transition:color .15s;}
+.burger-btn:hover{color:var(--text);}
+.main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;
+  transition:margin-left .25s ease;}
+#app.sidebar-collapsed .main{margin-left:0;}
+#app.sidebar-collapsed .burger-btn{display:flex;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:19;}
+.sidebar-overlay.visible{display:block;}
+@media(max-width:900px){ .burger-btn{display:flex;} .sidebar-overlay{z-index:19;} }
+.sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06);
+  display:flex;align-items:center;gap:10px;}
+.logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:white;flex-shrink:0;}
+.logo-text{color:white;font-size:14px;font-weight:600;letter-spacing:-.3px;}
+.logo-sub{color:rgba(255,255,255,.35);font-size:10px;margin-top:1px;}
+.sidebar-section{padding:14px 10px 4px;}
+.sidebar-label{font-size:9.5px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.25);
+  text-transform:uppercase;padding:0 8px;margin-bottom:4px;}
+.sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;
+  color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;transition:all .15s;text-decoration:none;}
+.sidebar-item:hover{background:var(--sidebar-h);color:rgba(255,255,255,.8);}
+.sidebar-item.active{background:rgba(0,87,255,.18);color:white;font-weight:500;}
+.sidebar-item .si-icon{font-size:15px;flex-shrink:0;}
+.sidebar-bottom{margin-top:auto;padding:12px 10px;border-top:1px solid rgba(255,255,255,.06);}
+
+/* ── MEIN TEAM WIDGET ── */
+.my-team-widget{margin:12px 10px 4px;background:rgba(0,87,255,.12);
+  border:1px solid rgba(0,87,255,.22);border-radius:10px;padding:10px 12px;}
+.mt-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.mt-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);}
+.mt-name{font-size:13px;font-weight:600;color:white;margin-bottom:8px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mt-name.empty{color:rgba(255,255,255,.3);font-weight:400;font-style:italic;}
+.mt-switch{display:flex;flex-wrap:wrap;gap:4px;}
+.mt-chip{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.55);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;}
+.mt-chip:hover{background:rgba(255,255,255,.14);color:white;}
+.mt-chip.active{background:var(--accent);border-color:var(--accent);color:white;}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--sidebar);padding:0 20px;height:54px;display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:15;}
+.topbar-left{display:flex;align-items:center;gap:8px;}
+.topbar-title{font-size:15px;font-weight:600;color:white;letter-spacing:-.2px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+.topbar-role{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(0,87,255,.25);color:#93c5fd;}
+.topbar-user{font-size:12px;color:rgba(255,255,255,.45);}
+.topbar-logout{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);border-radius:7px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;}
+.topbar-logout:hover{color:rgba(255,130,130,.8);border-color:rgba(255,100,100,.25);}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;
+  font-size:12.5px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;
+  border:none;transition:all .15s;white-space:nowrap;}
+.btn-ghost{background:transparent;color:var(--soft);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--bg);}
+.btn-sm{padding:5px 10px;font-size:11.5px;}
+
+/* ── CONTENT ── */
+.content{padding:26px;flex:1;max-width:1100px;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap;}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.4px;}
+.page-subtitle{font-size:13px;color:var(--soft);margin-top:2px;}
+.hdr-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.saison-picker{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.saison-select{font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;
+  padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:white;
+  color:var(--text);cursor:pointer;outline:none;}
+.saison-select:focus{border-color:var(--accent);}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px;flex-wrap:wrap;}
+.tab{padding:10px 14px;font-size:13px;font-weight:600;color:var(--soft);cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;display:flex;align-items:center;gap:6px;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* ── CARDS / KPI ── */
+.card{background:white;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px;}
+.card-hdr{padding:14px 20px;border-bottom:1px solid var(--border);font-size:14px;font-weight:700;letter-spacing:-.2px;}
+.card-body{padding:18px 20px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;}
+.kpi{text-align:center;background:var(--bg);border-radius:10px;padding:15px 8px;}
+.kpi .kv{font-size:25px;font-weight:800;color:var(--accent);font-family:'DM Mono',monospace;line-height:1;}
+.kpi .kv.pos{color:var(--green);} .kpi .kv.neg{color:var(--red);}
+.kpi .kl{font-size:10.5px;color:var(--soft);margin-top:6px;text-transform:uppercase;letter-spacing:.04em;}
+
+.sect-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--xsoft);margin:6px 0 12px;}
+
+/* Form-Chips */
+.form-row{display:flex;align-items:center;gap:8px;margin-top:4px;}
+.form-chip{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:white;font-family:'DM Mono',monospace;}
+.form-chip.S{background:var(--green);} .form-chip.U{background:var(--xsoft);} .form-chip.N{background:var(--red);}
+
+/* Tabelle */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;}
+.stbl{width:100%;border-collapse:collapse;font-size:12px;}
+.stbl th{background:var(--bg);color:var(--xsoft);padding:8px 11px;text-align:center;
+  font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;
+  border-bottom:1px solid var(--border);white-space:nowrap;}
+.stbl th.lcol{text-align:left;}
+.stbl td{padding:9px 11px;text-align:center;border-bottom:1px solid var(--border);}
+.stbl td.lcol{text-align:left;font-weight:600;}
+.stbl tr:last-child td{border-bottom:none;}
+.stbl tr:hover td{background:#fafbff;}
+.vp{color:var(--green);font-weight:700;} .vn{color:var(--red);font-weight:700;} .ve{color:var(--accent);font-weight:700;}
+.res-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;
+  font-size:11px;font-weight:800;color:white;font-family:'DM Mono',monospace;}
+.res-badge.S{background:var(--green);} .res-badge.U{background:var(--xsoft);} .res-badge.N{background:var(--red);}
+
+/* Anwesenheits-Balken */
+.bar{height:7px;border-radius:4px;background:var(--border);overflow:hidden;min-width:70px;}
+.bar > i{display:block;height:100%;background:var(--accent);border-radius:4px;}
+
+/* Empty / Loading */
+.empty{padding:48px 24px;text-align:center;color:var(--xsoft);}
+.empty .e-icon{font-size:40px;margin-bottom:12px;}
+.empty .e-title{font-size:15px;font-weight:600;color:var(--soft);margin-bottom:6px;}
+.loading{padding:40px;text-align:center;color:var(--xsoft);font-size:13px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:#141820;color:white;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;
+  z-index:999;transition:transform .3s;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{background:#14532d;} .toast.error{background:#7f1d1d;}
+
+@media(max-width:600px){ .content{padding:16px;} .kpi-grid{grid-template-columns:repeat(3,1fr);} }
+</style>
+</head>
+<body>
+
+<div id="auth-screen" style="position:fixed;inset:0;background:rgba(14,20,32,.96);
+  display:flex;align-items:center;justify-content:center;z-index:200;color:rgba(255,255,255,.7);
+  font-family:'DM Sans',sans-serif;text-align:center;padding:20px;">
+  <div>
+    <div style="font-size:28px;margin-bottom:12px;">🤾</div>
+    Weiterleitung zum Dashboard…<br>
+    <a href="index.html" style="color:#93c5fd;font-weight:600;text-decoration:none;">Jetzt anmelden →</a>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo" style="justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="logo-icon">📊</div>
+        <div>
+          <div class="logo-text">Mannschaftsstatistik</div>
+          <div class="logo-sub">Team-Daten · DHB</div>
+        </div>
+      </div>
+      <button onclick="toggleSidebar()" title="Sidebar einklappen"
+        style="background:none;border:none;color:rgba(255,255,255,.4);font-size:16px;
+        cursor:pointer;padding:2px 4px;border-radius:4px;line-height:1;"
+        onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,.4)'">✕</button>
+    </div>
+
+    <div class="my-team-widget">
+      <div class="mt-top"><div class="mt-label">Mein Team</div></div>
+      <div class="mt-name empty" id="mt-name">Wird geladen…</div>
+      <div class="mt-switch" id="mt-switch"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Statistik</div>
+      <div class="sidebar-item active"><span class="si-icon">📊</span> Mannschaftsstatistik</div>
+      <a class="sidebar-item" href="spielerstatistik.html"><span class="si-icon">📈</span> Spielerstatistik</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Navigation</div>
+      <a class="sidebar-item" href="index.html"><span class="si-icon">🏠</span> Dashboard</a>
+      <a class="sidebar-item" href="handball-bank-statistik.html"><span class="si-icon">📋</span> Bank-Statistik</a>
+      <a class="sidebar-item" href="kalender.html"><span class="si-icon">📅</span> Kalender</a>
+      <a class="sidebar-item" href="trainingsplaner.html"><span class="si-icon">📋</span> Trainingsplaner</a>
+      <a class="sidebar-item" href="mannschaftsverwaltung.html"><span class="si-icon">👥</span> Mannschaften</a>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260531.2200</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="burger-btn" id="burger-btn" onclick="toggleSidebar()" title="Menü">☰</button>
+        <div class="topbar-title">Mannschaftsstatistik</div>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-role" id="topbar-role" style="display:none;"></span>
+        <span class="topbar-user" id="topbar-user"></span>
+        <button class="topbar-logout" onclick="signOut()">⏻ Abmelden</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Mannschaftsstatistik</div>
+          <div class="page-subtitle" id="page-sub">Saisonüberblick deiner Mannschaft</div>
+        </div>
+        <div class="hdr-actions">
+          <div id="saison-picker"></div>
+          <button class="btn btn-ghost btn-sm" onclick="reloadAll()" title="Aktualisieren">🔄</button>
+        </div>
+      </div>
+
+      <div class="tabs" id="tabs">
+        <div class="tab active" data-tab="uebersicht" onclick="setTab('uebersicht')">📋 Übersicht</div>
+        <div class="tab" data-tab="spiele" onclick="setTab('spiele')">🤾 Spiele</div>
+        <div class="tab" data-tab="aktionen" onclick="setTab('aktionen')">⚽ Team-Aktionen</div>
+        <div class="tab" data-tab="anwesenheit" onclick="setTab('anwesenheit')">✅ Anwesenheit</div>
+      </div>
+
+      <div id="tab-body"><div class="loading">⏳ Lade Mannschaftsdaten…</div></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════════════════════════════
+const SUPA_URL = 'https://dlofjsmnkwltuutpxoer.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+const POL={
+  tor:1,tor_7m:1,assist:1,'7m_g':1,'2min_p':1,geh:1,geh_7m:1,
+  turnover:-1,fw:-1,fw_7m:-1,tf:-1,fp:-1,'1zu1':-1,'7m_v':-1,'2min':-1,rot:-1,kass:-1,kass_7m:-1
+};
+
+// ── State ──
+let currentUser=null, currentProfile=null;
+let _myTeamId='', _myTeamName='', _myTeamOwnerId='', _isSharedTeam=false;
+let _availableTeams=[];
+let saisons=[], _saisonId=null;
+let _activeTab='uebersicht';
+let _data=null;            // {games, results, teamS, gkExists, attendance}
+let toastTm=null;
+
+// ════════════════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════════════════
+async function onAuth(user){
+  currentUser=user;
+  let{data:profile}=await supa.from('profiles').select('*').eq('id',user.id).maybeSingle();
+  currentProfile=profile;
+  if(profile && !profile.aktiv){
+    await supa.auth.signOut();
+    window.location.href='index.html?msg=not_active';
+    return;
+  }
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').style.display='';
+  initSidebarState();
+  document.getElementById('topbar-user').textContent=profile?.full_name||profile?.email||user.email;
+  const roleLabels={admin:'👑 Admin',manager:'🔧 Manager',trainer:'🏋 Trainer'};
+  const rb=document.getElementById('topbar-role');
+  if(rb&&roleLabels[profile?.role]){rb.textContent=roleLabels[profile.role];rb.style.display='';}
+
+  await initMyTeam();
+  await loadSaisons();
+  renderSaisonPicker();
+  await reloadAll();
+}
+async function signOut(){
+  if(!confirm('Abmelden?')) return;
+  await supa.auth.signOut();
+  window.location.href='index.html';
+}
+
+// ════════════════════════════════════════════════════════════
+// TEAM
+// ════════════════════════════════════════════════════════════
+async function initMyTeam(){
+  _myTeamName=localStorage.getItem('hbs_my_team')||localStorage.getItem('aktive_mannschaft_name')||'';
+  _myTeamId  =localStorage.getItem('hbs_my_mannschaft_id')||localStorage.getItem('aktive_mannschaft_id')||'';
+  const {data}=await supa.from('mannschaften').select('id,name,verein,user_id')
+    .order('sort_order',{ascending:true}).order('created_at',{ascending:true});
+  _availableTeams=data||[];
+  if(_availableTeams.length===1){ _myTeamId=_availableTeams[0].id; _myTeamName=_availableTeams[0].name; }
+  else if(!_myTeamId && _availableTeams.length){ _myTeamId=_availableTeams[0].id; _myTeamName=_availableTeams[0].name; }
+  else {
+    const cur=_availableTeams.find(m=>String(m.id)===String(_myTeamId));
+    if(cur && cur.name!==_myTeamName) _myTeamName=cur.name;
+    if(!cur && _availableTeams.length){ _myTeamId=_availableTeams[0].id; _myTeamName=_availableTeams[0].name; }
+  }
+  const cur=_availableTeams.find(m=>String(m.id)===String(_myTeamId));
+  if(cur){ _myTeamOwnerId=cur.user_id||''; _isSharedTeam=!!_myTeamOwnerId && _myTeamOwnerId!==currentUser.id; }
+  _persistTeam(); renderTeamWidget();
+}
+function _persistTeam(){
+  if(!_myTeamId) return;
+  localStorage.setItem('hbs_my_mannschaft_id',String(_myTeamId));
+  localStorage.setItem('hbs_my_team',_myTeamName);
+  localStorage.setItem('aktive_mannschaft_id',String(_myTeamId));
+  localStorage.setItem('aktive_mannschaft_name',_myTeamName);
+}
+function renderTeamWidget(){
+  const nameEl=document.getElementById('mt-name'), switchEl=document.getElementById('mt-switch');
+  if(!nameEl) return;
+  if(_myTeamName){
+    nameEl.innerHTML=_isSharedTeam
+      ? `${esc(_myTeamName)} <span style="font-size:9px;background:rgba(0,87,255,.25);color:#93c5fd;border-radius:8px;padding:1px 6px;font-weight:700;">🔓</span>`
+      : esc(_myTeamName);
+    nameEl.classList.remove('empty');
+  } else { nameEl.textContent='Kein Team'; nameEl.classList.add('empty'); }
+  switchEl.innerHTML=_availableTeams.length>1
+    ? _availableTeams.map(m=>`<button class="mt-chip ${String(m.id)===String(_myTeamId)?'active':''}" onclick="switchTeam('${String(m.id).replace(/'/g,"\\'")}')">${esc(m.name)}</button>`).join('')
+    : '';
+}
+async function switchTeam(id){
+  const m=_availableTeams.find(t=>String(t.id)===String(id));
+  if(!m) return;
+  _myTeamId=m.id; _myTeamName=m.name;
+  _myTeamOwnerId=m.user_id||''; _isSharedTeam=!!_myTeamOwnerId && _myTeamOwnerId!==currentUser.id;
+  _persistTeam(); renderTeamWidget();
+  await loadSaisons(); renderSaisonPicker();
+  await reloadAll();
+  toast('Team: '+m.name,'success');
+}
+
+// ════════════════════════════════════════════════════════════
+// SAISONS
+// ════════════════════════════════════════════════════════════
+async function loadSaisons(){
+  const {data:own}=await supa.from('saisons').select('*').eq('user_id',currentUser.id).order('end_date');
+  let merged=own||[];
+  if(_isSharedTeam && _myTeamOwnerId && _myTeamOwnerId!==currentUser.id){
+    const {data:owner}=await supa.from('saisons').select('*').eq('user_id',_myTeamOwnerId).order('end_date');
+    if(owner?.length){
+      const seen=new Set(merged.map(s=>`${s.name}|${s.end_date}`));
+      merged=[...merged,...owner.filter(s=>!seen.has(`${s.name}|${s.end_date}`))]
+        .sort((a,b)=>(a.end_date||'').localeCompare(b.end_date||''));
+    }
+  }
+  saisons=merged;
+  if(_saisonId && !saisons.find(s=>s.id===_saisonId)) _saisonId=null;
+}
+function getSaisonRange(id){
+  if(!id) return null;
+  const idx=saisons.findIndex(s=>s.id===id);
+  if(idx<0) return null;
+  const endDate=saisons[idx].end_date;
+  const prevEnd=idx>0?saisons[idx-1].end_date:null;
+  const startDate=prevEnd?new Date(new Date(prevEnd).getTime()+86400000).toISOString().slice(0,10):'2000-01-01';
+  return {start:startDate,end:endDate};
+}
+function renderSaisonPicker(){
+  const el=document.getElementById('saison-picker'); if(!el) return;
+  el.innerHTML=`<div class="saison-picker"><select class="saison-select" onchange="setSaison(this.value)">
+    <option value="">📅 Alle Saisons</option>
+    ${saisons.map(s=>`<option value="${s.id}"${_saisonId===s.id?' selected':''}>${esc(s.name)}</option>`).join('')}
+  </select></div>`;
+}
+function setSaison(id){ _saisonId=id||null; reloadAll(); }
+
+// ════════════════════════════════════════════════════════════
+// DATEN LADEN
+// ════════════════════════════════════════════════════════════
+async function fetchAllPages(table,sel,filterFn){
+  const PAGE=1000; let from=0; const all=[];
+  while(true){
+    let q=supa.from(table).select(sel).range(from,from+PAGE-1);
+    q=filterFn(q);
+    const {data,error}=await q;
+    if(error){ console.warn(`[fetchAllPages] ${table}:`,error.message); break; }
+    if(!data?.length) break;
+    all.push(...data);
+    if(data.length<PAGE) break;
+    from+=PAGE;
+  }
+  return all;
+}
+
+async function reloadAll(){
+  const body=document.getElementById('tab-body');
+  if(!_myTeamId){
+    body.innerHTML=`<div class="empty"><div class="e-icon">👥</div>
+      <div class="e-title">Kein Team konfiguriert</div><div>Bitte zuerst eine Mannschaft anlegen.</div></div>`;
+    return;
+  }
+  body.innerHTML='<div class="loading">⏳ Lade Mannschaftsdaten…</div>';
+  const saisonLabel=_saisonId?(saisons.find(s=>s.id===_saisonId)?.name||'Saison'):'Alle Saisons';
+  document.getElementById('page-sub').textContent=`${_myTeamName} · ${saisonLabel}`;
+  try{
+    _data=await loadTeamData();
+    renderTab();
+  }catch(e){
+    console.error(e);
+    body.innerHTML=`<div class="empty"><div class="e-icon">⚠️</div><div class="e-title">Fehler beim Laden</div><div>${esc(e.message||'')}</div></div>`;
+  }
+}
+
+async function loadTeamData(){
+  // 1. Spiele
+  const {data:spiele}=await supa.from('spiele')
+    .select('id,heim,gast,datum,spielart,status,score_home,score_away,liga')
+    .eq('mannschaft_id',_myTeamId);
+  const spieleMap={}; (spiele||[]).forEach(s=>spieleMap[s.id]=s);
+
+  // Saison-Filter
+  const r=getSaisonRange(_saisonId);
+  const inSeason=(sp)=> !r || (sp.datum && sp.datum>=r.start && sp.datum<=r.end);
+  const seasonSpiele=(spiele||[]).filter(inSeason);
+  const filteredSpielIds=seasonSpiele.map(s=>s.id);
+
+  // 2. Ergebnisse aufbereiten
+  const results=[];
+  let gespielt=0, siege=0, remis=0, niederlagen=0, torFor=0, torGegen=0;
+  let heimSpiele=0, heimSiege=0, ausSpiele=0, ausSiege=0;
+  seasonSpiele.forEach(sp=>{
+    const sh=Number(sp.score_home||0), sa=Number(sp.score_away||0);
+    const hasResult = sp.status==='beendet' || sh>0 || sa>0;
+    const isAway = sp.spielart==='auswaerts';
+    const our  = isAway?sa:sh;
+    const their= isAway?sh:sa;
+    let outcome=null;
+    if(hasResult){
+      gespielt++; torFor+=our; torGegen+=their;
+      if(our>their){ siege++; outcome='S'; }
+      else if(our<their){ niederlagen++; outcome='N'; }
+      else { remis++; outcome='U'; }
+      if(isAway){ ausSpiele++; if(outcome==='S') ausSiege++; }
+      else { heimSpiele++; if(outcome==='S') heimSiege++; }
+    }
+    results.push({...sp, our, their, hasResult, outcome, isAway});
+  });
+  results.sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));
+
+  // 3. Team-Aktionen (eigene Spieler) aus spielaktionen + spieler_lineup
+  let rawAkt=[], luLookup=[];
+  if(filteredSpielIds.length){
+    rawAkt=await fetchAllPages('spielaktionen','id,type,polarity,spiel_id,spieler_id', q=>q.in('spiel_id',filteredSpielIds));
+    luLookup=await fetchAllPages('spieler_lineup','id,team,bench,pos,spiel_id', q=>q.in('spiel_id',filteredSpielIds));
+  }
+  const lineupById={}; luLookup.forEach(l=>lineupById[l.id]=l);
+  const isOwn=(a)=>{
+    if(!a.spieler_id) return false;
+    const lu=lineupById[a.spieler_id];
+    if(!lu) return true;
+    if(!lu.team) return true;
+    const sp=spieleMap[a.spiel_id];
+    if(!sp) return true;
+    const mySide=sp.spielart==='auswaerts'?'away':'home';
+    return lu.team===mySide;
+  };
+  const teamS={};
+  rawAkt.filter(isOwn).forEach(a=>{ teamS[a.type]=(teamS[a.type]||0)+1; });
+  const gkExists = luLookup.some(l=>l.pos==='TH' && !l.bench);
+
+  // 4. Anwesenheit (Team)
+  let attendance={trainings:[], totalAnw:0, totalEntries:0};
+  try{
+    let q=supa.from('einheiten').select('id,name,date,anwesenheit').eq('group_name',(_myTeamName||'').trim()).order('date',{ascending:false});
+    if(r){ q=q.gte('date',r.start).lte('date',r.end); }
+    const {data:einheiten}=await q;
+    (einheiten||[]).forEach(e=>{
+      const sp=e.anwesenheit?.spieler;
+      if(!Array.isArray(sp)||!sp.length) return;
+      let anw=0,abw=0,verl=0;
+      sp.forEach(x=>{ const st=x.status||'anwesend'; if(st==='anwesend')anw++; else if(st==='abwesend')abw++; else if(st==='verletzt')verl++; });
+      const total=sp.length;
+      attendance.trainings.push({date:e.date,name:e.name||'Trainingseinheit',anw,abw,verl,total});
+      attendance.totalAnw+=anw; attendance.totalEntries+=total;
+    });
+  }catch(e){ console.warn('[Anwesenheit]',e.message); }
+
+  return {
+    spiele:seasonSpiele, results, teamS, gkExists, attendance,
+    summary:{gespielt,siege,remis,niederlagen,torFor,torGegen,heimSpiele,heimSiege,ausSpiele,ausSiege}
+  };
+}
+
+// ════════════════════════════════════════════════════════════
+// RENDERING
+// ════════════════════════════════════════════════════════════
+function setTab(tab){
+  _activeTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  renderTab();
+}
+function renderTab(){
+  const body=document.getElementById('tab-body');
+  if(!_data){ body.innerHTML='<div class="loading">⏳ Lade…</div>'; return; }
+  if(_activeTab==='spiele') body.innerHTML=renderSpiele();
+  else if(_activeTab==='aktionen') body.innerHTML=renderAktionen();
+  else if(_activeTab==='anwesenheit') body.innerHTML=renderAnwesenheit();
+  else body.innerHTML=renderUebersicht();
+}
+
+// ── ÜBERSICHT ──
+function renderUebersicht(){
+  const s=_data.summary;
+  if(!s.gespielt && !_data.attendance.trainings.length){
+    return `<div class="empty"><div class="e-icon">📊</div>
+      <div class="e-title">Noch keine Daten</div>
+      <div>Für <strong>${esc(_myTeamName)}</strong> wurden in diesem Zeitraum keine Spiele oder Trainings erfasst.</div></div>`;
+  }
+  const diff=s.torFor-s.torGegen;
+  const sq=s.gespielt>0?Math.round(s.siege/s.gespielt*100):null;
+  const avgFor=s.gespielt>0?(s.torFor/s.gespielt).toFixed(1):'0';
+  const avgAg =s.gespielt>0?(s.torGegen/s.gespielt).toFixed(1):'0';
+
+  const kpis=[
+    ['Spiele',s.gespielt,''],
+    ['Siege',s.siege,'pos'],['Unentsch.',s.remis,''],['Niederl.',s.niederlagen,'neg'],
+    ['Tore',`${s.torFor}:${s.torGegen}`,''],
+    ['Tordiff.',(diff>0?'+':'')+diff,diff>=0?'pos':'neg'],
+    ['Ø Tore',avgFor,''],['Ø Gegentore',avgAg,''],
+    ['Siegquote',sq!==null?sq+'%':'—',''],
+  ];
+  const kpiHtml=kpis.map(([l,v,c])=>`<div class="kpi"><div class="kv ${c}">${v}</div><div class="kl">${l}</div></div>`).join('');
+
+  // Form (letzte 5 mit Ergebnis, chronologisch alt→neu)
+  const played=_data.results.filter(r=>r.hasResult).slice(0,5).reverse();
+  const formHtml=played.length
+    ? `<div class="form-row">${played.map(r=>`<div class="form-chip ${r.outcome}" title="${esc(r.heim)} ${r.our} : ${r.their} ${esc(r.gast)}">${r.outcome}</div>`).join('')}</div>`
+    : '<div style="font-size:12.5px;color:var(--xsoft);">Noch keine Ergebnisse.</div>';
+
+  // Anwesenheit-Kurzinfo
+  const aQ=_data.attendance.totalEntries>0?Math.round(_data.attendance.totalAnw/_data.attendance.totalEntries*100):null;
+  const trainingsN=_data.attendance.trainings.length;
+
+  return `
+    <div class="card"><div class="card-hdr">📋 Saisonbilanz</div>
+      <div class="card-body"><div class="kpi-grid">${kpiHtml}</div></div></div>
+
+    <div class="card"><div class="card-hdr">🔥 Form (letzte 5 Spiele)</div>
+      <div class="card-body">${formHtml}</div></div>
+
+    <div class="card"><div class="card-hdr">🏠 Heim / Auswärts & Training</div>
+      <div class="card-body"><div class="kpi-grid">
+        <div class="kpi"><div class="kv">${s.heimSiege}/${s.heimSpiele}</div><div class="kl">Heimsiege</div></div>
+        <div class="kpi"><div class="kv">${s.ausSiege}/${s.ausSpiele}</div><div class="kl">Auswärtssiege</div></div>
+        <div class="kpi"><div class="kv">${trainingsN}</div><div class="kl">Trainings</div></div>
+        <div class="kpi"><div class="kv">${aQ!==null?aQ+'%':'—'}</div><div class="kl">Anw.-Quote</div></div>
+      </div></div></div>`;
+}
+
+// ── SPIELE ──
+function renderSpiele(){
+  const rows=_data.results.map(r=>{
+    const badge=r.hasResult?`<span class="res-badge ${r.outcome}">${r.outcome}</span>`:'<span style="color:var(--xsoft);font-size:11px;">geplant</span>';
+    const score=r.hasResult?`${r.our} : ${r.their}`:'– : –';
+    return `<tr>
+      <td class="lcol">${fmtDate(r.datum)}</td>
+      <td>${r.isAway?'✈️':'🏠'}</td>
+      <td class="lcol">${esc(r.heim)} <span style="color:var(--xsoft)">vs.</span> ${esc(r.gast)}</td>
+      <td style="font-weight:700;font-family:'DM Mono',monospace;">${score}</td>
+      <td>${badge}</td>
+      <td style="color:var(--soft);font-size:11px;">${esc(r.liga||'')}</td>
+    </tr>`;
+  }).join('');
+  if(!_data.results.length){
+    return `<div class="empty"><div class="e-icon">🤾</div><div class="e-title">Keine Spiele</div>
+      <div>Für diesen Zeitraum sind keine Spiele erfasst.</div></div>`;
+  }
+  return `<div class="card"><div class="card-hdr">🤾 Spiele (${_data.results.length})</div>
+    <div class="tbl-wrap"><table class="stbl"><thead><tr>
+      <th class="lcol">Datum</th><th></th><th class="lcol">Begegnung</th><th>Ergebnis</th><th>S/U/N</th><th class="lcol">Liga</th>
+    </tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+
+// ── TEAM-AKTIONEN ──
+function renderAktionen(){
+  const s=_data.teamS;
+  const total=Object.values(s).reduce((a,v)=>a+v,0);
+  if(!total){
+    return `<div class="empty"><div class="e-icon">⚽</div><div class="e-title">Keine erfassten Aktionen</div>
+      <div>Erfasse Spiele über die Live-Erfassung oder importiere Ticker-Daten in der Bank-Statistik.</div></div>`;
+  }
+  const plus=Object.entries(s).filter(([k])=>POL[k]>0).reduce((a,[,v])=>a+v,0);
+  const minus=Object.entries(s).filter(([k])=>POL[k]<0).reduce((a,[,v])=>a+v,0);
+  const he=total>0?Math.round(plus/total*100):null;
+  const tore=(s.tor||0)+(s.tor_7m||0);
+  const wuerfe=tore+(s.fw||0)+(s.fw_7m||0);
+  const wq=wuerfe>0?Math.round(tore/wuerfe*100):null;
+  const geh=(s.geh||0)+(s.geh_7m||0), kass=(s.kass||0)+(s.kass_7m||0);
+  const sh=geh+kass, aq=sh>0?Math.round(geh/sh*100):null;
+
+  const kpi=(l,v,c='')=>`<div class="kpi"><div class="kv ${c}">${v}</div><div class="kl">${l}</div></div>`;
+
+  const angriff=[
+    kpi('Tore',tore,'pos'), kpi('davon 7m',s.tor_7m||0), kpi('Assists',s.assist||0),
+    kpi('Wurfquote',wq!==null?wq+'%':'—'), kpi('Handlungseff.',he!==null?he+'%':'—'),
+    kpi('7m geholt',s['7m_g']||0), kpi('2min geholt',s['2min_p']||0),
+  ].join('');
+
+  const fehler=[
+    kpi('Turnover',s.turnover||0,'neg'), kpi('Fehlwurf',s.fw||0,'neg'), kpi('Fehlwurf 7m',s.fw_7m||0,'neg'),
+    kpi('Tech. Fehler',s.tf||0,'neg'), kpi('Fehlpass',s.fp||0,'neg'), kpi('1:1 Gegentor',s['1zu1']||0,'neg'),
+    kpi('7m verurs.',s['7m_v']||0,'neg'), kpi('2min/Rot',(s['2min']||0)+(s.rot||0),'neg'),
+  ].join('');
+
+  let gk='';
+  if(_data.gkExists || geh+kass>0){
+    gk=`<div class="card"><div class="card-hdr">● Torhüter</div><div class="card-body"><div class="kpi-grid">${
+      [kpi('Gehalten',geh,'pos'),kpi('davon 7m',s.geh_7m||0),kpi('Kassiert',kass,'neg'),
+       kpi('Abwehrquote',aq!==null?aq+'%':'—')].join('')
+    }</div></div></div>`;
+  }
+
+  return `
+    <div class="card"><div class="card-hdr">▲ Angriff</div><div class="card-body"><div class="kpi-grid">${angriff}</div></div></div>
+    <div class="card"><div class="card-hdr">⚠️ Fehler & Strafen</div><div class="card-body"><div class="kpi-grid">${fehler}</div></div></div>
+    ${gk}
+    <div class="card"><div class="card-hdr">📊 Gesamt</div><div class="card-body"><div class="kpi-grid">${
+      [kpi('+ Aktionen','+'+plus,'pos'),kpi('− Aktionen','-'+minus,'neg'),
+       kpi('±',((plus-minus)>0?'+':'')+(plus-minus),(plus-minus)>=0?'pos':'neg'),
+       kpi('Aktionen ges.',total)].join('')
+    }</div></div></div>`;
+}
+
+// ── ANWESENHEIT ──
+function renderAnwesenheit(){
+  const a=_data.attendance;
+  if(!a.trainings.length){
+    return `<div class="empty"><div class="e-icon">✅</div><div class="e-title">Keine Anwesenheitsdaten</div>
+      <div>Erfasse die Trainings-Anwesenheit im <a href="trainingsplaner.html" style="color:var(--accent);font-weight:600;text-decoration:none;">Trainingsplaner</a>.</div></div>`;
+  }
+  const q=a.totalEntries>0?Math.round(a.totalAnw/a.totalEntries*100):0;
+  const avgAnw=(a.totalAnw/a.trainings.length).toFixed(1);
+  const totVerl=a.trainings.reduce((s,t)=>s+t.verl,0);
+
+  const kpi=(l,v,c='')=>`<div class="kpi"><div class="kv ${c}">${v}</div><div class="kl">${l}</div></div>`;
+  const head=`<div class="card"><div class="card-hdr">✅ Trainingsbeteiligung</div><div class="card-body"><div class="kpi-grid">${
+    [kpi('Trainings',a.trainings.length),kpi('Anw.-Quote',q+'%','pos'),
+     kpi('Ø Anwesend',avgAnw),kpi('Verletzt ges.',totVerl,totVerl>0?'neg':'')].join('')
+  }</div></div></div>`;
+
+  const rows=a.trainings.slice().sort((x,y)=>(y.date||'').localeCompare(x.date||'')).map(t=>{
+    const pct=t.total>0?Math.round(t.anw/t.total*100):0;
+    return `<tr>
+      <td class="lcol">${fmtDate(t.date)}</td>
+      <td class="lcol">${esc(t.name)}</td>
+      <td class="vp">${t.anw}</td>
+      <td class="vn">${t.abw}</td>
+      <td>${t.verl}</td>
+      <td>${t.anw}/${t.total}</td>
+      <td style="min-width:110px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="bar"><i style="width:${pct}%;"></i></div>
+          <span style="font-size:11px;font-weight:700;color:var(--accent);">${pct}%</span>
+        </div></td>
+    </tr>`;
+  }).join('');
+
+  return `${head}
+    <div class="card"><div class="card-hdr">📅 Trainings (${a.trainings.length})</div>
+    <div class="tbl-wrap"><table class="stbl"><thead><tr>
+      <th class="lcol">Datum</th><th class="lcol">Einheit</th><th>Anw.</th><th>Abw.</th><th>Verl.</th><th>Quote</th><th>Beteiligung</th>
+    </tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// HELFER
+// ════════════════════════════════════════════════════════════
+function fmtDate(d){
+  if(!d) return '–';
+  const p=String(d).slice(0,10).split('-');
+  if(p.length!==3) return d;
+  return `${p[2]}.${p[1]}.${p[0]}`;
+}
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg,type='info'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+type+' show';
+  clearTimeout(toastTm); toastTm=setTimeout(()=>t.className='toast '+type,3000);
+}
+function toggleSidebar(){
+  const sb=document.getElementById('sidebar'), app=document.getElementById('app'), overlay=document.getElementById('sidebar-overlay');
+  const collapsed=sb.classList.toggle('collapsed');
+  app.classList.toggle('sidebar-collapsed',collapsed);
+  overlay?.classList.toggle('visible',!collapsed && window.innerWidth<=900);
+  localStorage.setItem('hbs_sidebar_collapsed',collapsed?'1':'0');
+}
+function initSidebarState(){
+  const isMobile=window.innerWidth<=900;
+  const stored=localStorage.getItem('hbs_sidebar_collapsed');
+  const shouldCollapse=stored!==null?stored==='1':isMobile;
+  if(shouldCollapse){
+    document.getElementById('sidebar')?.classList.add('collapsed');
+    document.getElementById('app')?.classList.add('sidebar-collapsed');
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+supa.auth.getSession().then(({data:{session}})=>{
+  if(session) onAuth(session.user);
+  else window.location.href='index.html';
+});
+supa.auth.onAuthStateChange((event,session)=>{
+  if(event==='SIGNED_IN'&&session&&!currentUser) onAuth(session.user);
+  if(event==='SIGNED_OUT') window.location.href='index.html';
+});
+</script>
+</body>
+</html>

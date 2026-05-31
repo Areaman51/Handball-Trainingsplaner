@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260531.2030 — Dashboard -->
+<!-- Handball Coaching Tools v1.260531.2200 — Dashboard -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -88,6 +88,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .tile.t-profil::before{background:#0ea5e9;}
 .tile.t-meine-mannschaft::before{background:#10b981;}
 .tile.t-spieler::before{background:#14b8a6;}
+.tile.t-mannstat::before{background:#6366f1;}
 
 /* ── MANNSCHAFTSSTATISTIK-PANEL ── */
 .ms-panel{background:white;border-radius:var(--radius);border:1.5px solid var(--border);
@@ -239,7 +240,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div class="ms-team" id="ms-team-name">–</div>
           <div class="ms-team-sub" id="ms-team-sub">Saisonüberblick deiner Mannschaft</div>
         </div>
-        <a class="ms-link" href="spielerstatistik.html">📈 Spielerstatistik →</a>
+        <a class="ms-link" href="mannschaftsstatistik.html">📊 Alle Details →</a>
       </div>
       <div id="ms-content"><div class="ms-loading">⏳ Lade Mannschaftsdaten…</div></div>
     </div>
@@ -289,6 +290,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="tile-body">
           <div class="tile-name">Bank-Statistik</div>
           <div class="tile-desc">Live-Spielprotokoll, Wurfstatistik und Torwertung</div>
+        </div>
+        <div class="tile-arrow">→</div>
+      </a>
+
+      <a class="tile t-mannstat" href="mannschaftsstatistik.html">
+        <div class="tile-badge new">Neu</div>
+        <div class="tile-icon">📊</div>
+        <div class="tile-body">
+          <div class="tile-name">Mannschaftsstatistik</div>
+          <div class="tile-desc">Bilanz, Tore, Team-Aktionen und Trainingsbeteiligung</div>
         </div>
         <div class="tile-arrow">→</div>
       </a>
