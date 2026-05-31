@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.1200 — Dashboard -->
+<!-- Handball Coaching Tools v1.260531.2030 — Dashboard -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -87,6 +87,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .tile.t-gegner::before{background:#6b7280;}
 .tile.t-profil::before{background:#0ea5e9;}
 .tile.t-meine-mannschaft::before{background:#10b981;}
+.tile.t-spieler::before{background:#14b8a6;}
+
+/* ── MANNSCHAFTSSTATISTIK-PANEL ── */
+.ms-panel{background:white;border-radius:var(--radius);border:1.5px solid var(--border);
+  padding:22px 24px 20px;margin-bottom:36px;box-shadow:var(--shadow);}
+.ms-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.ms-team{font-size:17px;font-weight:700;letter-spacing:-.3px;color:var(--text);}
+.ms-team-sub{font-size:12px;color:var(--soft);margin-top:2px;}
+.ms-link{font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;
+  display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;
+  border:1.5px solid #bfdbfe;background:#eff6ff;transition:all .15s;white-space:nowrap;}
+.ms-link:hover{background:#dbeafe;}
+.ms-kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;}
+.ms-kpi{text-align:center;background:var(--bg);border-radius:10px;padding:14px 8px;}
+.ms-kpi .v{font-size:24px;font-weight:800;color:var(--accent);font-family:'DM Mono',monospace;line-height:1;}
+.ms-kpi .v.pos{color:#15803d;} .ms-kpi .v.neg{color:#dc2626;}
+.ms-kpi .l{font-size:10.5px;color:var(--soft);margin-top:6px;text-transform:uppercase;letter-spacing:.04em;}
+.ms-loading{font-size:13px;color:var(--xsoft);padding:8px 2px;}
+@media(max-width:600px){ .ms-kpi-grid{grid-template-columns:repeat(3,1fr);} }
 
 /* ── MEINE-MANNSCHAFT-TILE ── */
 .mm-aktive-wrap{margin:6px 0 0;}
@@ -212,6 +231,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="dash-welcome-sub">Was möchtest du heute tun?</div>
     </div>
 
+    <!-- Mannschaftsstatistik -->
+    <div class="tile-section-label">Mannschaftsstatistik</div>
+    <div class="ms-panel" id="ms-panel">
+      <div class="ms-head">
+        <div>
+          <div class="ms-team" id="ms-team-name">–</div>
+          <div class="ms-team-sub" id="ms-team-sub">Saisonüberblick deiner Mannschaft</div>
+        </div>
+        <a class="ms-link" href="spielerstatistik.html">📈 Spielerstatistik →</a>
+      </div>
+      <div id="ms-content"><div class="ms-loading">⏳ Lade Mannschaftsdaten…</div></div>
+    </div>
+
     <!-- Hauptmodule -->
     <div class="tile-section-label">Arbeitsbereich</div>
     <div class="tile-grid" id="main-tiles">
@@ -261,14 +293,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="tile-arrow">→</div>
       </a>
 
-      <a class="tile t-gegner" href="gegneranalyse.html">
-        <div class="tile-icon">🔍</div>
+      <a class="tile t-spieler" href="spielerstatistik.html">
+        <div class="tile-badge new">Neu</div>
+        <div class="tile-icon">📈</div>
         <div class="tile-body">
-          <div class="tile-name">Gegneranalyse</div>
-          <div class="tile-desc">Scouting-Profile, Spielsysteme und Schlüsselspieler erfassen</div>
+          <div class="tile-name">Spielerstatistik</div>
+          <div class="tile-desc">Langzeitstatistik und Trainings-Anwesenheit pro Spielerin</div>
         </div>
         <div class="tile-arrow">→</div>
       </a>
+
+      <div class="tile t-gegner coming-soon">
+        <div class="tile-badge soon">Bald</div>
+        <div class="tile-icon">🔍</div>
+        <div class="tile-body">
+          <div class="tile-name">Gegneranalyse</div>
+          <div class="tile-desc">Gegnerische Formationen, Stärken und Schwächen erfassen</div>
+        </div>
+      </div>
 
     </div>
 
@@ -549,6 +591,84 @@ function renderMannschaftTile(){
   } else {
     container.style.display = 'none';
     emptyEl.style.display   = alleMannschaften.length === 0 ? '' : 'none';
+  }
+
+  // Mannschaftsstatistik (neu) bei jedem Render / Team-Wechsel aktualisieren
+  loadMannschaftsstatistik(aktive);
+}
+
+// ── MANNSCHAFTSSTATISTIK ──
+async function loadMannschaftsstatistik(team){
+  const nameEl = document.getElementById('ms-team-name');
+  const subEl  = document.getElementById('ms-team-sub');
+  const cont   = document.getElementById('ms-content');
+  if(!cont) return;
+
+  if(!team){
+    if(nameEl) nameEl.textContent = '—';
+    cont.innerHTML = '<div class="ms-loading">Keine Mannschaft ausgewählt.</div>';
+    return;
+  }
+  if(nameEl) nameEl.textContent = team.name || '—';
+  if(subEl)  subEl.textContent  = (team.verein ? team.verein + ' · ' : '') + 'Saisonüberblick';
+  cont.innerHTML = '<div class="ms-loading">⏳ Lade Mannschaftsdaten…</div>';
+
+  try {
+    // Spiele der Mannschaft
+    const { data: spiele } = await supa.from('spiele')
+      .select('spielart,status,score_home,score_away,datum')
+      .eq('mannschaft_id', team.id);
+
+    let gespielt=0, siege=0, remis=0, niederlagen=0, torFor=0, torGegen=0;
+    (spiele || []).forEach(sp => {
+      const sh = Number(sp.score_home||0), sa = Number(sp.score_away||0);
+      const hasResult = sp.status==='beendet' || sh>0 || sa>0;
+      if(!hasResult) return;
+      const ourGoals  = sp.spielart==='auswaerts' ? sa : sh;
+      const theirGoals= sp.spielart==='auswaerts' ? sh : sa;
+      gespielt++; torFor+=ourGoals; torGegen+=theirGoals;
+      if(ourGoals>theirGoals) siege++;
+      else if(ourGoals<theirGoals) niederlagen++;
+      else remis++;
+    });
+    const diff = torFor - torGegen;
+    const avgFor = gespielt>0 ? (torFor/gespielt).toFixed(1) : '0';
+
+    // Trainings-Anwesenheit (Team-Quote)
+    let trainings=0, awAnw=0, awGesamt=0;
+    try {
+      const { data: einheiten } = await supa.from('einheiten')
+        .select('anwesenheit')
+        .eq('group_name', team.name || '');
+      (einheiten || []).forEach(e => {
+        const sp = e.anwesenheit?.spieler;
+        if(!Array.isArray(sp) || !sp.length) return;
+        trainings++;
+        sp.forEach(r => { awGesamt++; if((r.status||'anwesend')==='anwesend') awAnw++; });
+      });
+    } catch(e){ /* einheiten ggf. nicht lesbar */ }
+    const awQuote = awGesamt>0 ? Math.round(awAnw/awGesamt*100) : null;
+
+    if(gespielt===0 && trainings===0){
+      cont.innerHTML = '<div class="ms-loading">Noch keine Spiel- oder Trainingsdaten für diese Mannschaft erfasst.</div>';
+      return;
+    }
+
+    const kpis = [
+      ['Spiele', gespielt, ''],
+      ['Bilanz', `${siege}-${remis}-${niederlagen}`, ''],
+      ['Tore', `${torFor}:${torGegen}`, ''],
+      ['Tordiff.', (diff>0?'+':'')+diff, diff>=0?'pos':'neg'],
+      ['Ø Tore', avgFor, ''],
+      ['Trainings', trainings, ''],
+      ['Anw.-Quote', awQuote!==null ? awQuote+'%' : '—', ''],
+    ];
+    cont.innerHTML = '<div class="ms-kpi-grid">' + kpis.map(([l,v,c]) =>
+      `<div class="ms-kpi"><div class="v ${c}">${v}</div><div class="l">${l}</div></div>`
+    ).join('') + '</div>';
+  } catch(e){
+    console.warn('[Mannschaftsstatistik]', e.message);
+    cont.innerHTML = '<div class="ms-loading">⚠️ Mannschaftsdaten konnten nicht geladen werden.</div>';
   }
 }
 
