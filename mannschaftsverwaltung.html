@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260601.1445 — Mannschaftsverwaltung -->
+<!-- Handball Coaching Tools v1.260601.1640 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -184,6 +184,28 @@ tbody tr:hover{background:#fafbff;}
 .typ-spiele{background:#e6eeff;color:#0057ff;}
 .typ-pokal{background:#ede9fe;color:#7c3aed;}
 .typ-sonstige{background:#fffbeb;color:#d97706;}
+/* Status-Meta-Chips in der Kader-Tabelle */
+.meta-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.meta-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap;}
+.meta-chip.info{background:var(--accent-l);color:var(--accent);}
+.meta-chip.injury{background:var(--red-l);color:var(--red);}
+.meta-chip.injury.healed{background:var(--bg);color:var(--xsoft);}
+.meta-chip.absence{background:var(--yellow-l);color:var(--yellow);}
+/* Abwesenheiten / Verletzungen – Eintragsliste im Spieler-Modal */
+.entry-block{margin-top:6px;}
+.entry-block-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.entry-block-head .form-label{margin-bottom:0;}
+.entry-list{display:flex;flex-direction:column;gap:10px;}
+.entry-empty{font-size:12px;color:var(--xsoft);padding:8px 0;font-style:italic;}
+.entry-card{border:1.5px solid var(--border);border-radius:10px;padding:11px 12px;background:var(--bg);}
+.entry-card.injury-open{border-color:var(--red-b);background:var(--red-l);}
+.entry-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.entry-lbl{display:block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin-bottom:3px;}
+.entry-inp{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12.5px;color:var(--text);outline:none;background:white;}
+.entry-inp:focus{border-color:var(--accent);}
+.entry-field{margin-bottom:8px;}
+.entry-del{margin-top:2px;background:transparent;border:none;color:var(--red);font-size:11.5px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;padding:2px 0;}
+.entry-del:hover{text-decoration:underline;}
 @media(max-width:768px){.main{margin-left:0;}.form-row{grid-template-columns:1fr;}.team-grid{grid-template-columns:1fr;}.content{padding:16px;}}
 </style>
 </head>
@@ -239,7 +261,7 @@ tbody tr:hover{background:#fafbff;}
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260601.1445</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260601.1640</div>
     </div>
   </aside>
 
@@ -346,7 +368,43 @@ tbody tr:hover{background:#fafbff;}
         <div class="pos-section-hint" id="pm-abwehr-hint"></div>
       </div>
       <div class="form-group"><div class="toggle-row"><div><div class="toggle-label">Aktiv</div><div class="toggle-sub">Erscheint in Anwesenheitslisten und Bank-Statistik</div></div><label class="toggle"><input type="checkbox" id="pm-aktiv" checked><span class="slider"></span></label></div></div>
+      <div class="form-group">
+        <label class="form-label">Aktiv bis <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; optional</span></label>
+        <input class="form-input" id="pm-aktiv-bis" type="date" style="margin-bottom:0;">
+        <div class="form-hint" style="margin-top:5px;">Ab dem Tag nach diesem Datum z&auml;hlt der Spieler nicht mehr zur Anwesenheit (z.&nbsp;B. Vereinswechsel zum Saisonende). Leer&nbsp;= unbefristet aktiv.</div>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:18px 0;">
+      <div class="form-group entry-block">
+        <div class="entry-block-head">
+          <label class="form-label">&#127958;&#65039; Abwesenheiten</label>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addAbw()">+ Abwesenheit</button>
+        </div>
+        <div class="form-hint" style="margin-bottom:8px;">Geplante Abwesenheiten (Urlaub, Beruf, Studium &hellip;), in denen der Spieler nicht eingeplant wird.</div>
+        <div class="entry-list" id="pm-abw-list"></div>
+      </div>
+      <div class="form-group entry-block">
+        <div class="entry-block-head">
+          <label class="form-label">&#129657; Verletzungen</label>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addVerl()">+ Verletzung</button>
+        </div>
+        <div class="form-hint" style="margin-bottom:8px;">Verletzungen mit Zeitraum. <strong>Bis</strong> leer lassen = aktuell noch verletzt.</div>
+        <div class="entry-list" id="pm-verl-list"></div>
+      </div>
     </div>
+    <datalist id="verl-arten-list">
+      <option value="B&auml;nderdehnung"></option>
+      <option value="B&auml;nderriss"></option>
+      <option value="Muskelfaserriss"></option>
+      <option value="Zerrung"></option>
+      <option value="Prellung"></option>
+      <option value="Sehnenentz&uuml;ndung"></option>
+      <option value="Kreuzbandriss"></option>
+      <option value="Meniskusverletzung"></option>
+      <option value="Schulterverletzung"></option>
+      <option value="Fingerverletzung"></option>
+      <option value="Gehirnersch&uuml;tterung"></option>
+      <option value="Sonstiges"></option>
+    </datalist>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closePlayerModal()">Abbrechen</button><button class="btn btn-primary" onclick="savePlayer()">Speichern</button></div>
   </div>
 </div>
@@ -623,6 +681,33 @@ function posCell(p){
   html+='</div>';
   return html;
 }
+// Status-Zusatzchips: Aktiv-bis, offene Verletzung, laufende/kommende Abwesenheit
+function statusMetaChips(p){
+  const today=new Date().toISOString().slice(0,10);
+  const chips=[];
+  if(p.aktiv_bis){
+    const bis=String(p.aktiv_bis).slice(0,10);
+    const past=bis<today;
+    chips.push(`<span class="meta-chip ${past?'injury healed':'info'}" title="Aktiv bis ${fmtDateDE(bis)}">${past?'&#9203; beendet':'bis '+fmtDateDE(bis)}</span>`);
+  }
+  const verl=_normEntryArr(p.verletzungen).filter(v=>v&&(v.art||v.von||v.bis));
+  const offeneVerl=verl.filter(_verletzungOffen);
+  if(offeneVerl.length){
+    const v=offeneVerl[0];
+    chips.push(`<span class="meta-chip injury" title="${esc(v.art||'Verletzung')}${v.von?' seit '+fmtDateDE(v.von):''}">&#129657; verletzt${offeneVerl.length>1?' &times;'+offeneVerl.length:''}</span>`);
+  }
+  const abw=_normEntryArr(p.abwesenheiten).filter(a=>a&&(a.von||a.bis));
+  const aktuelleAbw=abw.filter(a=>(!a.von||a.von<=today)&&(!a.bis||a.bis>=today));
+  const kommendeAbw=abw.filter(a=>a.von&&a.von>today);
+  if(aktuelleAbw.length){
+    const a=aktuelleAbw[0];
+    chips.push(`<span class="meta-chip absence" title="${esc(ABW_GRUND_LABEL[a.grund]||a.grund||'Abwesenheit')}${a.bis?' bis '+fmtDateDE(a.bis):''}">&#127958;&#65039; abwesend</span>`);
+  } else if(kommendeAbw.length){
+    const a=kommendeAbw.sort((x,y)=>x.von<y.von?-1:1)[0];
+    chips.push(`<span class="meta-chip absence" title="${esc(ABW_GRUND_LABEL[a.grund]||a.grund||'Abwesenheit')} ab ${fmtDateDE(a.von)}">&#127958;&#65039; ab ${fmtDateDE(a.von)}</span>`);
+  }
+  return chips.length?`<div class="meta-chips">${chips.join('')}</div>`:'';
+}
 function renderTabKader(team){
   const owned=isOwner(team);
   const sorted=[...currentPlayers].sort((a,b)=>{if(a.pos!==b.pos)return a.pos==='TH'?-1:1;return(a.nummer??99)-(b.nummer??99);});
@@ -630,7 +715,7 @@ function renderTabKader(team){
     <td><span style="font-family:'DM Mono',monospace;font-weight:600;font-size:13px;">${p.nummer!=null?String(p.nummer).padStart(2,'0'):'&#8211;'}</span></td>
     <td style="font-weight:500;">${esc(p.name)}</td>
     <td>${posCell(p)}</td>
-    <td><span class="${p.aktiv?'badge badge-aktiv':'badge badge-inaktiv'}">${p.aktiv?'Aktiv':'Inaktiv'}</span></td>
+    <td><span class="${p.aktiv?'badge badge-aktiv':'badge badge-inaktiv'}">${p.aktiv?'Aktiv':'Inaktiv'}</span>${statusMetaChips(p)}</td>
     <td>${owned?`<div style="display:flex;gap:5px;"><button class="btn btn-ghost btn-sm" onclick="openPlayerModal('${p.id}')">&#9999;&#65039;</button><button class="btn btn-danger btn-sm" onclick="confirmDeletePlayer('${p.id}')">&#128465;&#65039;</button></div>`:'&#8211;'}</td>
   </tr>`).join(''):`<tr><td colspan="5"><div class="empty"><div class="empty-icon">&#128101;</div><div class="empty-text">Noch keine Spieler.</div></div></td></tr>`;
   document.getElementById('tab-content-kader').innerHTML=`
@@ -895,6 +980,18 @@ const ABWEHR_SYSTEME={
 };
 const PRIO_LABELS=['prim&auml;r','sekund&auml;r','terti&auml;r','4.','5.','6.','7.'];
 
+// Gründe für geplante Abwesenheiten
+const ABW_GRUENDE=[
+  {v:'urlaub',     l:'Urlaub'},
+  {v:'beruf',      l:'Beruf / Arbeit'},
+  {v:'schule',     l:'Schule / Studium'},
+  {v:'krankheit',  l:'Krankheit (keine Verletzung)'},
+  {v:'schwanger',  l:'Schwangerschaft / Elternzeit'},
+  {v:'persoenlich',l:'Pers&ouml;nlich / Familie'},
+  {v:'sonstiges',  l:'Sonstiges'}
+];
+const ABW_GRUND_LABEL=Object.fromEntries(ABW_GRUENDE.map(g=>[g.v,g.l]));
+
 // Legacy-Migration alter Positions-Codes → DHB-Standard
 const LEGACY_POS_MAP={
   KR:'KS',                                   // Kreisläufer
@@ -908,6 +1005,8 @@ Object.entries(ABWEHR_POS_LABELS).forEach(([code,label])=>posLabelMap[code]=labe
 
 // Aktuelle Auswahl im Spieler-Modal (Reihenfolge = Priorität)
 let pmAngriff=[], pmAbwehr=[], pmAbwehrSystem='6:0';
+// Abwesenheiten & Verletzungen im Spieler-Modal (Arbeitskopie)
+let pmAbwesenheiten=[], pmVerletzungen=[];
 
 function _normPosArr(v){return Array.isArray(v)?v.filter(x=>x!=null).map(migratePosCode):[];}
 // Erstes Abwehrsystem, das mindestens eine der gewählten Positionen enthält (sonst 6:0)
@@ -958,6 +1057,72 @@ function onPmPosChange(){
   if(det) det.style.display=isTH?'none':'';
 }
 
+// ── Abwesenheiten & Verletzungen ──────────────────────────────────
+// Datum YYYY-MM-DD → TT.MM.JJJJ (für Anzeige)
+function fmtDateDE(s){
+  if(!s) return '';
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s));
+  return m?`${m[3]}.${m[2]}.${m[1]}`:String(s);
+}
+// jsonb-Spalte robust in Array wandeln (akzeptiert Array oder JSON-String)
+function _normEntryArr(v){
+  if(Array.isArray(v)) return v;
+  if(typeof v==='string'){try{const p=JSON.parse(v);return Array.isArray(p)?p:[];}catch(e){return[];}}
+  return [];
+}
+// Verletzung „offen" = kein Bis-Datum ODER Bis-Datum liegt in der Zukunft
+function _verletzungOffen(v){
+  if(!v||!v.bis) return true;
+  const today=new Date().toISOString().slice(0,10);
+  return v.bis>=today;
+}
+
+function renderAbwesenheiten(){
+  const wrap=document.getElementById('pm-abw-list');
+  if(!wrap) return;
+  if(!pmAbwesenheiten.length){wrap.innerHTML='<div class="entry-empty">Keine Abwesenheiten hinterlegt.</div>';return;}
+  wrap.innerHTML=pmAbwesenheiten.map((a,i)=>`
+    <div class="entry-card">
+      <div class="entry-row2">
+        <div><label class="entry-lbl">Von</label><input type="date" class="entry-inp" value="${esc(a.von||'')}" onchange="updAbw(${i},'von',this.value)"></div>
+        <div><label class="entry-lbl">Bis</label><input type="date" class="entry-inp" value="${esc(a.bis||'')}" onchange="updAbw(${i},'bis',this.value)"></div>
+      </div>
+      <div class="entry-field"><label class="entry-lbl">Grund</label>
+        <select class="entry-inp" onchange="updAbw(${i},'grund',this.value)">${ABW_GRUENDE.map(g=>`<option value="${g.v}" ${a.grund===g.v?'selected':''}>${g.l}</option>`).join('')}</select>
+      </div>
+      <div class="entry-field"><label class="entry-lbl">Notiz</label>
+        <input type="text" class="entry-inp" value="${esc(a.notiz||'')}" placeholder="optional" onchange="updAbw(${i},'notiz',this.value)">
+      </div>
+      <button type="button" class="entry-del" onclick="delAbw(${i})">&#128465;&#65039; Entfernen</button>
+    </div>`).join('');
+}
+function updAbw(i,k,v){if(pmAbwesenheiten[i])pmAbwesenheiten[i][k]=v;}
+function addAbw(){pmAbwesenheiten.push({von:'',bis:'',grund:'urlaub',notiz:''});renderAbwesenheiten();}
+function delAbw(i){pmAbwesenheiten.splice(i,1);renderAbwesenheiten();}
+
+function renderVerletzungen(){
+  const wrap=document.getElementById('pm-verl-list');
+  if(!wrap) return;
+  if(!pmVerletzungen.length){wrap.innerHTML='<div class="entry-empty">Keine Verletzungen hinterlegt.</div>';return;}
+  wrap.innerHTML=pmVerletzungen.map((v,i)=>`
+    <div class="entry-card ${_verletzungOffen(v)&&(v.von||v.art)?'injury-open':''}">
+      <div class="entry-field"><label class="entry-lbl">Art der Verletzung</label>
+        <input type="text" class="entry-inp" list="verl-arten-list" value="${esc(v.art||'')}" placeholder="z.B. B&auml;nderdehnung Sprunggelenk" onchange="updVerl(${i},'art',this.value)">
+      </div>
+      <div class="entry-row2">
+        <div><label class="entry-lbl">Von</label><input type="date" class="entry-inp" value="${esc(v.von||'')}" onchange="updVerl(${i},'von',this.value)"></div>
+        <div><label class="entry-lbl">Bis (R&uuml;ckkehr)</label><input type="date" class="entry-inp" value="${esc(v.bis||'')}" onchange="updVerl(${i},'bis',this.value)"></div>
+      </div>
+      <div class="entry-field"><label class="entry-lbl">Notiz</label>
+        <input type="text" class="entry-inp" value="${esc(v.notiz||'')}" placeholder="optional (Behandlung, Reha &hellip;)" onchange="updVerl(${i},'notiz',this.value)">
+      </div>
+      <button type="button" class="entry-del" onclick="delVerl(${i})">&#128465;&#65039; Entfernen</button>
+    </div>`).join('');
+}
+function updVerl(i,k,v){if(pmVerletzungen[i])pmVerletzungen[i][k]=v;}
+function addVerl(){pmVerletzungen.push({art:'',von:'',bis:'',notiz:''});renderVerletzungen();}
+function delVerl(i){pmVerletzungen.splice(i,1);renderVerletzungen();}
+
 function openPlayerModal(pid=null,defaultPos='FL'){
   const p=pid?currentPlayers.find(x=>x.id===pid):null;
   document.getElementById('player-modal-title').textContent=p?'Spieler bearbeiten':'Spieler hinzufügen';
@@ -966,6 +1131,11 @@ function openPlayerModal(pid=null,defaultPos='FL'){
   document.getElementById('pm-name').value=p?p.name:'';
   document.getElementById('pm-pos').value=p?p.pos:defaultPos;
   document.getElementById('pm-aktiv').checked=p?!!p.aktiv:true;
+  document.getElementById('pm-aktiv-bis').value=p&&p.aktiv_bis?String(p.aktiv_bis).slice(0,10):'';
+  pmAbwesenheiten=_normEntryArr(p?.abwesenheiten);
+  pmVerletzungen=_normEntryArr(p?.verletzungen);
+  renderAbwesenheiten();
+  renderVerletzungen();
   pmAngriff=_normPosArr(p?.angriff_pos);
   pmAbwehr=_normPosArr(p?.abwehr_pos);
   pmAbwehrSystem=_systemForCodes(pmAbwehr);
@@ -983,31 +1153,43 @@ async function _savePlayerRow(id,data){
   if(id){const{error}=await supa.from('mannschaft_spieler').update(data).eq('id',id);return error;}
   const{error}=await supa.from('mannschaft_spieler').insert(data);return error;
 }
-function _isMissingPosCol(err){
+function _isMissingOptCol(err){
   const m=String(err&&err.message||'')+String(err&&err.code||'');
-  return /angriff_pos|abwehr_pos|column|PGRST204|schema cache/i.test(m);
+  return /angriff_pos|abwehr_pos|aktiv_bis|abwesenheiten|verletzungen|column|PGRST204|schema cache/i.test(m);
 }
+// Leere Abwesenheits-/Verletzungs-Einträge vor dem Speichern verwerfen
+function _cleanAbw(arr){return arr.filter(a=>a&&(a.von||a.bis||a.notiz));}
+function _cleanVerl(arr){return arr.filter(v=>v&&(v.art||v.von||v.bis||v.notiz));}
 async function savePlayer(){
   const id=document.getElementById('pm-id').value,name=document.getElementById('pm-name').value.trim();
   if(!name){showToast('Name ist Pflichtfeld.','error');return;}
   const nr=document.getElementById('pm-nummer').value;
   const pos=document.getElementById('pm-pos').value;
+  const aktivBis=document.getElementById('pm-aktiv-bis').value;
   const data={
     mannschaft_id:currentTeamId,name,
     nummer:nr!==''?parseInt(nr,10):null,
     pos,
     aktiv:document.getElementById('pm-aktiv').checked,
+    aktiv_bis: aktivBis||null,
     angriff_pos: pos==='TH'?[]:pmAngriff.slice(),
-    abwehr_pos:  pos==='TH'?[]:pmAbwehr.slice()
+    abwehr_pos:  pos==='TH'?[]:pmAbwehr.slice(),
+    abwesenheiten:_cleanAbw(pmAbwesenheiten),
+    verletzungen:_cleanVerl(pmVerletzungen)
   };
   let error=await _savePlayerRow(id,data);
-  if(error && _isMissingPosCol(error)){
-    // Positions-Spalten fehlen → ohne Positionen speichern + Hinweis
-    const {angriff_pos,abwehr_pos,...rest}=data;
+  if(error && _isMissingOptCol(error)){
+    // Optionale Spalten fehlen → nur Pflichtfelder speichern + Migrations-Hinweis
+    const {angriff_pos,abwehr_pos,aktiv_bis,abwesenheiten,verletzungen,...rest}=data;
     error=await _savePlayerRow(id,rest);
     if(!error){
-      showToast('⚠️ Positionen nicht gespeichert – SQL-Migration nötig (Konsole)','info');
-      console.warn('SQL-Migration erforderlich:\nALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS angriff_pos jsonb DEFAULT \'[]\'::jsonb;\nALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS abwehr_pos jsonb DEFAULT \'[]\'::jsonb;');
+      showToast('⚠️ Zusatzdaten nicht gespeichert – SQL-Migration nötig (Konsole)','info');
+      console.warn('SQL-Migration erforderlich:\n'+
+        "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS angriff_pos jsonb DEFAULT '[]'::jsonb;\n"+
+        "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS abwehr_pos jsonb DEFAULT '[]'::jsonb;\n"+
+        "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS aktiv_bis date;\n"+
+        "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS abwesenheiten jsonb DEFAULT '[]'::jsonb;\n"+
+        "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS verletzungen jsonb DEFAULT '[]'::jsonb;");
     }
   }
   if(error){showToast('Fehler: '+error.message,'error');return;}
