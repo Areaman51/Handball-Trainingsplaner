@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260601.1100 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260601.1545 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -892,7 +892,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260601.1100</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260601.1545</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1369,7 +1369,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
              ondrop="handleImgDrop(event,'f')">
           <input type="file" id="f-img-input" accept="image/*" multiple onchange="handleImgUpload(event,'f')">
           <div class="img-upload-label">📎 Bilder ablegen oder <span>Dateien auswählen</span></div>
-          <div style="font-size:11px;color:var(--xsoft);margin-top:3px;">Bilder werden sofort als Datei in <strong>Bilder/</strong> gespeichert</div>
+          <div style="font-size:11px;color:var(--xsoft);margin-top:3px;">Große Bilder werden automatisch verkleinert (max. 1600&nbsp;px, ~450&nbsp;KB) – auf dem iPad gut erkennbar, speichersparend</div>
         </div>
       </div>
 
@@ -1484,7 +1484,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
              ondrop="handleImgDrop(event,'db-f')">
           <input type="file" id="db-f-img-input" accept="image/*" multiple onchange="handleImgUpload(event,'db-f')">
           <div class="img-upload-label">📎 Bilder ablegen oder <span>Dateien auswählen</span></div>
-          <div style="font-size:11px;color:var(--xsoft);margin-top:3px;">Bilder werden sofort als Datei in <strong>Bilder/</strong> gespeichert</div>
+          <div style="font-size:11px;color:var(--xsoft);margin-top:3px;">Große Bilder werden automatisch verkleinert (max. 1600&nbsp;px, ~450&nbsp;KB) – auf dem iPad gut erkennbar, speichersparend</div>
         </div>
       </div>
     </div>
@@ -2162,7 +2162,8 @@ async function saveAll(){
 // BILD UPLOAD
 // ══════════════════════════════════════════
 async function uploadImageToSupabase(file,drillName){
-  const ext=file.name.split('.').pop().toLowerCase()||'jpg';
+  let ext=(file.name && file.name.includes('.')) ? file.name.split('.').pop().toLowerCase() : '';
+  if(!ext){ ext = (file.type==='image/png')?'png' : (file.type==='image/webp')?'webp' : 'jpg'; }
   const path=`${currentUser.id}/${slugify(drillName)}-${Date.now()}.${ext}`;
   const {error}=await supa.storage.from('bilder').upload(path,file,{upsert:true});
   if(error){showToast('❌ Bild-Fehler: '+error.message,'info');return null;}
@@ -3170,18 +3171,113 @@ async function sendInvite(){
 // ══════════════════════════════════════════
 function getImgArr(p){return p==='f'?fImages:dbfImages;}
 function setImgArr(p,a){if(p==='f') fImages=a; else dbfImages=a;}
-function handleImgUpload(event,prefix){
-  const arr=getImgArr(prefix);
-  Array.from(event.target.files).forEach(file=>{arr.push({filename:file.name,objectUrl:URL.createObjectURL(file),_file:file});});
-  setImgArr(prefix,arr);renderFormGallery(prefix+'-img-gallery',arr,prefix);
-  event.target.value='';
-  showToast('📎 Bild bereit – wird beim Speichern hochgeladen','info');
+
+/* ── Bild-Optimierung ──
+   Hochgeladene Bilder werden automatisch auf eine sinnvolle Maximalgröße
+   herunterskaliert und komprimiert. Kompromiss zwischen Speicherbedarf
+   und Schärfe: auf einem iPad (auch Retina-Vollbild) bleibt das Bild gut
+   erkennbar, belegt aber nur noch einen Bruchteil des Speichers. */
+const IMG_MAX_DIM      = 1600;        // längste Kante in px – scharf auf iPad
+const IMG_TARGET_BYTES = 450 * 1024;  // angepeilte Zielgröße pro Bild (~450 KB)
+const IMG_MIN_QUALITY  = 0.55;        // Qualitäts-Untergrenze für JPEG
+
+function fmtBytes(b){
+  if(b>=1024*1024) return (b/1024/1024).toFixed(1)+' MB';
+  if(b>=1024)      return Math.round(b/1024)+' KB';
+  return b+' B';
 }
-function handleImgDrop(event,prefix){
-  event.preventDefault();event.currentTarget.classList.remove('drag-active');
+function loadImageEl(file){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload =()=>{img._url=url;resolve(img);};
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('decode'));};
+    img.src=url;
+  });
+}
+function canvasToBlob(canvas,type,quality){
+  return new Promise(res=>{try{canvas.toBlob(b=>res(b),type,quality);}catch(e){res(null);}});
+}
+async function compressImage(file){
+  // Nicht-Bilder unverändert durchreichen
+  if(!file || !file.type || !file.type.startsWith('image/')) return file;
+  let img;
+  try{ img=await loadImageEl(file); }
+  catch(e){ return file; }                       // nicht decodierbar → Original behalten
+  const ow=img.naturalWidth||img.width, oh=img.naturalHeight||img.height;
+  if(!ow||!oh){ if(img._url)URL.revokeObjectURL(img._url); return file; }
+  const longest=Math.max(ow,oh);
+  let tw=ow, th=oh;
+  if(longest>IMG_MAX_DIM){ const s=IMG_MAX_DIM/longest; tw=Math.round(ow*s); th=Math.round(oh*s); }
+  const canvas=document.createElement('canvas');
+  canvas.width=tw; canvas.height=th;
+  const ctx=canvas.getContext('2d');
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+  ctx.drawImage(img,0,0,tw,th);
+  if(img._url) URL.revokeObjectURL(img._url);
+
+  // Transparenz nur bei potenziell transparenten Formaten prüfen
+  let hasAlpha=false;
+  if(/png|webp|gif/i.test(file.type)){
+    try{
+      const d=ctx.getImageData(0,0,tw,th).data;
+      for(let i=3;i<d.length;i+=4){ if(d[i]<255){ hasAlpha=true; break; } }
+    }catch(e){ hasAlpha = /png/i.test(file.type); }
+  }
+
+  let outBlob,outType,outExt;
+  if(hasAlpha){
+    // Transparenz erhalten (z.B. Taktikboard-Grafik) → PNG, nur verkleinert
+    outType='image/png'; outExt='png';
+    outBlob=await canvasToBlob(canvas,'image/png');
+  }else{
+    // Fotos & Diagramme ohne Transparenz → JPEG mit Qualitäts-Regelung
+    outType='image/jpeg'; outExt='jpg';
+    let q=0.85;
+    outBlob=await canvasToBlob(canvas,'image/jpeg',q);
+    while(outBlob && outBlob.size>IMG_TARGET_BYTES && q>IMG_MIN_QUALITY){
+      q=Math.max(IMG_MIN_QUALITY, q-0.08);
+      outBlob=await canvasToBlob(canvas,'image/jpeg',q);
+    }
+  }
+  if(!outBlob) return file;                                   // Encoding fehlgeschlagen → Original
+  // Wenn das Original ohnehin klein/effizienter ist → Original behalten
+  if(outBlob.size>=file.size && longest<=IMG_MAX_DIM) return file;
+  const base=(file.name||'bild').replace(/\.[^.]+$/,'');
+  const newName=`${base}.${outExt}`;
+  try{ return new File([outBlob],newName,{type:outType,lastModified:Date.now()}); }
+  catch(e){ try{outBlob.name=newName;}catch(_){} return outBlob; }
+}
+
+async function addImageFiles(fileList,prefix){
+  const files=Array.from(fileList||[]).filter(f=>f.type && f.type.startsWith('image/'));
+  if(!files.length) return;
+  showToast('🗜 Bild'+(files.length>1?'er werden':' wird')+' optimiert …','info');
   const arr=getImgArr(prefix);
-  Array.from(event.dataTransfer.files).filter(f=>f.type.startsWith('image/')).forEach(file=>{arr.push({filename:file.name,objectUrl:URL.createObjectURL(file),_file:file});});
-  setImgArr(prefix,arr);renderFormGallery(prefix+'-img-gallery',arr,prefix);
+  let from=0, to=0;
+  for(const file of files){
+    let out;
+    try{ out=await compressImage(file); }catch(e){ out=file; }
+    from+=file.size; to+=(out.size||file.size);
+    arr.push({filename:out.name||file.name, objectUrl:URL.createObjectURL(out), _file:out});
+  }
+  setImgArr(prefix,arr);
+  renderFormGallery(prefix+'-img-gallery',arr,prefix);
+  const saved=from-to;
+  if(saved>20*1024){
+    showToast('✅ '+files.length+' Bild'+(files.length>1?'er':'')+' optimiert · '+fmtBytes(from)+' → '+fmtBytes(to)+' (−'+Math.round(saved/from*100)+'%)','success');
+  }else{
+    showToast('📎 '+files.length+' Bild'+(files.length>1?'er':'')+' bereit – wird beim Speichern hochgeladen','info');
+  }
+}
+
+async function handleImgUpload(event,prefix){
+  await addImageFiles(event.target.files,prefix);
+  event.target.value='';
+}
+async function handleImgDrop(event,prefix){
+  event.preventDefault(); event.currentTarget.classList.remove('drag-active');
+  await addImageFiles(event.dataTransfer.files,prefix);
 }
 function renderFormGallery(galleryId,imgs,prefix){
   const g=document.getElementById(galleryId);g.innerHTML='';
