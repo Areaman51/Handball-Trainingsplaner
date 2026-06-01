@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260531.1430 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260601.1100 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -461,7 +461,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .aw-player:last-child{border-bottom:none;}
 .aw-player:hover{background:#f8f9ff;}
 .aw-nr{font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--soft);width:28px;text-align:right;flex-shrink:0;}
-.aw-name{flex:1;font-size:14px;font-weight:500;color:var(--text);min-width:0;}
+.aw-name{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.aw-name-txt{font-size:14px;font-weight:500;color:var(--text);}
+.aw-pos-tags{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.aw-tag{font-size:10px;font-weight:700;font-family:'DM Mono',monospace;padding:1px 6px;border-radius:5px;line-height:1.6;border:1px solid transparent;white-space:nowrap;}
+.aw-tag.ang{background:var(--accent-light);color:var(--accent);}
+.aw-tag.ang.prim{background:var(--accent);color:#fff;}
+.aw-tag.abw{background:#fee2e2;color:#dc2626;}
+.aw-tag.tw{background:#fef3c7;color:#92400e;}
+.aw-tag.none{background:#f3f4f6;color:#9ca3af;}
+.aw-team-picker{margin-top:12px;padding:9px 14px;border:1.5px solid var(--border);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13.5px;background:#fff;color:var(--text);cursor:pointer;outline:none;}
+.aw-team-picker:focus{border-color:var(--accent);}
 .aw-pos{font-size:11px;color:var(--xsoft);flex-shrink:0;width:18px;text-align:center;}
 .aw-status-btn{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;min-width:120px;text-align:center;}
 .aw-status-btn.anwesend{background:#dcfce7;color:#15803d;}
@@ -882,7 +892,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260531.1430</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260601.1100</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -4521,9 +4531,38 @@ function openIcalTrainingByDate(dateStr, group, time, name){
 // ══════════════════════════════════════════
 // ANWESENHEITSLISTE
 // ══════════════════════════════════════════
-let kaderCache      = {};   // mannschaft_id → [{id,name,nummer,pos}]
+let kaderCache      = {};   // mannschaft_id → [{id,name,nummer,pos,angriff_pos,abwehr_pos}]
 let anwesenheitDaten= {};   // spieler_id → 'anwesend'|'abwesend'|'verletzt'
 let anwesenheitDirty= false;
+
+// ── Positions-Definitionen (DHB-Standard) ──
+const AW_ATTACK_ORDER=['LA','RL','RM','RR','RA','KR'];
+const AW_POS_LABEL={TW:'Torh&uuml;terinnen',LA:'Linksau&szlig;en',RL:'R&uuml;ckraum links',RM:'R&uuml;ckraummitte',RR:'R&uuml;ckraum rechts',RA:'Rechtsau&szlig;en',KR:'Kreisl&auml;ufer'};
+
+function _awAng(p){return Array.isArray(p.angriff_pos)?p.angriff_pos.filter(x=>x!=null).map(String):[];}
+function _awAbw(p){return Array.isArray(p.abwehr_pos)?p.abwehr_pos.filter(x=>x!=null).map(String):[];}
+
+// ── Mannschaft für die Anwesenheit auflösen (tolerante Zuordnung) ──
+function _awNorm(s){return String(s||'').trim().toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();}
+function _resolveAwTeam(){
+  const cands=[(sessionMeta.group||'').trim(),(localStorage.getItem('hbs_my_team')||'').trim()].filter(Boolean).map(_awNorm).filter(Boolean);
+  // 1) Exakter (normalisierter) Treffer
+  for(const nc of cands){const t=allMannschaften.find(m=>_awNorm(m.name)===nc);if(t)return t;}
+  // 2) Teilstring in beide Richtungen
+  for(const nc of cands){const t=allMannschaften.find(m=>{const nm=_awNorm(m.name);return nm&&(nm.includes(nc)||nc.includes(nm));});if(t)return t;}
+  // 3) Wort-Token-Überschneidung
+  for(const nc of cands){const tk=nc.split(' ').filter(w=>w.length>2);const t=allMannschaften.find(m=>{const nm=_awNorm(m.name);return tk.some(w=>nm.includes(w));});if(t)return t;}
+  // 4) Nur eine Mannschaft vorhanden → diese
+  if(allMannschaften.length===1)return allMannschaften[0];
+  return null;
+}
+// Explizite Mannschaftswahl im leeren Zustand
+function awPickTeam(name){
+  if(!name) return;
+  localStorage.setItem('hbs_my_team',name);
+  initMyTeamWidget();
+  loadAnwesenheit();
+}
 
 // ── Tab-UI synchronisieren (ohne Inhalte neu zu laden) ──
 function _syncTabUI(){
@@ -4550,24 +4589,46 @@ async function loadAnwesenheit(){
   if(!el) return;
   el.innerHTML='<div class="aw-loading">⏳ Kader wird geladen…</div>';
 
-  const teamName=(sessionMeta.group||'').trim()||(localStorage.getItem('hbs_my_team')||'').trim();
-  const team=allMannschaften.find(t=>(t.name||'').trim()===teamName);
+  const team=_resolveAwTeam();
 
   if(!team){
-    el.innerHTML=`<div class="aw-empty">
-      <div style="font-size:28px;margin-bottom:8px;">👥</div>
-      Keine Mannschaft zugewiesen.<br>
-      <span style="font-size:12px;color:var(--xsoft);">Bitte zuerst die Mannschaft in der Einheit einstellen.</span>
-    </div>`;
+    if(allMannschaften.length){
+      // Mannschaft ließ sich nicht automatisch zuordnen → manuell wählen lassen
+      el.innerHTML=`<div class="aw-empty">
+        <div style="font-size:28px;margin-bottom:8px;">👥</div>
+        Mannschaft für diese Einheit wählen:
+        <div><select class="aw-team-picker" onchange="awPickTeam(this.value)">
+          <option value="">– Mannschaft wählen –</option>
+          ${allMannschaften.map(m=>`<option value="${_escHtml(m.name)}">${_escHtml(m.name)}</option>`).join('')}
+        </select></div>
+        <div style="font-size:12px;color:var(--xsoft);margin-top:10px;">Tipp: In der Einheit unter „Gruppe“ den Mannschaftsnamen eintragen, dann wird der Kader automatisch geladen.</div>
+      </div>`;
+    } else {
+      el.innerHTML=`<div class="aw-empty">
+        <div style="font-size:28px;margin-bottom:8px;">👥</div>
+        Noch keine Mannschaft angelegt.<br>
+        <a href="mannschaftsverwaltung.html" style="color:var(--accent);font-weight:600;">→ Zur Mannschaftsverwaltung</a>
+      </div>`;
+    }
     return;
   }
 
+  const teamName=team.name;
+
   // Kader laden (mit Cache)
   if(!kaderCache[team.id]){
-    const {data,error}=await supa.from('mannschaft_spieler')
-      .select('id,name,nummer,pos')
+    let {data,error}=await supa.from('mannschaft_spieler')
+      .select('id,name,nummer,pos,angriff_pos,abwehr_pos')
       .eq('mannschaft_id',team.id)
       .order('pos',{ascending:true}).order('nummer',{ascending:true,nullsFirst:false});
+    if(error && /angriff_pos|abwehr_pos|column|schema cache/i.test(error.message||'')){
+      // Positions-Spalten noch nicht migriert → ohne diese laden
+      const r2=await supa.from('mannschaft_spieler')
+        .select('id,name,nummer,pos')
+        .eq('mannschaft_id',team.id)
+        .order('pos',{ascending:true}).order('nummer',{ascending:true,nullsFirst:false});
+      data=r2.data; error=r2.error;
+    }
     if(error){ el.innerHTML=`<div class="aw-empty">❌ Kader konnte nicht geladen werden.<br><small>${error.message}</small></div>`; return; }
     kaderCache[team.id]=data||[];
   }
@@ -4576,7 +4637,7 @@ async function loadAnwesenheit(){
   if(!players.length){
     el.innerHTML=`<div class="aw-empty">
       <div style="font-size:28px;margin-bottom:8px;">👥</div>
-      Noch keine Spielerinnen im Kader von <strong>${teamName}</strong>.<br>
+      Noch keine Spielerinnen im Kader von <strong>${_escHtml(teamName)}</strong>.<br>
       <a href="mannschaftsverwaltung.html" style="color:var(--accent);font-weight:600;">→ Zur Mannschaftsverwaltung</a>
     </div>`;
     return;
@@ -4601,23 +4662,37 @@ function renderAnwesenheit(players, teamName){
   const el=document.getElementById('anwesenheit-view');
   if(!el) return;
 
-  // Torhüter = TH/TW/Tor…; alle übrigen Positionswerte (FL, RL, RM, RR, LA, RA, KM,
-  // leer, null, unbekannt) gelten als Feldspieler → kein Spieler fällt durchs Raster.
+  // Torhüter = TH/TW/Tor…; alle übrigen gelten als Feldspielerinnen.
   const _istTH=p=>{const v=String(p.pos||'').trim().toUpperCase();return v==='TH'||v==='TW'||v.startsWith('TOR');};
-  const tw=players.filter(_istTH);
-  const fl=players.filter(p=>!_istTH(p));
+
+  // Primärgruppe: Torhüterinnen (TW) oder primäre Angriffsposition; sonst "NONE".
+  function primKey(p){
+    if(_istTH(p)) return 'TW';
+    const ang=_awAng(p);
+    return ang.length?ang[0]:'NONE';
+  }
 
   const stats=_getAwStats(players);
   const total=players.length;
+  const labels={anwesend:'✅ Anwesend',abwesend:'❌ Abwesend',verletzt:'🤕 Verletzt'};
+
+  // Positions-Badges: Angriff ▲ (primär hervorgehoben) + Abwehr ●. Alle werden angezeigt.
+  function posTags(p){
+    if(_istTH(p)) return '<span class="aw-tag tw">● TW</span>';
+    const ang=_awAng(p), abw=_awAbw(p);
+    let t='';
+    ang.forEach((c,i)=>{ t+=`<span class="aw-tag ang ${i===0?'prim':''}" title="Angriff ${i===0?'primär':(i+1)+'.'}">▲ ${_escHtml(c)}</span>`; });
+    abw.forEach((c,i)=>{ t+=`<span class="aw-tag abw" title="Abwehr ${i===0?'primär':(i+1)+'.'}">● ${_escHtml(c)}</span>`; });
+    if(!t) t='<span class="aw-tag none">▲ ohne Position</span>';
+    return t;
+  }
 
   function playerRow(p){
     const status=anwesenheitDaten[p.id]||'anwesend';
-    const labels={anwesend:'✅ Anwesend',abwesend:'❌ Abwesend',verletzt:'🤕 Verletzt'};
     const nr=p.nummer!=null?String(p.nummer).padStart(2,'0'):'–';
     return `<div class="aw-player" id="awp-${p.id}">
       <div class="aw-nr">#${nr}</div>
-      <div class="aw-name">${_escHtml(p.name)}</div>
-      <div class="aw-pos">${_istTH(p)?'●':'▲'}</div>
+      <div class="aw-name"><span class="aw-name-txt">${_escHtml(p.name)}</span><div class="aw-pos-tags">${posTags(p)}</div></div>
       <button class="aw-status-btn ${status}" onclick="toggleAwStatus('${p.id}')">${labels[status]}</button>
     </div>`;
   }
@@ -4633,6 +4708,17 @@ function renderAnwesenheit(players, teamName){
       ${list.map(playerRow).join('')}
     </div>`;
   }
+
+  // Gruppen in DHB-Reihenfolge: Torhüterinnen → Angriffspositionen → ohne Position.
+  // Jede Spielerin zählt nur in ihrer Primärgruppe; Sekundärpositionen werden nur angezeigt.
+  const grouped={};
+  players.forEach(p=>{ const k=primKey(p); (grouped[k]=grouped[k]||[]).push(p); });
+  const groupsHtml=['TW',...AW_ATTACK_ORDER,'NONE'].map(k=>{
+    const list=grouped[k]; if(!list||!list.length) return '';
+    const sym=k==='TW'?'●':'▲';
+    const name=k==='TW'?AW_POS_LABEL.TW:(k==='NONE'?'Ohne feste Position':`${AW_POS_LABEL[k]||k} (${k})`);
+    return posGroup(`${sym} ${name}`, list);
+  }).join('');
 
   el.innerHTML=`
     <div class="aw-stats-bar">
@@ -4657,63 +4743,29 @@ function renderAnwesenheit(players, teamName){
           <div class="aw-stat-lbl">Verletzt</div>
         </div>
       </div>
-      <div class="aw-stats-right">${total} Spielerinnen im Kader · <strong>${teamName}</strong></div>
+      <div class="aw-stats-right">${total} Spielerinnen im Kader · <strong>${_escHtml(teamName)}</strong></div>
     </div>
-    ${posGroup('● Torhüterinnen',tw)}
-    ${posGroup('▲ Feldspielerinnen',fl)}
+    ${groupsHtml}
   `;
 }
 
-// ── Status eines Spielers weiterschalten ──
+// ── Status einer Spielerin weiterschalten ──
 function toggleAwStatus(id){
   const cycle=['anwesend','abwesend','verletzt'];
   const current=anwesenheitDaten[id]||'anwesend';
-  const next=cycle[(cycle.indexOf(current)+1)%cycle.length];
-  anwesenheitDaten[id]=next;
+  anwesenheitDaten[id]=cycle[(cycle.indexOf(current)+1)%cycle.length];
   anwesenheitDirty=true;
-
-  // Button in-place aktualisieren
-  const btn=document.querySelector(`#awp-${id} .aw-status-btn`);
-  if(btn){
-    const labels={anwesend:'✅ Anwesend',abwesend:'❌ Abwesend',verletzt:'🤕 Verletzt'};
-    btn.className='aw-status-btn '+next;
-    btn.textContent=labels[next];
-  }
-
-  // Stat-Counter aktualisieren
-  const teamName=(sessionMeta.group||'').trim()||(localStorage.getItem('hbs_my_team')||'').trim();
-  const team=allMannschaften.find(t=>(t.name||'').trim()===teamName);
-  if(team && kaderCache[team.id]){
-    const stats=_getAwStats(kaderCache[team.id]);
-    const cntA=document.getElementById('aw-cnt-anwesend');
-    const cntAb=document.getElementById('aw-cnt-abwesend');
-    const cntV=document.getElementById('aw-cnt-verletzt');
-    if(cntA) cntA.textContent=stats.anwesend;
-    if(cntAb) cntAb.textContent=stats.abwesend;
-    if(cntV) cntV.textContent=stats.verletzt;
-
-    // Positions-Gruppen-Zähler aktualisieren
-    const player=kaderCache[team.id].find(p=>p.id===id);
-    if(player){
-      const grpPlayers=kaderCache[team.id].filter(p=>p.pos===player.pos);
-      const anwCnt=grpPlayers.filter(p=>(anwesenheitDaten[p.id]||'anwesend')==='anwesend').length;
-      // Finde aw-group-count des richtigen Blocks → suche über aw-player
-      const playerEl=document.getElementById('awp-'+id);
-      const grpEl=playerEl?.closest('.aw-group');
-      const cntEl=grpEl?.querySelector('.aw-group-count');
-      if(cntEl) cntEl.textContent=`${anwCnt}/${grpPlayers.length}`;
-    }
-  }
+  const team=_resolveAwTeam();
+  if(team && kaderCache[team.id]) renderAnwesenheit(kaderCache[team.id], team.name);
 }
 
 // ── Alle auf einen Status setzen ──
 function setAllAnwesenheit(status){
-  const teamName=(sessionMeta.group||'').trim()||(localStorage.getItem('hbs_my_team')||'').trim();
-  const team=allMannschaften.find(t=>(t.name||'').trim()===teamName);
+  const team=_resolveAwTeam();
   if(!team||!kaderCache[team.id]) return;
   kaderCache[team.id].forEach(p=>{ anwesenheitDaten[p.id]=status; });
   anwesenheitDirty=true;
-  renderAnwesenheit(kaderCache[team.id], teamName);
+  renderAnwesenheit(kaderCache[team.id], team.name);
 }
 
 // ── Anwesenheit in DB speichern ──
@@ -4730,8 +4782,7 @@ async function saveAnwesenheit(){
 
   if(btn){ btn.textContent='⏳…'; btn.disabled=true; }
 
-  const teamName=(sessionMeta.group||'').trim()||(localStorage.getItem('hbs_my_team')||'').trim();
-  const team=allMannschaften.find(t=>(t.name||'').trim()===teamName);
+  const team=_resolveAwTeam();
   const players=team&&kaderCache[team.id] ? kaderCache[team.id] : [];
 
   const payload={
@@ -4740,6 +4791,8 @@ async function saveAnwesenheit(){
       name:  p.name,
       nummer:p.nummer,
       pos:   p.pos,
+      angriff_pos:_awAng(p),
+      abwehr_pos: _awAbw(p),
       status:anwesenheitDaten[p.id]||'anwesend'
     })),
     gespeichert_am: new Date().toISOString()
@@ -4766,8 +4819,7 @@ async function saveAnwesenheit(){
 
 // ── Anwesende Spieleranzahl in Spieleranzahl-Picker übernehmen ──
 function syncPlayerCountFromAnwesenheit(){
-  const teamName=(sessionMeta.group||'').trim()||(localStorage.getItem('hbs_my_team')||'').trim();
-  const team=allMannschaften.find(t=>(t.name||'').trim()===teamName);
+  const team=_resolveAwTeam();
   if(!team||!kaderCache[team.id]){ showToast('Kein Kader geladen','info'); return; }
 
   const players=kaderCache[team.id];

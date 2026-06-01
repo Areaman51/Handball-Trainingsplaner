@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260511.1200 — Mannschaftsverwaltung -->
+<!-- Handball Coaching Tools v1.260601.1100 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -111,6 +111,19 @@ tbody tr:hover{background:#fafbff;}
 .badge-inaktiv{background:var(--red-l);color:var(--red);}
 .pos-fl{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--accent-l);color:var(--accent);}
 .pos-th{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--orange-l);color:var(--orange);}
+.pos-def{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--red-l);color:var(--red);}
+.pos-fl.prim{border:1.5px solid var(--accent);}
+.pos-cell{display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+/* Positions-Chips im Spieler-Modal */
+.pos-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.pos-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:white;font-family:'DM Mono',monospace;font-size:12.5px;font-weight:600;color:var(--soft);cursor:pointer;transition:all .12s;}
+.pos-chip:hover{border-color:var(--accent);color:var(--text);}
+.pos-chip.sel.ang{background:var(--accent-l);border-color:var(--accent);color:var(--accent);}
+.pos-chip.sel.abw{background:var(--red-l);border-color:var(--red);color:var(--red);}
+.pos-chip-rank{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font-size:10px;font-weight:700;color:white;}
+.pos-chip.sel.ang .pos-chip-rank{background:var(--accent);}
+.pos-chip.sel.abw .pos-chip-rank{background:var(--red);}
+.pos-section-hint{font-size:11.5px;color:var(--xsoft);margin-top:6px;min-height:16px;line-height:1.5;}
 .form-group{margin-bottom:16px;}
 .form-group:last-child{margin-bottom:0;}
 .form-label{display:block;font-size:12px;font-weight:600;color:var(--soft);margin-bottom:5px;letter-spacing:.02em;}
@@ -226,7 +239,7 @@ tbody tr:hover{background:#fafbff;}
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260508.2200</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260601.1100</div>
     </div>
   </aside>
 
@@ -311,9 +324,17 @@ tbody tr:hover{background:#fafbff;}
       <input type="hidden" id="pm-id">
       <div class="form-row">
         <div class="form-group"><label class="form-label">R&#252;ckennummer</label><input class="form-input" id="pm-nummer" type="number" min="1" max="99" placeholder="7"></div>
-        <div class="form-group"><label class="form-label">Position</label><select class="form-select" id="pm-pos"><option value="FL">&#9650; Feldspieler</option><option value="TH">&#9679; Torhüter</option></select></div>
+        <div class="form-group"><label class="form-label">Position</label><select class="form-select" id="pm-pos" onchange="onPmPosChange()"><option value="FL">&#9650; Feldspieler</option><option value="TH">&#9679; Torhüter</option></select></div>
       </div>
       <div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="pm-name" placeholder="Vorname Nachname" onkeydown="if(event.key==='Enter')savePlayer()"></div>
+      <div id="pm-pos-detail" style="margin-bottom:16px;">
+        <label class="form-label" style="margin-bottom:6px;">&#9650; Angriffspositionen <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; Reihenfolge anklicken = Priorit&auml;t</span></label>
+        <div class="pos-chips" id="pm-angriff-chips"></div>
+        <div class="pos-section-hint" id="pm-angriff-hint"></div>
+        <label class="form-label" style="margin:14px 0 6px;">&#9679; Abwehrpositionen <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; Reihenfolge anklicken = Priorit&auml;t</span></label>
+        <div class="pos-chips" id="pm-abwehr-chips"></div>
+        <div class="pos-section-hint" id="pm-abwehr-hint"></div>
+      </div>
       <div class="form-group"><div class="toggle-row"><div><div class="toggle-label">Aktiv</div><div class="toggle-sub">Erscheint in Anwesenheitslisten und Bank-Statistik</div></div><label class="toggle"><input type="checkbox" id="pm-aktiv" checked><span class="slider"></span></label></div></div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closePlayerModal()">Abbrechen</button><button class="btn btn-primary" onclick="savePlayer()">Speichern</button></div>
@@ -575,13 +596,30 @@ function setTab(tab){
 }
 
 // TAB KADER
+// Positionszelle: zeigt Angriffs- (▲) und Abwehrpositionen (●) in Prioritätsreihenfolge
+function posCell(p){
+  if(p.pos==='TH') return '<span class="pos-th">&#9679; Torh&uuml;ter</span>';
+  const ang=Array.isArray(p.angriff_pos)?p.angriff_pos:[];
+  const abw=Array.isArray(p.abwehr_pos)?p.abwehr_pos:[];
+  let html='<div class="pos-cell">';
+  if(ang.length){
+    html+=ang.map((c,i)=>`<span class="pos-fl ${i===0?'prim':''}" title="Angriff ${PRIO_LABELS[i]||(i+1)+'.'}">&#9650; ${esc(c)}</span>`).join('');
+  } else {
+    html+='<span class="pos-fl">&#9650; Feldspieler</span>';
+  }
+  if(abw.length){
+    html+=abw.map((c,i)=>`<span class="pos-def" title="Abwehr ${PRIO_LABELS[i]||(i+1)+'.'}">&#9679; ${esc(c)}</span>`).join('');
+  }
+  html+='</div>';
+  return html;
+}
 function renderTabKader(team){
   const owned=isOwner(team);
   const sorted=[...currentPlayers].sort((a,b)=>{if(a.pos!==b.pos)return a.pos==='TH'?-1:1;return(a.nummer??99)-(b.nummer??99);});
   const rows=sorted.length?sorted.map(p=>`<tr>
     <td><span style="font-family:'DM Mono',monospace;font-weight:600;font-size:13px;">${p.nummer!=null?String(p.nummer).padStart(2,'0'):'&#8211;'}</span></td>
     <td style="font-weight:500;">${esc(p.name)}</td>
-    <td>${p.pos==='TH'?'<span class="pos-th">&#9679; Torrhüter</span>':'<span class="pos-fl">&#9650; Feldspieler</span>'}</td>
+    <td>${posCell(p)}</td>
     <td><span class="${p.aktiv?'badge badge-aktiv':'badge badge-inaktiv'}">${p.aktiv?'Aktiv':'Inaktiv'}</span></td>
     <td>${owned?`<div style="display:flex;gap:5px;"><button class="btn btn-ghost btn-sm" onclick="openPlayerModal('${p.id}')">&#9999;&#65039;</button><button class="btn btn-danger btn-sm" onclick="confirmDeletePlayer('${p.id}')">&#128465;&#65039;</button></div>`:'&#8211;'}</td>
   </tr>`).join(''):`<tr><td colspan="5"><div class="empty"><div class="empty-icon">&#128101;</div><div class="empty-text">Noch keine Spieler.</div></div></td></tr>`;
@@ -821,6 +859,64 @@ async function saveTeam(){
 }
 
 // PLAYER MODAL
+// ── Positions-Definitionen (DHB-Standard) ──
+const ANGRIFF_POS=[
+  {code:'LA',label:'Linksau&szlig;en'},
+  {code:'RL',label:'R&uuml;ckraum links'},
+  {code:'RM',label:'R&uuml;ckraummitte'},
+  {code:'RR',label:'R&uuml;ckraum rechts'},
+  {code:'RA',label:'Rechtsau&szlig;en'},
+  {code:'KR',label:'Kreisl&auml;ufer'}
+];
+const ABWEHR_POS=[
+  {code:'1',label:'Au&szlig;en rechts'},
+  {code:'2',label:'Halb rechts'},
+  {code:'3',label:'Innen rechts'},
+  {code:'4',label:'Innen links'},
+  {code:'5',label:'Halb links'},
+  {code:'6',label:'Au&szlig;en links'},
+  {code:'VV',label:'Vorgezogen / Spitze'}
+];
+const PRIO_LABELS=['prim&auml;r','sekund&auml;r','terti&auml;r','4.','5.','6.','7.'];
+const posLabelMap={};[...ANGRIFF_POS,...ABWEHR_POS].forEach(o=>posLabelMap[o.code]=o.label);
+
+// Aktuelle Auswahl im Spieler-Modal (Reihenfolge = Priorität)
+let pmAngriff=[], pmAbwehr=[];
+
+function _normPosArr(v){return Array.isArray(v)?v.filter(x=>x!=null).map(String):[];}
+
+function togglePmPos(group,code){
+  const arr=group==='ang'?pmAngriff:pmAbwehr;
+  const i=arr.indexOf(code);
+  if(i>=0) arr.splice(i,1); else arr.push(code);
+  renderPmChips();
+}
+function chipHtml(group,o,arr){
+  const idx=arr.indexOf(o.code);
+  const sel=idx>=0;
+  return `<button type="button" class="pos-chip ${group} ${sel?'sel':''}" title="${o.label}" onclick="togglePmPos('${group}','${o.code}')">${sel?`<span class="pos-chip-rank">${idx+1}</span>`:''}${o.code}</button>`;
+}
+function _prioHint(arr){
+  if(!arr.length) return 'Keine Position gew&auml;hlt.';
+  return arr.map((c,i)=>`<strong>${PRIO_LABELS[i]||(i+1)+'.'}</strong>: ${c} (${posLabelMap[c]||c})`).join(' &middot; ');
+}
+function renderPmChips(){
+  const ang=document.getElementById('pm-angriff-chips');
+  const abw=document.getElementById('pm-abwehr-chips');
+  if(ang) ang.innerHTML=ANGRIFF_POS.map(o=>chipHtml('ang',o,pmAngriff)).join('');
+  if(abw) abw.innerHTML=ABWEHR_POS.map(o=>chipHtml('abw',o,pmAbwehr)).join('');
+  const ah=document.getElementById('pm-angriff-hint');
+  const bh=document.getElementById('pm-abwehr-hint');
+  if(ah) ah.innerHTML=_prioHint(pmAngriff);
+  if(bh) bh.innerHTML=_prioHint(pmAbwehr);
+}
+function onPmPosChange(){
+  // Torhüterinnen brauchen keine Feld-/Abwehrpositionen → Block ausblenden
+  const isTH=document.getElementById('pm-pos').value==='TH';
+  const det=document.getElementById('pm-pos-detail');
+  if(det) det.style.display=isTH?'none':'';
+}
+
 function openPlayerModal(pid=null,defaultPos='FL'){
   const p=pid?currentPlayers.find(x=>x.id===pid):null;
   document.getElementById('player-modal-title').textContent=p?'Spieler bearbeiten':'Spieler hinzufügen';
@@ -829,18 +925,47 @@ function openPlayerModal(pid=null,defaultPos='FL'){
   document.getElementById('pm-name').value=p?p.name:'';
   document.getElementById('pm-pos').value=p?p.pos:defaultPos;
   document.getElementById('pm-aktiv').checked=p?!!p.aktiv:true;
+  pmAngriff=_normPosArr(p?.angriff_pos);
+  pmAbwehr=_normPosArr(p?.abwehr_pos);
+  renderPmChips();
+  onPmPosChange();
   document.getElementById('player-modal').classList.add('open');
   setTimeout(()=>document.getElementById('pm-name').focus(),100);
 }
 function closePlayerModal(){document.getElementById('player-modal').classList.remove('open');}
+
+// Speichern (mit Fallback, falls Positions-Spalten noch nicht migriert sind)
+async function _savePlayerRow(id,data){
+  if(id){const{error}=await supa.from('mannschaft_spieler').update(data).eq('id',id);return error;}
+  const{error}=await supa.from('mannschaft_spieler').insert(data);return error;
+}
+function _isMissingPosCol(err){
+  const m=String(err&&err.message||'')+String(err&&err.code||'');
+  return /angriff_pos|abwehr_pos|column|PGRST204|schema cache/i.test(m);
+}
 async function savePlayer(){
   const id=document.getElementById('pm-id').value,name=document.getElementById('pm-name').value.trim();
   if(!name){showToast('Name ist Pflichtfeld.','error');return;}
   const nr=document.getElementById('pm-nummer').value;
-  const data={mannschaft_id:currentTeamId,name,nummer:nr!==''?parseInt(nr,10):null,pos:document.getElementById('pm-pos').value,aktiv:document.getElementById('pm-aktiv').checked};
-  let error;
-  if(id){({error}=await supa.from('mannschaft_spieler').update(data).eq('id',id));}
-  else{({error}=await supa.from('mannschaft_spieler').insert(data));}
+  const pos=document.getElementById('pm-pos').value;
+  const data={
+    mannschaft_id:currentTeamId,name,
+    nummer:nr!==''?parseInt(nr,10):null,
+    pos,
+    aktiv:document.getElementById('pm-aktiv').checked,
+    angriff_pos: pos==='TH'?[]:pmAngriff.slice(),
+    abwehr_pos:  pos==='TH'?[]:pmAbwehr.slice()
+  };
+  let error=await _savePlayerRow(id,data);
+  if(error && _isMissingPosCol(error)){
+    // Positions-Spalten fehlen → ohne Positionen speichern + Hinweis
+    const {angriff_pos,abwehr_pos,...rest}=data;
+    error=await _savePlayerRow(id,rest);
+    if(!error){
+      showToast('⚠️ Positionen nicht gespeichert – SQL-Migration nötig (Konsole)','info');
+      console.warn('SQL-Migration erforderlich:\nALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS angriff_pos jsonb DEFAULT \'[]\'::jsonb;\nALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS abwehr_pos jsonb DEFAULT \'[]\'::jsonb;');
+    }
+  }
   if(error){showToast('Fehler: '+error.message,'error');return;}
   showToast(id?'Spieler aktualisiert':'Spieler hinzugefügt','success');
   closePlayerModal();await loadPlayers(currentTeamId);
