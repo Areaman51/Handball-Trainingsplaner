@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260602.1245 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260602.1530 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -545,6 +545,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .pp-num{width:38px;padding:4px 5px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;text-align:center;font-family:'DM Mono',monospace;background:white;outline:none;transition:border-color .15s;}
 .pp-num:focus{border-color:var(--accent);}
 .pp-sep{font-size:11px;color:var(--xsoft);flex-shrink:0;}
+.pp-pos-group{margin-bottom:10px;}
+.pp-pos-group:last-child{margin-bottom:0;}
+.pp-pos-group-lbl{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--soft);margin:0 0 5px 2px;display:flex;align-items:center;gap:5px;}
+.pp-pos-sym-a{color:var(--accent);}
+.pp-pos-sym-d{color:#475569;}
+.pp-gesamt-grid{display:grid;grid-template-columns:1fr;gap:8px;}
 @media(max-width:600px){
   .pp-twfeld-grid{grid-template-columns:1fr;}
   .pp-pos-grid{grid-template-columns:1fr;}
@@ -931,7 +937,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260602.1245</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260602.1530</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1352,7 +1358,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <button type="button" class="pp-mode-btn" data-mode="positionen" onclick="setPlayerPickerMode('f-pp',this,'positionen')">Positionen</button>
           </div>
           <div class="pp-section visible" id="f-pp-einfach">
-            <input class="form-input" id="f-pp-e" placeholder="z.B. 8–16 oder beliebig">
+            <div class="pp-gesamt-grid">
+              <div class="pp-pos-block"><span class="pp-pos-lbl">👥 Gesamt</span><input type="number" class="pp-num" id="f-pp-g-min" min="0" max="40" placeholder="8"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-g-max" min="0" max="40" placeholder="16"></div>
+            </div>
+            <div style="font-size:11px;color:var(--xsoft);margin-top:5px;">Beide Felder 0 (bzw. leer) = beliebig</div>
           </div>
           <div class="pp-section" id="f-pp-twfeld">
             <div class="pp-twfeld-grid">
@@ -1360,17 +1369,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
               <div class="pp-pos-block"><span class="pp-pos-lbl">👥 Feldspieler</span><input type="number" class="pp-num" id="f-pp-f-min" min="0" max="20" placeholder="6"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-f-max" min="0" max="20" placeholder="14"></div>
             </div>
           </div>
-          <div class="pp-section" id="f-pp-positionen">
-            <div class="pp-pos-grid">
-              <div class="pp-pos-block"><span class="pp-pos-lbl">🧤 TW</span><input type="number" class="pp-num" id="f-pp-p-TW-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-TW-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ LA (Linksaußen)</span><input type="number" class="pp-num" id="f-pp-p-LA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-LA-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RL (Rückraum L)</span><input type="number" class="pp-num" id="f-pp-p-RL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RL-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RM (Rückraum M)</span><input type="number" class="pp-num" id="f-pp-p-RM-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RM-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RR (Rückraum R)</span><input type="number" class="pp-num" id="f-pp-p-RR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RR-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RA (Rechtsaußen)</span><input type="number" class="pp-num" id="f-pp-p-RA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-RA-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ KR (Kreisläufer)</span><input type="number" class="pp-num" id="f-pp-p-KR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="f-pp-p-KR-max" min="0" max="4" placeholder="0"></div>
-            </div>
-          </div>
+          <div class="pp-section" id="f-pp-positionen"></div>
         </div>
       </div>
       <div class="form-group">
@@ -1470,7 +1469,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <button type="button" class="pp-mode-btn" data-mode="positionen" onclick="setPlayerPickerMode('db-f-pp',this,'positionen')">Positionen</button>
           </div>
           <div class="pp-section visible" id="db-f-pp-einfach">
-            <input class="form-input" id="db-f-pp-e" placeholder="z.B. 8–16 oder beliebig">
+            <div class="pp-gesamt-grid">
+              <div class="pp-pos-block"><span class="pp-pos-lbl">👥 Gesamt</span><input type="number" class="pp-num" id="db-f-pp-g-min" min="0" max="40" placeholder="8"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-g-max" min="0" max="40" placeholder="16"></div>
+            </div>
+            <div style="font-size:11px;color:var(--xsoft);margin-top:5px;">Beide Felder 0 (bzw. leer) = beliebig</div>
           </div>
           <div class="pp-section" id="db-f-pp-twfeld">
             <div class="pp-twfeld-grid">
@@ -1478,17 +1480,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
               <div class="pp-pos-block"><span class="pp-pos-lbl">👥 Feldspieler</span><input type="number" class="pp-num" id="db-f-pp-f-min" min="0" max="20" placeholder="6"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-f-max" min="0" max="20" placeholder="14"></div>
             </div>
           </div>
-          <div class="pp-section" id="db-f-pp-positionen">
-            <div class="pp-pos-grid">
-              <div class="pp-pos-block"><span class="pp-pos-lbl">🧤 TW</span><input type="number" class="pp-num" id="db-f-pp-p-TW-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-TW-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ LA (Linksaußen)</span><input type="number" class="pp-num" id="db-f-pp-p-LA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-LA-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RL (Rückraum L)</span><input type="number" class="pp-num" id="db-f-pp-p-RL-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RL-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RM (Rückraum M)</span><input type="number" class="pp-num" id="db-f-pp-p-RM-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RM-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RR (Rückraum R)</span><input type="number" class="pp-num" id="db-f-pp-p-RR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RR-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ RA (Rechtsaußen)</span><input type="number" class="pp-num" id="db-f-pp-p-RA-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-RA-max" min="0" max="4" placeholder="0"></div>
-              <div class="pp-pos-block"><span class="pp-pos-lbl">▲ KR (Kreisläufer)</span><input type="number" class="pp-num" id="db-f-pp-p-KR-min" min="0" max="4" placeholder="0"><span class="pp-sep">–</span><input type="number" class="pp-num" id="db-f-pp-p-KR-max" min="0" max="4" placeholder="0"></div>
-            </div>
-          </div>
+          <div class="pp-section" id="db-f-pp-positionen"></div>
         </div>
       </div>
       <div class="form-group">
@@ -1888,31 +1880,71 @@ async function loadKategorien(){
 // ══════════════════════════════════════════
 // PLAYER PICKER — Spieleranzahl nach Typ
 // ══════════════════════════════════════════
-const PP_POSITIONS=['TW','LA','RL','RM','RR','RA','KR'];
+// Positionsdefinition nach DHB-Standard
+// grp 'a' = Angriff (▲), grp 'd' = Abwehr inkl. Torwart (●)
+const PP_POS_DEF={
+  // Angriff (▲)
+  LA:{grp:'a',sym:'▲',lbl:'LA (Linksaußen)'},
+  RL:{grp:'a',sym:'▲',lbl:'RL (Rückraum L)'},
+  RM:{grp:'a',sym:'▲',lbl:'RM (Rückraum M)'},
+  RR:{grp:'a',sym:'▲',lbl:'RR (Rückraum R)'},
+  RA:{grp:'a',sym:'▲',lbl:'RA (Rechtsaußen)'},
+  KR:{grp:'a',sym:'▲',lbl:'KR (Kreisläufer)'},
+  // Abwehr inkl. Torwart (●)
+  TW:{grp:'d',sym:'●',lbl:'TW (Torwart)'},
+  AL:{grp:'d',sym:'●',lbl:'Außen L (1)'},
+  HL:{grp:'d',sym:'●',lbl:'Halb L (2)'},
+  IL:{grp:'d',sym:'●',lbl:'Innen L (3)'},
+  IR:{grp:'d',sym:'●',lbl:'Innen R (4)'},
+  HR:{grp:'d',sym:'●',lbl:'Halb R (5)'},
+  AR:{grp:'d',sym:'●',lbl:'Außen R (6)'}
+};
+const PP_POSITIONS=Object.keys(PP_POS_DEF);
+const PP_ANGRIFF=PP_POSITIONS.filter(k=>PP_POS_DEF[k].grp==='a');
+const PP_ABWEHR=PP_POSITIONS.filter(k=>PP_POS_DEF[k].grp==='d');
+// Modus-Wert  →  HTML-Sektions-Suffix (tw_feld → twfeld!)
+const PP_MODE_SECTION={einfach:'einfach',tw_feld:'twfeld',positionen:'positionen'};
+
+// Bereich-String "8-16" / "8–16" / "10" → {min,max}; sonst null (= beliebig)
+function parseRangeString(s){
+  if(s===undefined||s===null) return null;
+  const t=String(s).replace(/–/g,'-').trim();
+  if(!t) return null;
+  const m=t.match(/^(\d+)\s*-\s*(\d+)$/);
+  if(m) return {min:parseInt(m[1])||0,max:parseInt(m[2])||0};
+  const one=t.match(/^(\d+)$/);
+  if(one){const n=parseInt(one[1])||0;return {min:n,max:n};}
+  return null;
+}
 
 function parsePlayers(val){
-  if(!val) return {modus:'einfach',einfach:''};
+  if(!val) return {modus:'einfach'};
   try{
     const o=JSON.parse(val);
     if(o&&o.modus) return o;
   }catch(e){}
+  // Altformat: freier Text → als Gesamt-Bereich interpretieren (Fallback: roher String)
   return {modus:'einfach',einfach:val};
+}
+
+// Bereich-Objekt {min,max} hübsch formatieren
+function ppFmtRange(obj){
+  if(!obj||obj.min===undefined) return '?';
+  if(!obj.min&&!obj.max) return 'beliebig';
+  return obj.min===obj.max?String(obj.min):`${obj.min}–${obj.max}`;
 }
 
 function formatPlayersDisplay(val){
   const p=parsePlayers(val);
   if(p.modus==='einfach'){
-    const v=p.einfach||'';
-    return v||'–';
+    if(p.gesamt){const r=ppFmtRange(p.gesamt);return '👥 '+r;}
+    // Altformat-Fallback
+    const leg=parseRangeString(p.einfach);
+    if(leg) return '👥 '+ppFmtRange(leg);
+    return (p.einfach&&p.einfach.trim())?p.einfach.trim():'–';
   }
   if(p.modus==='tw_feld'){
-    const fmt=obj=>{
-      if(!obj||obj.min===undefined) return '?';
-      return obj.min===obj.max?String(obj.min):`${obj.min}–${obj.max}`;
-    };
-    const tw=fmt(p.tw);
-    const feld=fmt(p.feld);
-    return `🧤 ${tw} · 👥 ${feld}`;
+    return `🧤 ${ppFmtRange(p.tw)} · 👥 ${ppFmtRange(p.feld)}`;
   }
   if(p.modus==='positionen'){
     const pos=p.positionen||{};
@@ -1921,22 +1953,46 @@ function formatPlayersDisplay(val){
       .map(k=>{
         const v=pos[k];
         const n=v.min===v.max?String(v.min):`${v.min}–${v.max}`;
-        return (k==='TW'?'🧤':'▲')+k+' '+n;
+        return PP_POS_DEF[k].sym+k+' '+n;
       });
     return parts.length?parts.join(' · '):'–';
   }
   return val||'–';
 }
 
+// Positions-Raster (Angriff/Abwehr) einmalig erzeugen — idempotent
+function buildPositionGrid(pickerId){
+  const sec=document.getElementById(pickerId+'-positionen');
+  if(!sec||sec.dataset.built==='1') return;
+  const block=k=>{
+    const d=PP_POS_DEF[k];
+    return `<div class="pp-pos-block"><span class="pp-pos-lbl">${d.sym} ${d.lbl}</span>`
+      +`<input type="number" class="pp-num" id="${pickerId}-p-${k}-min" min="0" max="9" placeholder="0">`
+      +`<span class="pp-sep">–</span>`
+      +`<input type="number" class="pp-num" id="${pickerId}-p-${k}-max" min="0" max="9" placeholder="0"></div>`;
+  };
+  sec.innerHTML=
+    `<div class="pp-pos-group">`
+      +`<div class="pp-pos-group-lbl"><span class="pp-pos-sym-a">▲</span> Angriff</div>`
+      +`<div class="pp-pos-grid">${PP_ANGRIFF.map(block).join('')}</div>`
+    +`</div>`
+    +`<div class="pp-pos-group">`
+      +`<div class="pp-pos-group-lbl"><span class="pp-pos-sym-d">●</span> Abwehr (inkl. Torwart)</div>`
+      +`<div class="pp-pos-grid">${PP_ABWEHR.map(block).join('')}</div>`
+    +`</div>`;
+  sec.dataset.built='1';
+}
+
 // Modus-Button wechseln
 function setPlayerPickerMode(pickerId,clickedBtn,mode){
   const picker=document.getElementById(pickerId);
   if(!picker) return;
+  if(mode==='positionen') buildPositionGrid(pickerId);
   picker.querySelectorAll('.pp-mode-btn').forEach(b=>b.classList.remove('active'));
   clickedBtn.classList.add('active');
-  ['einfach','twfeld','positionen'].forEach(m=>{
-    const sec=document.getElementById(pickerId+'-'+m);
-    if(sec) sec.classList.toggle('visible',m===mode);
+  Object.keys(PP_MODE_SECTION).forEach(mk=>{
+    const sec=document.getElementById(pickerId+'-'+PP_MODE_SECTION[mk]);
+    if(sec) sec.classList.toggle('visible',mk===mode);
   });
 }
 
@@ -1945,29 +2001,33 @@ function initPlayerPicker(pickerId,val){
   const p=parsePlayers(val);
   const picker=document.getElementById(pickerId);
   if(!picker) return;
-  // Reset alle Modi-Buttons + Sektionen
+  buildPositionGrid(pickerId);
+  const modus=PP_MODE_SECTION[p.modus]?p.modus:'einfach';
+  // Modi-Buttons + Sektionen
   picker.querySelectorAll('.pp-mode-btn').forEach(b=>{
-    b.classList.toggle('active',b.dataset.mode===p.modus);
+    b.classList.toggle('active',b.dataset.mode===modus);
   });
-  ['einfach','twfeld','positionen'].forEach(m=>{
-    const sec=document.getElementById(pickerId+'-'+m);
-    if(sec) sec.classList.toggle('visible',m===p.modus);
+  Object.keys(PP_MODE_SECTION).forEach(mk=>{
+    const sec=document.getElementById(pickerId+'-'+PP_MODE_SECTION[mk]);
+    if(sec) sec.classList.toggle('visible',mk===modus);
   });
   // Werte setzen
-  const ge=id=>{const el=document.getElementById(id);return el;};
-  const sv=(id,v)=>{const el=ge(id);if(el) el.value=v!==undefined&&v!==null?v:'';};
-  if(p.modus==='einfach'){
-    sv(pickerId+'-e',p.einfach||'');
-  } else if(p.modus==='tw_feld'){
+  const sv=(id,v)=>{const el=document.getElementById(id);if(el) el.value=(v!==undefined&&v!==null)?v:'';};
+  if(modus==='einfach'){
+    let g=p.gesamt;
+    if(!g) g=parseRangeString(p.einfach); // Altformat
+    sv(pickerId+'-g-min',g?(g.min||''):'');
+    sv(pickerId+'-g-max',g?(g.max||''):'');
+  } else if(modus==='tw_feld'){
     sv(pickerId+'-tw-min',p.tw?.min??'');
     sv(pickerId+'-tw-max',p.tw?.max??'');
     sv(pickerId+'-f-min',p.feld?.min??'');
     sv(pickerId+'-f-max',p.feld?.max??'');
-  } else if(p.modus==='positionen'){
+  } else if(modus==='positionen'){
     PP_POSITIONS.forEach(pos=>{
       const obj=p.positionen?.[pos]||{};
-      sv(pickerId+'-p-'+pos+'-min',obj.min??'');
-      sv(pickerId+'-p-'+pos+'-max',obj.max??'');
+      sv(pickerId+'-p-'+pos+'-min',obj.min||'');
+      sv(pickerId+'-p-'+pos+'-max',obj.max||'');
     });
   }
 }
@@ -1980,8 +2040,9 @@ function getPlayerPickerValue(pickerId){
   const modus=activeBtn?activeBtn.dataset.mode:'einfach';
   const gn=id=>{const el=document.getElementById(id);return el?parseInt(el.value)||0:0;};
   if(modus==='einfach'){
-    const el=document.getElementById(pickerId+'-e');
-    return el?el.value.trim():'';
+    return JSON.stringify({modus:'einfach',
+      gesamt:{min:gn(pickerId+'-g-min'),max:gn(pickerId+'-g-max')}
+    });
   }
   if(modus==='tw_feld'){
     return JSON.stringify({modus:'tw_feld',
