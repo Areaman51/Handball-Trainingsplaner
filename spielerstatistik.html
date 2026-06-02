@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260602.1247 — Spielerstatistik -->
+<!-- Handball Coaching Tools v1.260602.2115 — Spielerstatistik -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -212,6 +212,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .att-note strong{color:var(--yellow);font-weight:700;}
 
 /* Soll-Editor */
+.team-soll-box{display:flex;align-items:center;gap:7px;background:var(--white);border:1px solid var(--border);
+  border-radius:8px;padding:4px 10px;}
+.team-soll-box .ts-lbl{font-size:11px;font-weight:600;color:var(--soft);white-space:nowrap;}
+.team-soll-box .ts-input{width:48px;font-size:12.5px;font-weight:700;font-family:'DM Mono',monospace;
+  padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:white;color:var(--text);
+  text-align:center;outline:none;}
+.team-soll-box .ts-input:focus{border-color:var(--accent);}
+.wk-input{width:46px;font-size:12px;font-weight:700;font-family:'DM Mono',monospace;
+  padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:white;color:var(--text);
+  text-align:center;outline:none;}
+.wk-input:focus{border-color:var(--accent);}
+.wk-indiv{font-size:10px;color:#7c3aed;margin-top:2px;}
+.tbl-scroll{max-height:340px;overflow-y:auto;}
 .soll-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--soft);
   background:var(--bg);border-radius:9px;padding:9px 12px;margin-bottom:14px;}
 .soll-row .sl-lbl{font-weight:600;color:var(--text);}
@@ -329,7 +342,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260602.1247</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260602.2115</div>
     </div>
   </aside>
 
@@ -359,6 +372,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <button class="pos-btn" id="pos-th" onclick="setPosFilter('TH')">● Tor</button>
           </div>
           <div id="saison-picker"></div>
+          <div class="team-soll-box" id="team-soll-box"></div>
           <button class="btn btn-primary btn-sm" onclick="openZusatzModal()" title="Zusatzeinheit(en) erfassen">➕ Zusatzeinheit</button>
           <button class="btn btn-ghost btn-sm" onclick="reloadAll()" title="Aktualisieren">🔄</button>
         </div>
@@ -461,6 +475,7 @@ let _selectedPlayerId=null;
 let _activeTab='langzeit';
 let toastTm=null;
 let _teamSollWoche=null;     // Team-Standard Zusatz-Soll pro Woche
+let _teamSollWochen={};      // ISO-Woche → abweichender Team-Soll (teamweit), z.B. {"2026-W23":3}
 let _zusatzById={};          // spieler_id → {count, minutes, items:[{datum,typ,dauer_min,notiz}]}
 let _activeWeeks=new Set();  // ISO-Wochen mit ≥1 Mannschaftstraining im Zeitraum
 
@@ -503,7 +518,7 @@ async function initMyTeam(){
   _myTeamId  =localStorage.getItem('hbs_my_mannschaft_id')||localStorage.getItem('aktive_mannschaft_id')||'';
 
   const {data}=await supa.from('mannschaften')
-    .select('id,name,verein,user_id,zusatz_soll_woche')
+    .select('id,name,verein,user_id,zusatz_soll_woche,zusatz_soll_wochen')
     .order('sort_order',{ascending:true})
     .order('created_at',{ascending:true});
   _availableTeams=data||[];
@@ -523,6 +538,7 @@ async function initMyTeam(){
   const cur=_availableTeams.find(m=>String(m.id)===String(_myTeamId));
   if(cur){ _myTeamOwnerId=cur.user_id||''; _isSharedTeam=!!_myTeamOwnerId && _myTeamOwnerId!==currentUser.id; }
   _teamSollWoche=(cur && cur.zusatz_soll_woche!=null)?cur.zusatz_soll_woche:null;
+  _teamSollWochen=(cur && cur.zusatz_soll_wochen)?cur.zusatz_soll_wochen:{};
 
   _persistTeam();
   renderTeamWidget();
@@ -562,6 +578,7 @@ async function switchTeam(id){
   _myTeamId=m.id; _myTeamName=m.name;
   _myTeamOwnerId=m.user_id||''; _isSharedTeam=!!_myTeamOwnerId && _myTeamOwnerId!==currentUser.id;
   _teamSollWoche=(m.zusatz_soll_woche!=null)?m.zusatz_soll_woche:null;
+  _teamSollWochen=m.zusatz_soll_wochen||{};
   _persistTeam(); renderTeamWidget();
   _selectedPlayerId=null;
   await loadSaisons(); renderSaisonPicker();
@@ -638,6 +655,7 @@ async function reloadAll(){
   listEl.innerHTML='<div class="loading">⏳ Lade Daten…</div>';
   const saisonLabel=_saisonId?(saisons.find(s=>s.id===_saisonId)?.name||'Saison'):'Alle Saisons';
   document.getElementById('page-sub').textContent=`${_myTeamName} · ${saisonLabel}`;
+  renderTeamSollBox();
 
   try{
     await Promise.all([loadKaderWithGameStats(), loadAttendance(), loadEinzeleinheiten()]);
@@ -836,7 +854,7 @@ function isoWeekKey(dateStr){
   return t.getUTCFullYear()+'-W'+String(wk).padStart(2,'0');
 }
 function _zus(p){ return _zusatzById[p.id]||{count:0,minutes:0,items:[]}; }
-function _sollWoche(p){ const o=p.zusatz_soll_woche; return (o!=null?o:(_teamSollWoche!=null?_teamSollWoche:0)); }
+
 // Wochen, in denen der Spieler in ALLEN erfassten Einheiten verletzt war → vom Soll ausgenommen
 function _injuredWeeks(a){
   const byW={};
@@ -845,9 +863,56 @@ function _injuredWeeks(a){
   Object.keys(byW).forEach(w=>{ const sts=byW[w]; if(sts.length && sts.every(s=>s==='verletzt')) inj.add(w); });
   return inj;
 }
-function _sollWeeks(p){ const inj=_injuredWeeks(_att(p)); let n=0; _activeWeeks.forEach(w=>{ if(!inj.has(w)) n++; }); return n; }
-function _zusExclWeeks(p){ const inj=_injuredWeeks(_att(p)); let n=0; _activeWeeks.forEach(w=>{ if(inj.has(w)) n++; }); return n; }
-function _zusSoll(p){ return _sollWoche(p)*_sollWeeks(p); }
+
+// ── Wöchentlicher Soll (KEINE Multiplikation) ──
+function curWeekKey(){ return isoWeekKey(new Date().toISOString().slice(0,10)); }
+// Teamweiter Soll dieser Woche (Wochen-Override > Team-Standard)
+function _weekTeamSoll(w){
+  if(_teamSollWochen && _teamSollWochen[w]!=null) return _teamSollWochen[w];
+  return _teamSollWoche!=null?_teamSollWoche:0;
+}
+// Effektiver Soll für eine Spielerin in Woche w (Wochen-Override > Spieler-Ausnahme > Team-Standard)
+function _weekSoll(p,w){
+  if(_teamSollWochen && _teamSollWochen[w]!=null) return _teamSollWochen[w];
+  if(p.zusatz_soll_woche!=null) return p.zusatz_soll_woche;
+  return _teamSollWoche!=null?_teamSollWoche:0;
+}
+function isoWeekMonday(w){
+  const m=/^(\d{4})-W(\d{2})$/.exec(w); if(!m) return null;
+  const year=+m[1], week=+m[2];
+  const jan4=new Date(Date.UTC(year,0,4));
+  const day=jan4.getUTCDay()||7;
+  const mon=new Date(jan4); mon.setUTCDate(jan4.getUTCDate()-(day-1)+(week-1)*7);
+  return mon;
+}
+function weekLabel(w){
+  const mon=isoWeekMonday(w); if(!mon) return w;
+  const sun=new Date(mon); sun.setUTCDate(mon.getUTCDate()+6);
+  const f=d=>String(d.getUTCDate()).padStart(2,'0')+'.'+String(d.getUTCMonth()+1).padStart(2,'0')+'.';
+  return `KW ${w.split('-W')[1]} · ${f(mon)}–${f(sun)}`;
+}
+// Wochen-Statistik je Spielerin (bis zur aktuellen Woche)
+function _zusWeekStats(p){
+  const z=_zus(p);
+  const istByWeek={};
+  z.items.forEach(it=>{ const w=isoWeekKey(it.datum); if(!w) return; istByWeek[w]=(istByWeek[w]||0)+1; });
+  const inj=_injuredWeeks(_att(p));
+  const cw=curWeekKey();
+  const set=new Set();
+  _activeWeeks.forEach(w=>set.add(w));
+  Object.keys(istByWeek).forEach(w=>set.add(w));
+  if(_teamSollWochen) Object.keys(_teamSollWochen).forEach(w=>set.add(w));
+  const weeks=[...set].filter(w=>w<=cw).sort().reverse();
+  let weeksMet=0, weeksTotal=0;
+  const rows=weeks.map(w=>{
+    const teamSoll=_weekTeamSoll(w), soll=_weekSoll(p,w), ist=istByWeek[w]||0;
+    const injured=inj.has(w);
+    if(!injured && soll>0){ weeksTotal++; if(ist>=soll) weeksMet++; }
+    return {w,teamSoll,soll,ist,injured};
+  });
+  return {rows, weeksMet, weeksTotal, totalIst:z.count, minutes:z.minutes,
+          curSoll:_weekSoll(p,cw), curIst:istByWeek[cw]||0, cw};
+}
 
 function renderPlayerList(){
   const el=document.getElementById('player-list');
@@ -873,8 +938,8 @@ function renderPlayerList(){
     const m1=`${p.game.spiele||0} Sp`;
     const m2=isTH?`${geh} Par.`:`${tore} Tore`;
     const m3=q!==null?`${q}% Anw.`:'– Anw.';
-    const z=_zus(p); const soll=_zusSoll(p);
-    const m4=soll>0?`${z.count}/${soll} Zus.`:(z.count?`${z.count} Zus.`:'');
+    const z=_zus(p); const ws=_zusWeekStats(p);
+    const m4=ws.weeksTotal>0?`${ws.weeksMet}/${ws.weeksTotal} Wo.`:(z.count?`${z.count} Zus.`:'');
     const nr=p.nummer!=null && p.nummer!==''?String(p.nummer).padStart(2,'0'):'–';
     return `<div class="player-card ${p.id===_selectedPlayerId?'active':''}" onclick="selectPlayer('${p.id}')">
       <div class="pc-nr">${nr}</div>
@@ -1045,9 +1110,9 @@ function renderAttTab(p){
   const a=_att(p);
   const basis=_attBasis(a), total=_attTotal(a), q=_attQuote(a);
   const z=_zus(p), ist=z.count;
-  const sollWoche=_sollWoche(p), sollWeeks=_sollWeeks(p), soll=_zusSoll(p), exclW=_zusExclWeeks(p);
+  const ws=_zusWeekStats(p);
   const hasAtt=total>0;
-  const hasZus=ist>0 || sollWoche>0 || _activeWeeks.size>0;
+  const hasZus=ist>0 || _teamSollWoche!=null || p.zusatz_soll_woche!=null || _activeWeeks.size>0;
   if(!hasAtt && !hasZus){
     return `<div class="empty"><div class="e-icon">✅</div>
       <div class="e-title">Keine Daten</div>
@@ -1089,33 +1154,54 @@ function renderAttTab(p){
        </tr></thead><tbody>${rows}</tbody></table></div>`
     : '';
 
-  // ── Zusatztraining ──
-  const erf = soll>0?Math.round(ist/soll*100):null;
+  // ── Zusatztraining (wöchentlich) ──
   const canEdit=!_isSharedTeam;
   const dis=canEdit?'':'disabled';
   const ovVal = p.zusatz_soll_woche!=null?p.zusatz_soll_woche:'';
   const teamVal = _teamSollWoche!=null?_teamSollWoche:'';
-  const sollExpl = sollWoche>0
-    ? `→ Soll im Zeitraum: <strong style="color:var(--text)">${soll}</strong> (${sollWeeks} Trainingswochen × ${sollWoche}${exclW>0?` · ${exclW} Wo. verletzungsbedingt ausgenommen`:''})`
-    : `→ kein Soll gesetzt`;
+  const curMet = ws.curSoll>0 ? (ws.curIst>=ws.curSoll) : null;
+  const curColor = curMet===null?'var(--xsoft)':(curMet?'var(--green)':'var(--red)');
+
   const sollRow=`<div class="soll-row">
       <span class="sl-lbl">Soll/Woche je Spielerin:</span>
       <input type="number" min="0" class="soll-input" value="${ovVal}" placeholder="${teamVal!==''?teamVal:'–'}" ${dis}
         onchange="savePlayerSoll('${p.id}',this.value)" title="Individueller Wert (leer = Team-Standard)">
-      <span class="soll-sep">·</span>
-      <span class="sl-lbl">Team-Standard:</span>
-      <input type="number" min="0" class="soll-input" value="${teamVal}" placeholder="0" ${dis}
-        onchange="saveTeamSoll(this.value)" title="Standard für das ganze Team">
-      <span>/Woche</span>
+      <span>(leer = Team-Standard ${teamVal!==''?teamVal:'–'}/Woche)</span>
     </div>
-    <div class="att-note">${sollExpl}${canEdit?'':' · <em>nur Lesezugriff (fremdes Team)</em>'}</div>`;
+    <div class="att-note">Der Wert gilt <strong style="color:var(--text)">pro Woche</strong> und wird nicht hochgerechnet. Einzelne Wochen kannst du unten überschreiben – das gilt teamweit.${canEdit?'':' · <em>nur Lesezugriff (fremdes Team)</em>'}</div>`;
 
   const zusBar=`<div class="att-bar">
-    <div class="att-stat"><div class="att-dot zusatz"></div><div><div class="att-num zus">${ist}${soll>0?`<span style="font-size:13px;color:var(--xsoft)">/${soll}</span>`:''}</div><div class="att-lbl">Zusatzeinheiten</div></div></div>
-    ${erf!==null?`<div class="att-stat"><div class="att-dot zusatz"></div><div><div class="att-num zus">${erf}%</div><div class="att-lbl">Erfüllung</div></div></div>`:''}
-    ${z.minutes>0?`<div class="att-stat"><div class="att-dot zusatz"></div><div><div class="att-num zus">${z.minutes}</div><div class="att-lbl">Minuten ges.</div></div></div>`:''}
+    <div class="att-stat"><div class="att-dot zusatz"></div><div><div class="att-num" style="color:${curColor}">${ws.curIst}${ws.curSoll>0?`<span style="font-size:13px;color:var(--xsoft)">/${ws.curSoll}</span>`:''}</div><div class="att-lbl">Diese Woche</div></div></div>
+    ${ws.weeksTotal>0?`<div class="att-stat"><div class="att-dot zusatz"></div><div><div class="att-num zus">${ws.weeksMet}/${ws.weeksTotal}</div><div class="att-lbl">Wochen erfüllt</div></div></div>`:''}
+    <div class="att-stat"><div class="att-dot zusatz"></div><div><div class="att-num zus">${ws.totalIst}</div><div class="att-lbl">Zusatz gesamt</div></div></div>
+    ${ws.minutes>0?`<div class="att-stat"><div class="att-dot zusatz"></div><div><div class="att-num zus">${ws.minutes}</div><div class="att-lbl">Minuten ges.</div></div></div>`:''}
   </div>`;
 
+  // Woche-für-Woche-Tabelle (Team-Soll je Woche editierbar)
+  const wkRows=ws.rows.map(r=>{
+    const ovr=_teamSollWochen&&_teamSollWochen[r.w]!=null?_teamSollWochen[r.w]:'';
+    const sollCell = canEdit
+      ? `<input type="number" min="0" class="wk-input" value="${ovr}" placeholder="${teamVal!==''?teamVal:'0'}" onchange="saveWeekSoll('${r.w}',this.value)" title="Team-Soll für diese Woche (gilt für alle)">`
+      : (r.teamSoll||0);
+    const indiv = (!r.injured && r.soll!==r.teamSoll) ? `<div class="wk-indiv">individuell: ${r.soll}</div>` : '';
+    const status = r.injured ? '<span class="att-badge verletzt">🤕 verletzt</span>'
+      : (r.soll>0 ? (r.ist>=r.soll?'<span class="vp">✓ erfüllt</span>':'<span class="vn">✗ offen</span>')
+                  : '<span style="color:var(--xsoft)">–</span>');
+    return `<tr>
+      <td class="lcol">${weekLabel(r.w)}</td>
+      <td>${sollCell}${indiv}</td>
+      <td>${r.ist}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+  const wkTable = ws.rows.length
+    ? `<div class="sect-label" style="margin-top:6px;">Woche für Woche</div>
+       <div class="tbl-wrap tbl-scroll"><table class="stbl"><thead><tr>
+         <th class="lcol">Woche</th><th>Team-Soll/Wo.</th><th>Ist</th><th>Status</th>
+       </tr></thead><tbody>${wkRows}</tbody></table></div>`
+    : `<div class="att-note" style="margin-top:2px;">Noch keine Trainingswochen im Zeitraum.</div>`;
+
+  // Einzelne Zusatzeinheiten
   const zusRows=z.items.slice().sort((x,y)=>(y.datum||'').localeCompare(x.datum||''))
     .map(it=>`<tr>
       <td class="lcol">${fmtDate(it.datum)}</td>
@@ -1124,16 +1210,17 @@ function renderAttTab(p){
       <td class="lcol">${it.notiz?esc(it.notiz):''}</td>
     </tr>`).join('');
   const zusList = ist>0
-    ? `<div class="sect-label" style="margin-top:4px;">Erfasste Zusatzeinheiten (${ist})</div>
+    ? `<div class="sect-label" style="margin-top:14px;">Erfasste Zusatzeinheiten (${ist})</div>
        <div class="tbl-wrap"><table class="stbl"><thead><tr>
          <th class="lcol">Datum</th><th class="lcol">Art</th><th>Zeit</th><th class="lcol">Notiz</th>
        </tr></thead><tbody>${zusRows}</tbody></table></div>`
-    : `<div class="att-note" style="margin-top:2px;">Noch keine Zusatzeinheiten in diesem Zeitraum erfasst.</div>`;
+    : '';
 
   const zt=`<div class="att-group" style="margin-bottom:0;">
     <div class="att-group-head"><div class="att-group-title">➕ Zusatztraining (individuell)</div></div>
     ${zusBar}
     ${sollRow}
+    ${wkTable}
     ${zusList}
   </div>`;
 
@@ -1218,8 +1305,31 @@ async function saveTeamSoll(val){
   if(error){ toast('Fehler: '+error.message,'error'); return; }
   _teamSollWoche=v;
   const m=_availableTeams.find(t=>String(t.id)===String(_myTeamId)); if(m) m.zusatz_soll_woche=v;
-  renderPlayerList(); if(_selectedPlayerId) renderDetail(_selectedPlayerId);
+  renderTeamSollBox(); renderPlayerList(); if(_selectedPlayerId) renderDetail(_selectedPlayerId);
   toast('Team-Standard aktualisiert','success');
+}
+// Team-Soll für eine einzelne ISO-Woche (teamweit) setzen/entfernen
+async function saveWeekSoll(w,val){
+  if(_isSharedTeam){ toast('Nur Lesezugriff für fremde Teams','error'); return; }
+  const obj=Object.assign({},_teamSollWochen);
+  if(val===''||val==null){ delete obj[w]; }
+  else { obj[w]=Math.max(0,parseInt(val,10)||0); }
+  const {error}=await supa.from('mannschaften').update({zusatz_soll_wochen:obj}).eq('id',_myTeamId);
+  if(error){ toast('Fehler: '+error.message,'error'); return; }
+  _teamSollWochen=obj;
+  const m=_availableTeams.find(t=>String(t.id)===String(_myTeamId)); if(m) m.zusatz_soll_wochen=obj;
+  renderPlayerList(); if(_selectedPlayerId) renderDetail(_selectedPlayerId);
+  toast('Wochen-Soll aktualisiert','success');
+}
+// Team-Soll-Feld in der Kopfzeile
+function renderTeamSollBox(){
+  const el=document.getElementById('team-soll-box'); if(!el) return;
+  if(!_myTeamId){ el.innerHTML=''; return; }
+  const v=_teamSollWoche!=null?_teamSollWoche:'';
+  const dis=_isSharedTeam?'disabled':'';
+  el.innerHTML=`<span class="ts-lbl">Zusatz-Soll/Wo.</span>
+    <input type="number" min="0" class="ts-input" value="${v}" placeholder="0" ${dis}
+      onchange="saveTeamSoll(this.value)" title="Team-Standard pro Woche (gilt für alle ohne eigenen Wert)">`;
 }
 
 // ════════════════════════════════════════════════════════════
