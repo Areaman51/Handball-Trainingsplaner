@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260601.1545 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260602.1215 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -491,6 +491,45 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .aw-status-btn{min-width:90px;padding:6px 10px;font-size:11.5px;}
 }
 
+/* Langzeit-Status-Chips in der Anwesenheitsliste */
+.aw-chip{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:5px;line-height:1.7;white-space:nowrap;letter-spacing:.02em;}
+.aw-chip.injury{background:#fee2e2;color:#b91c1c;}
+.aw-chip.absence{background:#ede9fe;color:#6d28d9;}
+.aw-chip.upcoming{background:#f1f5f9;color:#475569;}
+.aw-chip.inactive{background:#f3f4f6;color:#6b7280;}
+/* Bearbeiten-Button je Spielerin */
+.aw-edit-btn{flex-shrink:0;width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;color:var(--soft);transition:all .15s;}
+.aw-edit-btn:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent);}
+/* Mannschaftswechsel direkt in der Statistikleiste */
+.aw-team-switch{display:inline-flex;align-items:center;gap:6px;margin-left:8px;}
+.aw-team-switch select{padding:5px 9px;border:1.5px solid var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:12px;background:#fff;color:var(--text);cursor:pointer;outline:none;max-width:200px;}
+.aw-team-switch select:focus{border-color:var(--accent);}
+@media(max-width:600px){
+  .aw-edit-btn{width:28px;height:28px;font-size:12px;}
+  .aw-team-switch{margin-left:0;width:100%;}
+  .aw-team-switch select{flex:1;max-width:none;}
+}
+
+/* ── ABWESENHEITEN / VERLETZUNGEN (Spieler-Bearbeiten-Modal) ── */
+.awpe-section{margin-bottom:18px;}
+.awpe-section-title{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.awpe-section-hint{font-size:11px;color:var(--xsoft);margin-bottom:10px;line-height:1.5;}
+.entry-card{background:#f9fafb;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;display:flex;flex-direction:column;gap:9px;}
+.entry-card.injury-open{border-color:#fca5a5;background:#fef2f2;}
+.entry-row2{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.entry-field{display:flex;flex-direction:column;}
+.entry-lbl{font-size:10.5px;font-weight:600;color:var(--soft);margin-bottom:4px;letter-spacing:.02em;}
+.entry-inp{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12.5px;font-family:'DM Sans',sans-serif;color:var(--text);background:#fff;outline:none;transition:border-color .15s;}
+.entry-inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,87,255,.08);}
+.entry-del{align-self:flex-start;background:none;border:none;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;padding:2px 0;font-family:'DM Sans',sans-serif;}
+.entry-del:hover{text-decoration:underline;}
+.entry-empty{font-size:12px;color:var(--xsoft);padding:10px 12px;background:#f9fafb;border:1px dashed var(--border);border-radius:9px;text-align:center;}
+.entry-add-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px dashed var(--border);background:#fff;color:var(--soft);transition:all .15s;}
+.entry-add-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+@media(max-width:600px){
+  .entry-row2{grid-template-columns:1fr;}
+}
+
 /* ── PLAYER PICKER ── */
 .pp-mode-row{display:flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:8px;}
 .pp-mode-btn{flex:1;text-align:center;padding:7px 4px;font-size:12px;font-weight:600;color:var(--soft);cursor:pointer;border:none;border-right:1.5px solid var(--border);background:white;font-family:'DM Sans',sans-serif;transition:all .15s;}
@@ -892,7 +931,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260601.1545</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260602.1215</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1629,6 +1668,49 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
   </div>
 </div>
+
+<!-- Spieler-Bearbeiten-Modal: Abwesenheiten & Verletzungen -->
+<div class="modal-overlay" id="aw-player-modal" onclick="if(event.target.id==='aw-player-modal')closeAwPlayerEdit()">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="awpe-title">Spielerin bearbeiten</div>
+        <div class="modal-subtitle" id="awpe-subtitle">Langzeit-Status</div>
+      </div>
+      <button class="modal-close" onclick="closeAwPlayerEdit()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="awpe-section">
+        <div class="awpe-section-title">🏖️ Geplante Abwesenheiten</div>
+        <div class="awpe-section-hint">Zeiträume z.&nbsp;B. Urlaub, Beruf, Schule. <strong>Bis</strong> leer lassen = noch andauernd. Fällt das Einheitsdatum in einen Zeitraum, wird die Spielerin automatisch als „Abwesend“ vorbelegt.</div>
+        <div id="awpe-abw-list"></div>
+        <button type="button" class="entry-add-btn" onclick="awpeAddAbw()">＋ Abwesenheit hinzufügen</button>
+      </div>
+      <div class="awpe-section">
+        <div class="awpe-section-title">🤕 Verletzungen</div>
+        <div class="awpe-section-hint"><strong>Bis (Rückkehr)</strong> leer lassen = aktuell noch verletzt. Greift am Einheitsdatum eine Verletzung, wird die Spielerin automatisch als „Verletzt“ vorbelegt.</div>
+        <div id="awpe-verl-list"></div>
+        <button type="button" class="entry-add-btn" onclick="awpeAddVerl()">＋ Verletzung hinzufügen</button>
+      </div>
+      <div class="form-hint">Diese Angaben werden in der Mannschaftsverwaltung gespeichert und gelten dauerhaft (kein einmaliger Eintrag für diese Einheit). Für „nur heute abwesend“ einfach den Status-Button rechts in der Liste nutzen.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAwPlayerEdit()">Abbrechen</button>
+      <button class="btn btn-primary" id="awpe-save" onclick="saveAwPlayerEdit()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+<datalist id="awpe-verl-arten">
+  <option value="Bänderdehnung Sprunggelenk"></option>
+  <option value="Bänderriss"></option>
+  <option value="Muskelfaserriss"></option>
+  <option value="Zerrung"></option>
+  <option value="Prellung"></option>
+  <option value="Knieverletzung"></option>
+  <option value="Schulterverletzung"></option>
+  <option value="Fingerverletzung"></option>
+  <option value="Erkältung / Infekt"></option>
+</datalist>
 <script>
 const SUPA_URL = 'https://dlofjsmnkwltuutpxoer.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
@@ -4641,7 +4723,14 @@ function _awAbw(p){return Array.isArray(p.abwehr_pos)?p.abwehr_pos.filter(x=>x!=
 // ── Mannschaft für die Anwesenheit auflösen (tolerante Zuordnung) ──
 function _awNorm(s){return String(s||'').trim().toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();}
 function _resolveAwTeam(){
-  const cands=[(sessionMeta.group||'').trim(),(localStorage.getItem('hbs_my_team')||'').trim()].filter(Boolean).map(_awNorm).filter(Boolean);
+  // 0) Direkte ID-Zuordnung über das aktive Team (eindeutig, identisch zu Spielerstatistik & Co.)
+  const activeId=(localStorage.getItem('aktive_mannschaft_id')||'').trim();
+  if(activeId){ const t=allMannschaften.find(m=>String(m.id)===activeId); if(t) return t; }
+  const cands=[
+    (sessionMeta.group||'').trim(),
+    (localStorage.getItem('hbs_my_team')||'').trim(),
+    (localStorage.getItem('aktive_mannschaft_name')||'').trim()
+  ].filter(Boolean).map(_awNorm).filter(Boolean);
   // 1) Exakter (normalisierter) Treffer
   for(const nc of cands){const t=allMannschaften.find(m=>_awNorm(m.name)===nc);if(t)return t;}
   // 2) Teilstring in beide Richtungen
@@ -4655,8 +4744,23 @@ function _resolveAwTeam(){
 // Explizite Mannschaftswahl im leeren Zustand
 function awPickTeam(name){
   if(!name) return;
+  const t=allMannschaften.find(m=>m.name===name) || allMannschaften.find(m=>_awNorm(m.name)===_awNorm(name));
   localStorage.setItem('hbs_my_team',name);
+  if(t){ localStorage.setItem('aktive_mannschaft_id',String(t.id)); localStorage.setItem('aktive_mannschaft_name',t.name); }
   initMyTeamWidget();
+  anwesenheitDaten={};
+  loadAnwesenheit();
+}
+// Mannschaftswechsel über die Statistikleiste (ID-basiert, eindeutig)
+function awSwitchTeamById(id){
+  if(!id) return;
+  const t=allMannschaften.find(m=>String(m.id)===String(id));
+  if(!t) return;
+  localStorage.setItem('aktive_mannschaft_id',String(t.id));
+  localStorage.setItem('aktive_mannschaft_name',t.name);
+  localStorage.setItem('hbs_my_team',t.name);
+  initMyTeamWidget();
+  anwesenheitDaten={};
   loadAnwesenheit();
 }
 
@@ -4714,11 +4818,11 @@ async function loadAnwesenheit(){
   // Kader laden (mit Cache)
   if(!kaderCache[team.id]){
     let {data,error}=await supa.from('mannschaft_spieler')
-      .select('id,name,nummer,pos,angriff_pos,abwehr_pos')
+      .select('id,name,nummer,pos,angriff_pos,abwehr_pos,abwesenheiten,verletzungen,aktiv,aktiv_bis')
       .eq('mannschaft_id',team.id)
       .order('pos',{ascending:true}).order('nummer',{ascending:true,nullsFirst:false});
-    if(error && /angriff_pos|abwehr_pos|column|schema cache/i.test(error.message||'')){
-      // Positions-Spalten noch nicht migriert → ohne diese laden
+    if(error && /angriff_pos|abwehr_pos|abwesenheiten|verletzungen|aktiv_bis|column|schema cache/i.test(error.message||'')){
+      // Erweiterte Spalten noch nicht migriert → ohne diese laden
       const r2=await supa.from('mannschaft_spieler')
         .select('id,name,nummer,pos')
         .eq('mannschaft_id',team.id)
@@ -4749,6 +4853,15 @@ async function loadAnwesenheit(){
     (eData?.anwesenheit?.spieler||[]).forEach(s=>{ anwesenheitDaten[s.id]=s.status||'anwesend'; });
   }
 
+  // Standard-Status aus Langzeitdaten ableiten (nur wo noch nichts explizit gesetzt ist):
+  // verletzt / abwesend am Einheitsdatum werden automatisch vorbelegt.
+  const sd=_awSessionDate();
+  players.forEach(p=>{
+    if(anwesenheitDaten[p.id]) return;
+    const auto=_awAutoStatus(p,sd);
+    if(auto) anwesenheitDaten[p.id]=auto;
+  });
+
   anwesenheitDirty=false;
   renderAnwesenheit(players, teamName);
 }
@@ -4771,6 +4884,11 @@ function renderAnwesenheit(players, teamName){
   const stats=_getAwStats(players);
   const total=players.length;
   const labels={anwesend:'✅ Anwesend',abwesend:'❌ Abwesend',verletzt:'🤕 Verletzt'};
+  const sd=_awSessionDate();
+  const _curTeam=_resolveAwTeam();
+  const switcherHtml = allMannschaften.length>1
+    ? `<span class="aw-team-switch"><select onchange="awSwitchTeamById(this.value)" title="Mannschaft wechseln">${allMannschaften.map(m=>`<option value="${_escHtml(String(m.id))}" ${_curTeam&&String(m.id)===String(_curTeam.id)?'selected':''}>${_escHtml(m.name)}</option>`).join('')}</select></span>`
+    : `<strong>${_escHtml(teamName)}</strong>`;
 
   // Positions-Badges: Angriff ▲ (primär hervorgehoben) + Abwehr ●. Alle werden angezeigt.
   function posTags(p){
@@ -4788,7 +4906,8 @@ function renderAnwesenheit(players, teamName){
     const nr=p.nummer!=null?String(p.nummer).padStart(2,'0'):'–';
     return `<div class="aw-player" id="awp-${p.id}">
       <div class="aw-nr">#${nr}</div>
-      <div class="aw-name"><span class="aw-name-txt">${_escHtml(p.name)}</span><div class="aw-pos-tags">${posTags(p)}</div></div>
+      <div class="aw-name"><span class="aw-name-txt">${_escHtml(p.name)}</span><div class="aw-pos-tags">${posTags(p)}${_awRecordChips(p)}</div></div>
+      <button class="aw-edit-btn" title="Abwesenheiten &amp; Verletzungen bearbeiten" onclick="openAwPlayerEdit('${p.id}')">✏️</button>
       <button class="aw-status-btn ${status}" onclick="toggleAwStatus('${p.id}')">${labels[status]}</button>
     </div>`;
   }
@@ -4839,10 +4958,164 @@ function renderAnwesenheit(players, teamName){
           <div class="aw-stat-lbl">Verletzt</div>
         </div>
       </div>
-      <div class="aw-stats-right">${total} Spielerinnen im Kader · <strong>${_escHtml(teamName)}</strong></div>
+      <div class="aw-stats-right">${total} im Kader · Stichtag ${fmtDateDE(sd)} · ${switcherHtml}</div>
     </div>
     ${groupsHtml}
   `;
+}
+
+// ── Langzeitdaten-Helfer (Abwesenheiten / Verletzungen) ──
+function fmtDateDE(s){ if(!s) return ''; const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s)); return m?`${m[3]}.${m[2]}.${m[1]}`:String(s); }
+function _normEntryArr(v){ if(Array.isArray(v)) return v; if(typeof v==='string'){try{const p=JSON.parse(v);return Array.isArray(p)?p:[];}catch(e){return [];}} return []; }
+function _verletzungOffen(v){ if(!v||!v.bis) return true; const today=new Date().toISOString().slice(0,10); return String(v.bis).slice(0,10)>=today; }
+const ABW_GRUENDE=[
+  {v:'urlaub',     l:'Urlaub'},
+  {v:'beruf',      l:'Beruf / Arbeit'},
+  {v:'schule',     l:'Schule / Studium'},
+  {v:'krankheit',  l:'Krankheit (keine Verletzung)'},
+  {v:'schwanger',  l:'Schwangerschaft / Elternzeit'},
+  {v:'persoenlich',l:'Persönlich / Familie'},
+  {v:'sonstiges',  l:'Sonstiges'}
+];
+const ABW_GRUND_LABEL=Object.fromEntries(ABW_GRUENDE.map(g=>[g.v,g.l]));
+
+// Stichtag der Einheit (sonst heute)
+function _awSessionDate(){
+  const d=String(sessionMeta.date||'').slice(0,10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d)?d:new Date().toISOString().slice(0,10);
+}
+// Abgeleiteter Tagesstatus aus Langzeitdaten: 'verletzt' | 'abwesend' | null
+function _awAutoStatus(p,date){
+  for(const v of _normEntryArr(p.verletzungen)){
+    if(!v) continue;
+    const von=(v.von||'').slice(0,10), bis=(v.bis||'').slice(0,10);
+    if((von||v.art)&&(!von||von<=date)&&(!bis||bis>=date)) return 'verletzt';
+  }
+  for(const a of _normEntryArr(p.abwesenheiten)){
+    if(!a) continue;
+    const von=(a.von||'').slice(0,10), bis=(a.bis||'').slice(0,10);
+    if((von||bis)&&(!von||von<=date)&&(!bis||bis>=date)) return 'abwesend';
+  }
+  return null;
+}
+// Status-Chips für die Anwesenheitsliste
+function _awRecordChips(p){
+  const sd=_awSessionDate();
+  const chips=[];
+  const vHit=_normEntryArr(p.verletzungen).find(v=>{ if(!v) return false; const von=(v.von||'').slice(0,10), bis=(v.bis||'').slice(0,10); return (von||v.art)&&(!von||von<=sd)&&(!bis||bis>=sd); });
+  if(vHit){
+    const art=vHit.art||'verletzt';
+    const lbl=art.length>22?art.slice(0,21)+'…':art;
+    chips.push(`<span class="aw-chip injury" title="${_escHtml(art)}${vHit.bis?' bis '+fmtDateDE(vHit.bis):''}">🤕 ${_escHtml(lbl)}</span>`);
+  }
+  const abw=_normEntryArr(p.abwesenheiten).filter(a=>a&&(a.von||a.bis));
+  const aHit=abw.find(a=>{ const von=(a.von||'').slice(0,10), bis=(a.bis||'').slice(0,10); return (!von||von<=sd)&&(!bis||bis>=sd); });
+  if(aHit){
+    chips.push(`<span class="aw-chip absence" title="${_escHtml(ABW_GRUND_LABEL[aHit.grund]||aHit.grund||'Abwesenheit')}${aHit.bis?' bis '+fmtDateDE(aHit.bis):''}">🏖️ ${_escHtml(ABW_GRUND_LABEL[aHit.grund]||'abwesend')}</span>`);
+  } else {
+    const up=abw.filter(a=>(a.von||'').slice(0,10)>sd).sort((x,y)=>x.von<y.von?-1:1)[0];
+    if(up) chips.push(`<span class="aw-chip upcoming" title="${_escHtml(ABW_GRUND_LABEL[up.grund]||up.grund||'Abwesenheit')} ab ${fmtDateDE(up.von)}">📅 ab ${fmtDateDE(up.von)}</span>`);
+  }
+  if(p.aktiv===false){ chips.push('<span class="aw-chip inactive" title="Spielerin als inaktiv markiert">inaktiv</span>'); }
+  else if(p.aktiv_bis){ const bis=String(p.aktiv_bis).slice(0,10); if(bis<sd) chips.push(`<span class="aw-chip inactive" title="Aktiv bis ${fmtDateDE(bis)} (abgelaufen)">aktiv bis ${fmtDateDE(bis)}</span>`); }
+  return chips.join('');
+}
+
+// ── Spieler-Bearbeiten-Modal (Abwesenheiten & Verletzungen) ──
+let awpePlayerId=null, awpeTeamId=null, awpeAbw=[], awpeVerl=[];
+
+function openAwPlayerEdit(id){
+  const team=_resolveAwTeam();
+  if(!team){ showToast('Keine Mannschaft zugeordnet','info'); return; }
+  const p=(kaderCache[team.id]||[]).find(x=>String(x.id)===String(id));
+  if(!p){ showToast('Spielerin nicht gefunden','info'); return; }
+  awpePlayerId=p.id; awpeTeamId=team.id;
+  awpeAbw=_normEntryArr(p.abwesenheiten).map(a=>({von:a.von||'',bis:a.bis||'',grund:a.grund||'urlaub',notiz:a.notiz||''}));
+  awpeVerl=_normEntryArr(p.verletzungen).map(v=>({art:v.art||'',von:v.von||'',bis:v.bis||'',notiz:v.notiz||''}));
+  document.getElementById('awpe-title').textContent=p.name||'Spielerin';
+  const sub=document.getElementById('awpe-subtitle');
+  if(sub) sub.textContent=`${p.nummer!=null?'#'+String(p.nummer).padStart(2,'0')+' · ':''}Langzeit-Status · ${team.name}`;
+  renderAwpeAbw(); renderAwpeVerl();
+  document.getElementById('aw-player-modal').classList.add('open');
+}
+function closeAwPlayerEdit(){ document.getElementById('aw-player-modal').classList.remove('open'); }
+
+function renderAwpeAbw(){
+  const wrap=document.getElementById('awpe-abw-list'); if(!wrap) return;
+  if(!awpeAbw.length){ wrap.innerHTML='<div class="entry-empty">Keine Abwesenheiten hinterlegt.</div>'; return; }
+  wrap.innerHTML=awpeAbw.map((a,i)=>`
+    <div class="entry-card">
+      <div class="entry-row2">
+        <div class="entry-field"><label class="entry-lbl">Von</label><input type="date" class="entry-inp" value="${_escHtml(a.von||'')}" onchange="awpeUpdAbw(${i},'von',this.value)"></div>
+        <div class="entry-field"><label class="entry-lbl">Bis</label><input type="date" class="entry-inp" value="${_escHtml(a.bis||'')}" onchange="awpeUpdAbw(${i},'bis',this.value)"></div>
+      </div>
+      <div class="entry-field"><label class="entry-lbl">Grund</label>
+        <select class="entry-inp" onchange="awpeUpdAbw(${i},'grund',this.value)">${ABW_GRUENDE.map(g=>`<option value="${g.v}" ${a.grund===g.v?'selected':''}>${g.l}</option>`).join('')}</select>
+      </div>
+      <div class="entry-field"><label class="entry-lbl">Notiz</label>
+        <input type="text" class="entry-inp" value="${_escHtml(a.notiz||'')}" placeholder="optional" onchange="awpeUpdAbw(${i},'notiz',this.value)">
+      </div>
+      <button type="button" class="entry-del" onclick="awpeDelAbw(${i})">🗑️ Entfernen</button>
+    </div>`).join('');
+}
+function awpeUpdAbw(i,k,v){ if(awpeAbw[i]) awpeAbw[i][k]=v; }
+function awpeAddAbw(){ awpeAbw.push({von:'',bis:'',grund:'urlaub',notiz:''}); renderAwpeAbw(); }
+function awpeDelAbw(i){ awpeAbw.splice(i,1); renderAwpeAbw(); }
+
+function renderAwpeVerl(){
+  const wrap=document.getElementById('awpe-verl-list'); if(!wrap) return;
+  if(!awpeVerl.length){ wrap.innerHTML='<div class="entry-empty">Keine Verletzungen hinterlegt.</div>'; return; }
+  wrap.innerHTML=awpeVerl.map((v,i)=>`
+    <div class="entry-card ${_verletzungOffen(v)&&(v.von||v.art)?'injury-open':''}">
+      <div class="entry-field"><label class="entry-lbl">Art der Verletzung</label>
+        <input type="text" class="entry-inp" list="awpe-verl-arten" value="${_escHtml(v.art||'')}" placeholder="z.B. Bänderdehnung Sprunggelenk" onchange="awpeUpdVerl(${i},'art',this.value)">
+      </div>
+      <div class="entry-row2">
+        <div class="entry-field"><label class="entry-lbl">Von</label><input type="date" class="entry-inp" value="${_escHtml(v.von||'')}" onchange="awpeUpdVerl(${i},'von',this.value)"></div>
+        <div class="entry-field"><label class="entry-lbl">Bis (Rückkehr)</label><input type="date" class="entry-inp" value="${_escHtml(v.bis||'')}" onchange="awpeUpdVerl(${i},'bis',this.value)"></div>
+      </div>
+      <div class="entry-field"><label class="entry-lbl">Notiz</label>
+        <input type="text" class="entry-inp" value="${_escHtml(v.notiz||'')}" placeholder="optional (Behandlung, Reha …)" onchange="awpeUpdVerl(${i},'notiz',this.value)">
+      </div>
+      <button type="button" class="entry-del" onclick="awpeDelVerl(${i})">🗑️ Entfernen</button>
+    </div>`).join('');
+}
+function awpeUpdVerl(i,k,v){ if(awpeVerl[i]) awpeVerl[i][k]=v; }
+function awpeAddVerl(){ awpeVerl.push({art:'',von:'',bis:'',notiz:''}); renderAwpeVerl(); }
+function awpeDelVerl(i){ awpeVerl.splice(i,1); renderAwpeVerl(); }
+
+async function saveAwPlayerEdit(){
+  if(!awpePlayerId||!awpeTeamId) return;
+  const btn=document.getElementById('awpe-save');
+  if(btn){ btn.textContent='⏳…'; btn.disabled=true; }
+  const cleanAbw=awpeAbw.filter(a=>a&&(a.von||a.bis||a.notiz));
+  const cleanVerl=awpeVerl.filter(v=>v&&(v.art||v.von||v.bis||v.notiz));
+  const {error}=await supa.from('mannschaft_spieler')
+    .update({abwesenheiten:cleanAbw, verletzungen:cleanVerl})
+    .eq('id',awpePlayerId);
+  if(btn){ btn.textContent='💾 Speichern'; btn.disabled=false; }
+  if(error){
+    if(/abwesenheiten|verletzungen|column|PGRST204|schema cache/i.test(error.message||'')){
+      showToast('⚠️ Spalten fehlen – bitte SQL-Migration ausführen (siehe Konsole)','info');
+      console.warn("SQL-Migration erforderlich:\nALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS abwesenheiten jsonb DEFAULT '[]'::jsonb;\nALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS verletzungen jsonb DEFAULT '[]'::jsonb;");
+    } else {
+      showToast('❌ '+error.message,'info');
+    }
+    return;
+  }
+  // Cache aktualisieren
+  const p=(kaderCache[awpeTeamId]||[]).find(x=>String(x.id)===String(awpePlayerId));
+  if(p){
+    p.abwesenheiten=cleanAbw; p.verletzungen=cleanVerl;
+    // Tagesstatus passend zur aktualisierten Langzeitlage ableiten
+    const auto=_awAutoStatus(p,_awSessionDate());
+    anwesenheitDaten[p.id]=auto||'anwesend';
+    anwesenheitDirty=true;
+  }
+  closeAwPlayerEdit();
+  showToast('✅ Status gespeichert','success');
+  const team=_resolveAwTeam();
+  if(team&&kaderCache[team.id]) renderAnwesenheit(kaderCache[team.id], team.name);
 }
 
 // ── Status einer Spielerin weiterschalten ──
