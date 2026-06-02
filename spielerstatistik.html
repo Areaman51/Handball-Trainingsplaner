@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260531.2200 — Spielerstatistik -->
+<!-- Handball Coaching Tools v1.260602.1247 — Spielerstatistik -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -200,6 +200,62 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .att-badge.abwesend{background:var(--red-l);color:var(--red);}
 .att-badge.verletzt{background:#fef9ec;color:var(--yellow);}
 
+.att-dot.zusatz{background:#7c3aed;}
+.att-num.zus{color:#7c3aed;}
+
+/* Anwesenheits-Gruppen (Mannschaft / Zusatz) */
+.att-group{margin-bottom:18px;}
+.att-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:2px 0 9px;flex-wrap:wrap;}
+.att-group-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--xsoft);}
+.att-note{font-size:11.5px;color:var(--soft);margin:2px 0 14px;}
+.att-note strong{color:var(--yellow);font-weight:700;}
+
+/* Soll-Editor */
+.soll-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--soft);
+  background:var(--bg);border-radius:9px;padding:9px 12px;margin-bottom:14px;}
+.soll-row .sl-lbl{font-weight:600;color:var(--text);}
+.soll-input{width:54px;font-size:12px;font-weight:700;font-family:'DM Mono',monospace;
+  padding:4px 7px;border:1px solid var(--border);border-radius:7px;background:white;color:var(--text);
+  text-align:center;outline:none;}
+.soll-input:focus{border-color:var(--accent);}
+.soll-sep{color:var(--border);}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(14,20,32,.55);z-index:120;
+  display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;}
+.modal-overlay.open{display:flex;}
+.modal{background:white;border-radius:14px;width:100%;max-width:520px;box-shadow:var(--shadow-lg);
+  overflow:hidden;animation:modalIn .18s ease;}
+@keyframes modalIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;
+  border-bottom:1px solid var(--border);}
+.modal-head .mh-title{font-size:15px;font-weight:700;letter-spacing:-.2px;}
+.modal-x{background:none;border:none;font-size:18px;color:var(--xsoft);cursor:pointer;line-height:1;padding:2px 4px;}
+.modal-x:hover{color:var(--text);}
+.modal-body{padding:18px 20px;}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--border);background:var(--bg);}
+.frm-row{margin-bottom:14px;}
+.frm-row .frm-lbl{display:block;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--xsoft);margin-bottom:5px;}
+.frm-row .frm-opt{font-weight:400;text-transform:none;letter-spacing:0;color:var(--xsoft);}
+.frm-input,.frm-select{width:100%;font-size:13px;font-family:'DM Sans',sans-serif;
+  padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:white;color:var(--text);outline:none;}
+.frm-input:focus,.frm-select:focus{border-color:var(--accent);}
+.frm-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.chk-tools{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.chk-tool{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;cursor:pointer;
+  background:var(--bg);border:1px solid var(--border);color:var(--soft);font-family:inherit;}
+.chk-tool:hover{background:var(--accent-l);color:var(--accent);border-color:#c7d2fe;}
+.chk-list{max-height:230px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:6px;
+  display:flex;flex-direction:column;gap:2px;}
+.chk-item{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;cursor:pointer;font-size:13px;}
+.chk-item:hover{background:var(--bg);}
+.chk-item input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
+.chk-item .ci-nr{font-family:'DM Mono',monospace;font-size:11px;color:var(--soft);min-width:22px;}
+.chk-item .ci-pos{margin-left:auto;font-size:12px;color:var(--xsoft);}
+.chk-count{font-size:11.5px;color:var(--soft);margin-top:8px;}
+
 /* Empty / Loading */
 .empty{padding:48px 24px;text-align:center;color:var(--xsoft);}
 .empty .e-icon{font-size:40px;margin-bottom:12px;}
@@ -273,7 +329,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260531.2200</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260602.1247</div>
     </div>
   </aside>
 
@@ -303,6 +359,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <button class="pos-btn" id="pos-th" onclick="setPosFilter('TH')">● Tor</button>
           </div>
           <div id="saison-picker"></div>
+          <button class="btn btn-primary btn-sm" onclick="openZusatzModal()" title="Zusatzeinheit(en) erfassen">➕ Zusatzeinheit</button>
           <button class="btn btn-ghost btn-sm" onclick="reloadAll()" title="Aktualisieren">🔄</button>
         </div>
       </div>
@@ -321,6 +378,60 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
     </div>
   </main>
+</div>
+
+<!-- ════ MODAL: Zusatzeinheit erfassen ════ -->
+<div class="modal-overlay" id="zus-modal" onclick="if(event.target===this)closeZusatzModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="mh-title">➕ Zusatzeinheit erfassen</div>
+      <button class="modal-x" onclick="closeZusatzModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="frm-2col">
+        <div class="frm-row">
+          <label class="frm-lbl">Datum</label>
+          <input type="date" class="frm-input" id="zus-datum">
+        </div>
+        <div class="frm-row">
+          <label class="frm-lbl">Dauer <span class="frm-opt">(optional)</span></label>
+          <input type="number" min="0" step="5" class="frm-input" id="zus-dauer" placeholder="z.B. 45 Min">
+        </div>
+      </div>
+      <div class="frm-row">
+        <label class="frm-lbl">Art <span class="frm-opt">(optional)</span></label>
+        <select class="frm-select" id="zus-typ">
+          <option value="">– keine Angabe –</option>
+          <option value="Kraft">Kraft / Athletik</option>
+          <option value="Wurf">Wurftraining</option>
+          <option value="Lauf">Lauf / Ausdauer</option>
+          <option value="Beweglichkeit">Beweglichkeit / Mobility</option>
+          <option value="Reha">Reha</option>
+          <option value="Technik">Technik / individuell</option>
+          <option value="Sonstiges">Sonstiges</option>
+        </select>
+      </div>
+      <div class="frm-row">
+        <label class="frm-lbl">Notiz <span class="frm-opt">(optional)</span></label>
+        <input type="text" class="frm-input" id="zus-notiz" placeholder="z.B. Schwerpunkt, Ort …">
+      </div>
+      <div class="frm-row" style="margin-bottom:0;">
+        <label class="frm-lbl">Spieler/innen</label>
+        <div class="chk-tools">
+          <button class="chk-tool" onclick="zusSelect('all')">Alle</button>
+          <button class="chk-tool" onclick="zusSelect('fl')">▲ Feld</button>
+          <button class="chk-tool" onclick="zusSelect('th')">● Tor</button>
+          <button class="chk-tool" onclick="zusSelect('none')">Keine</button>
+        </div>
+        <div class="chk-list" id="zus-players"></div>
+        <div class="chk-count" id="zus-count">0 ausgewählt</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeZusatzModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="zus-save" onclick="saveZusatz()">Speichern</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -349,6 +460,9 @@ let _players=[];            // Kader mit angereicherten .game / .att Daten
 let _selectedPlayerId=null;
 let _activeTab='langzeit';
 let toastTm=null;
+let _teamSollWoche=null;     // Team-Standard Zusatz-Soll pro Woche
+let _zusatzById={};          // spieler_id → {count, minutes, items:[{datum,typ,dauer_min,notiz}]}
+let _activeWeeks=new Set();  // ISO-Wochen mit ≥1 Mannschaftstraining im Zeitraum
 
 // ════════════════════════════════════════════════════════════
 // AUTH
@@ -389,7 +503,7 @@ async function initMyTeam(){
   _myTeamId  =localStorage.getItem('hbs_my_mannschaft_id')||localStorage.getItem('aktive_mannschaft_id')||'';
 
   const {data}=await supa.from('mannschaften')
-    .select('id,name,verein,user_id')
+    .select('id,name,verein,user_id,zusatz_soll_woche')
     .order('sort_order',{ascending:true})
     .order('created_at',{ascending:true});
   _availableTeams=data||[];
@@ -408,6 +522,7 @@ async function initMyTeam(){
   // Eigentümer / Freigabe-Status
   const cur=_availableTeams.find(m=>String(m.id)===String(_myTeamId));
   if(cur){ _myTeamOwnerId=cur.user_id||''; _isSharedTeam=!!_myTeamOwnerId && _myTeamOwnerId!==currentUser.id; }
+  _teamSollWoche=(cur && cur.zusatz_soll_woche!=null)?cur.zusatz_soll_woche:null;
 
   _persistTeam();
   renderTeamWidget();
@@ -446,6 +561,7 @@ async function switchTeam(id){
   if(!m) return;
   _myTeamId=m.id; _myTeamName=m.name;
   _myTeamOwnerId=m.user_id||''; _isSharedTeam=!!_myTeamOwnerId && _myTeamOwnerId!==currentUser.id;
+  _teamSollWoche=(m.zusatz_soll_woche!=null)?m.zusatz_soll_woche:null;
   _persistTeam(); renderTeamWidget();
   _selectedPlayerId=null;
   await loadSaisons(); renderSaisonPicker();
@@ -524,7 +640,7 @@ async function reloadAll(){
   document.getElementById('page-sub').textContent=`${_myTeamName} · ${saisonLabel}`;
 
   try{
-    await Promise.all([loadKaderWithGameStats(), loadAttendance()]);
+    await Promise.all([loadKaderWithGameStats(), loadAttendance(), loadEinzeleinheiten()]);
     renderPlayerList();
     if(_selectedPlayerId && _players.find(p=>p.id===_selectedPlayerId)){
       renderDetail(_selectedPlayerId);
@@ -545,7 +661,7 @@ async function reloadAll(){
 async function loadKaderWithGameStats(){
   // 1. Kader
   const {data:ks}=await supa.from('mannschaft_spieler')
-    .select('id,name,nummer,pos')
+    .select('id,name,nummer,pos,zusatz_soll_woche')
     .eq('mannschaft_id',_myTeamId)
     .order('pos',{ascending:true}).order('nummer',{ascending:true,nullsFirst:false});
   const kader=(ks||[]).map(p=>({...p, game:emptyGame(), att:emptyAtt()}));
@@ -641,6 +757,7 @@ async function loadKaderWithGameStats(){
 
 // ── Anwesenheit (Trainingsdaten) ──
 async function loadAttendance(){
+  _attById={}; _activeWeeks=new Set();
   const teamName=(_myTeamName||'').trim();
   if(!teamName){ return; }
   let q=supa.from('einheiten')
@@ -655,6 +772,7 @@ async function loadAttendance(){
   // Tally pro Spieler-ID
   const byId={};   // id → {anwesend,abwesend,verletzt,sessions:[{date,name,status}]}
   (einheiten||[]).forEach(e=>{
+    const wk=isoWeekKey(e.date); if(wk) _activeWeeks.add(wk);
     const sp=e.anwesenheit?.spieler;
     if(!Array.isArray(sp)) return;
     sp.forEach(rec=>{
@@ -672,6 +790,28 @@ async function loadAttendance(){
   _attById=byId;
 }
 let _attById={};
+
+// ── Zusatzeinheiten (individuell absolviert) ──
+async function loadEinzeleinheiten(){
+  _zusatzById={};
+  if(!_myTeamId){ return; }
+  let q=supa.from('einzeleinheiten')
+    .select('id,spieler_id,datum,typ,dauer_min,notiz')
+    .eq('mannschaft_id',_myTeamId)
+    .order('datum',{ascending:false})
+    .limit(10000);
+  const r=getSaisonRange(_saisonId);
+  if(r){ q=q.gte('datum',r.start).lte('datum',r.end); }
+  const {data,error}=await q;
+  if(error){ console.warn('[Zusatz]',error.message); return; }
+  (data||[]).forEach(z=>{
+    const id=z.spieler_id; if(!id) return;
+    if(!_zusatzById[id]) _zusatzById[id]={count:0,minutes:0,items:[]};
+    _zusatzById[id].count++;
+    if(z.dauer_min) _zusatzById[id].minutes+=Number(z.dauer_min)||0;
+    _zusatzById[id].items.push({datum:z.datum,typ:z.typ||'',dauer_min:z.dauer_min,notiz:z.notiz||''});
+  });
+}
 function emptyGame(){ return {spiele:0,spieleAkt:0,s:{},aktionen:[],_altNummern:[],spieleMap:{}}; }
 function emptyAtt(){ return {anwesend:0,abwesend:0,verletzt:0,sessions:[]}; }
 
@@ -679,8 +819,35 @@ function emptyAtt(){ return {anwesend:0,abwesend:0,verletzt:0,sessions:[]}; }
 // RENDERING — SPIELERLISTE
 // ════════════════════════════════════════════════════════════
 function _att(p){ return _attById[p.id]||emptyAtt(); }
-function _attTotal(a){ return a.anwesend+a.abwesend+a.verletzt; }
-function _attQuote(a){ const t=_attTotal(a); return t>0?Math.round(a.anwesend/t*100):null; }
+function _attTotal(a){ return a.anwesend+a.abwesend+a.verletzt; }   // brutto inkl. Verletzung
+function _attBasis(a){ return a.anwesend+a.abwesend; }              // Nenner OHNE Verletzung
+function _attQuote(a){ const b=_attBasis(a); return b>0?Math.round(a.anwesend/b*100):null; }
+
+// ── Zusatzeinheiten / Soll ──
+function isoWeekKey(dateStr){
+  if(!dateStr) return null;
+  const d=new Date(String(dateStr).slice(0,10)+'T00:00:00Z');
+  if(isNaN(d)) return null;
+  const t=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));
+  const day=t.getUTCDay()||7;
+  t.setUTCDate(t.getUTCDate()+4-day);
+  const ys=new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  const wk=Math.ceil((((t-ys)/86400000)+1)/7);
+  return t.getUTCFullYear()+'-W'+String(wk).padStart(2,'0');
+}
+function _zus(p){ return _zusatzById[p.id]||{count:0,minutes:0,items:[]}; }
+function _sollWoche(p){ const o=p.zusatz_soll_woche; return (o!=null?o:(_teamSollWoche!=null?_teamSollWoche:0)); }
+// Wochen, in denen der Spieler in ALLEN erfassten Einheiten verletzt war → vom Soll ausgenommen
+function _injuredWeeks(a){
+  const byW={};
+  a.sessions.forEach(se=>{ const w=isoWeekKey(se.date); if(!w) return; (byW[w]=byW[w]||[]).push(se.status); });
+  const inj=new Set();
+  Object.keys(byW).forEach(w=>{ const sts=byW[w]; if(sts.length && sts.every(s=>s==='verletzt')) inj.add(w); });
+  return inj;
+}
+function _sollWeeks(p){ const inj=_injuredWeeks(_att(p)); let n=0; _activeWeeks.forEach(w=>{ if(!inj.has(w)) n++; }); return n; }
+function _zusExclWeeks(p){ const inj=_injuredWeeks(_att(p)); let n=0; _activeWeeks.forEach(w=>{ if(inj.has(w)) n++; }); return n; }
+function _zusSoll(p){ return _sollWoche(p)*_sollWeeks(p); }
 
 function renderPlayerList(){
   const el=document.getElementById('player-list');
@@ -706,12 +873,14 @@ function renderPlayerList(){
     const m1=`${p.game.spiele||0} Sp`;
     const m2=isTH?`${geh} Par.`:`${tore} Tore`;
     const m3=q!==null?`${q}% Anw.`:'– Anw.';
+    const z=_zus(p); const soll=_zusSoll(p);
+    const m4=soll>0?`${z.count}/${soll} Zus.`:(z.count?`${z.count} Zus.`:'');
     const nr=p.nummer!=null && p.nummer!==''?String(p.nummer).padStart(2,'0'):'–';
     return `<div class="player-card ${p.id===_selectedPlayerId?'active':''}" onclick="selectPlayer('${p.id}')">
       <div class="pc-nr">${nr}</div>
       <div class="pc-body">
         <div class="pc-name">${esc(p.name)}</div>
-        <div class="pc-meta"><span>${m1}</span><span class="dot">·</span><span>${m2}</span><span class="dot">·</span><span>${m3}</span></div>
+        <div class="pc-meta"><span>${m1}</span><span class="dot">·</span><span>${m2}</span><span class="dot">·</span><span>${m3}</span>${m4?`<span class="dot">·</span><span style="color:#7c3aed;font-weight:600;">${m4}</span>`:''}</div>
       </div>
       <div class="pc-pos">${isTH?'●':'▲'}</div>
     </div>`;
@@ -874,21 +1043,38 @@ function renderPerGame(p,isTH){
 // ── TAB: Anwesenheit (Trainingsdaten) ──
 function renderAttTab(p){
   const a=_att(p);
-  const total=_attTotal(a);
-  if(!total){
+  const basis=_attBasis(a), total=_attTotal(a), q=_attQuote(a);
+  const z=_zus(p), ist=z.count;
+  const sollWoche=_sollWoche(p), sollWeeks=_sollWeeks(p), soll=_zusSoll(p), exclW=_zusExclWeeks(p);
+  const hasAtt=total>0;
+  const hasZus=ist>0 || sollWoche>0 || _activeWeeks.size>0;
+  if(!hasAtt && !hasZus){
     return `<div class="empty"><div class="e-icon">✅</div>
-      <div class="e-title">Keine Anwesenheitsdaten</div>
-      <div>Für diese Spielerin wurde in diesem Zeitraum noch keine Trainings-Anwesenheit erfasst.<br>
+      <div class="e-title">Keine Daten</div>
+      <div>Für diese Spielerin wurde in diesem Zeitraum noch keine Trainings-Anwesenheit erfasst<br>
+      und keine Zusatzeinheit hinterlegt.<br>
       <a href="trainingsplaner.html" style="color:var(--accent);font-weight:600;text-decoration:none;">→ Trainingsplaner</a></div></div>`;
   }
-  const q=_attQuote(a);
-  const bar=`<div class="att-bar">
-    <div class="att-stat"><div class="att-dot quote"></div><div><div class="att-num" style="color:var(--accent)">${q}%</div><div class="att-lbl">Anw.-Quote</div></div></div>
-    <div class="att-stat"><div class="att-dot anwesend"></div><div><div class="att-num" style="color:var(--green)">${a.anwesend}</div><div class="att-lbl">Anwesend</div></div></div>
-    <div class="att-stat"><div class="att-dot abwesend"></div><div><div class="att-num" style="color:var(--red)">${a.abwesend}</div><div class="att-lbl">Abwesend</div></div></div>
-    <div class="att-stat"><div class="att-dot verletzt"></div><div><div class="att-num" style="color:var(--yellow)">${a.verletzt}</div><div class="att-lbl">Verletzt</div></div></div>
-  </div>`;
 
+  // ── Mannschaftstraining ──
+  let mt='';
+  if(hasAtt){
+    const note = a.verletzt>0
+      ? `<div class="att-note"><strong style="color:var(--text)">${a.anwesend}/${basis}</strong> Pflicht-Einheiten besucht · <strong>${a.verletzt}</strong> verletzungsbedingt herausgerechnet · ${total} gesamt</div>`
+      : `<div class="att-note">${a.anwesend}/${basis} Pflicht-Einheiten besucht</div>`;
+    mt=`<div class="att-group">
+      <div class="att-group-head"><div class="att-group-title">🏋 Mannschaftstraining</div></div>
+      <div class="att-bar">
+        <div class="att-stat"><div class="att-dot quote"></div><div><div class="att-num" style="color:var(--accent)">${q!==null?q+'%':'–'}</div><div class="att-lbl">Anw.-Quote</div></div></div>
+        <div class="att-stat"><div class="att-dot anwesend"></div><div><div class="att-num" style="color:var(--green)">${a.anwesend}</div><div class="att-lbl">Anwesend</div></div></div>
+        <div class="att-stat"><div class="att-dot abwesend"></div><div><div class="att-num" style="color:var(--red)">${a.abwesend}</div><div class="att-lbl">Abwesend</div></div></div>
+        <div class="att-stat"><div class="att-dot verletzt"></div><div><div class="att-num" style="color:var(--yellow)">${a.verletzt}</div><div class="att-lbl">Verletzt</div></div></div>
+      </div>
+      ${note}
+    </div>`;
+  }
+
+  // ── Mannschafts-Sessions-Liste ──
   const labels={anwesend:'✅ Anwesend',abwesend:'❌ Abwesend',verletzt:'🤕 Verletzt'};
   const rows=a.sessions.slice().sort((x,y)=>(y.date||'').localeCompare(x.date||''))
     .map(se=>`<tr>
@@ -896,12 +1082,144 @@ function renderAttTab(p){
       <td class="lcol">${esc(se.name)}</td>
       <td><span class="att-badge ${se.status}">${labels[se.status]||se.status}</span></td>
     </tr>`).join('');
+  const mtList = hasAtt
+    ? `<div class="sect-label">Mannschaftstrainings (${total})</div>
+       <div class="tbl-wrap" style="margin-bottom:20px;"><table class="stbl"><thead><tr>
+         <th class="lcol">Datum</th><th class="lcol">Einheit</th><th>Status</th>
+       </tr></thead><tbody>${rows}</tbody></table></div>`
+    : '';
 
-  return `${bar}
-    <div class="sect-label">Erfasste Trainings (${total})</div>
-    <div class="tbl-wrap"><table class="stbl"><thead><tr>
-      <th class="lcol">Datum</th><th class="lcol">Einheit</th><th>Status</th>
-    </tr></thead><tbody>${rows}</tbody></table></div>`;
+  // ── Zusatztraining ──
+  const erf = soll>0?Math.round(ist/soll*100):null;
+  const canEdit=!_isSharedTeam;
+  const dis=canEdit?'':'disabled';
+  const ovVal = p.zusatz_soll_woche!=null?p.zusatz_soll_woche:'';
+  const teamVal = _teamSollWoche!=null?_teamSollWoche:'';
+  const sollExpl = sollWoche>0
+    ? `→ Soll im Zeitraum: <strong style="color:var(--text)">${soll}</strong> (${sollWeeks} Trainingswochen × ${sollWoche}${exclW>0?` · ${exclW} Wo. verletzungsbedingt ausgenommen`:''})`
+    : `→ kein Soll gesetzt`;
+  const sollRow=`<div class="soll-row">
+      <span class="sl-lbl">Soll/Woche je Spielerin:</span>
+      <input type="number" min="0" class="soll-input" value="${ovVal}" placeholder="${teamVal!==''?teamVal:'–'}" ${dis}
+        onchange="savePlayerSoll('${p.id}',this.value)" title="Individueller Wert (leer = Team-Standard)">
+      <span class="soll-sep">·</span>
+      <span class="sl-lbl">Team-Standard:</span>
+      <input type="number" min="0" class="soll-input" value="${teamVal}" placeholder="0" ${dis}
+        onchange="saveTeamSoll(this.value)" title="Standard für das ganze Team">
+      <span>/Woche</span>
+    </div>
+    <div class="att-note">${sollExpl}${canEdit?'':' · <em>nur Lesezugriff (fremdes Team)</em>'}</div>`;
+
+  const zusBar=`<div class="att-bar">
+    <div class="att-stat"><div class="att-dot zusatz"></div><div><div class="att-num zus">${ist}${soll>0?`<span style="font-size:13px;color:var(--xsoft)">/${soll}</span>`:''}</div><div class="att-lbl">Zusatzeinheiten</div></div></div>
+    ${erf!==null?`<div class="att-stat"><div class="att-dot zusatz"></div><div><div class="att-num zus">${erf}%</div><div class="att-lbl">Erfüllung</div></div></div>`:''}
+    ${z.minutes>0?`<div class="att-stat"><div class="att-dot zusatz"></div><div><div class="att-num zus">${z.minutes}</div><div class="att-lbl">Minuten ges.</div></div></div>`:''}
+  </div>`;
+
+  const zusRows=z.items.slice().sort((x,y)=>(y.datum||'').localeCompare(x.datum||''))
+    .map(it=>`<tr>
+      <td class="lcol">${fmtDate(it.datum)}</td>
+      <td class="lcol">${it.typ?esc(it.typ):'<span style="color:var(--xsoft)">–</span>'}</td>
+      <td>${it.dauer_min?esc(it.dauer_min)+' Min':'<span style="color:var(--xsoft)">–</span>'}</td>
+      <td class="lcol">${it.notiz?esc(it.notiz):''}</td>
+    </tr>`).join('');
+  const zusList = ist>0
+    ? `<div class="sect-label" style="margin-top:4px;">Erfasste Zusatzeinheiten (${ist})</div>
+       <div class="tbl-wrap"><table class="stbl"><thead><tr>
+         <th class="lcol">Datum</th><th class="lcol">Art</th><th>Zeit</th><th class="lcol">Notiz</th>
+       </tr></thead><tbody>${zusRows}</tbody></table></div>`
+    : `<div class="att-note" style="margin-top:2px;">Noch keine Zusatzeinheiten in diesem Zeitraum erfasst.</div>`;
+
+  const zt=`<div class="att-group" style="margin-bottom:0;">
+    <div class="att-group-head"><div class="att-group-title">➕ Zusatztraining (individuell)</div></div>
+    ${zusBar}
+    ${sollRow}
+    ${zusList}
+  </div>`;
+
+  return `${mt}${mtList}${zt}`;
+}
+
+// ════════════════════════════════════════════════════════════
+// ZUSATZEINHEITEN — ERFASSUNG (mehrere Spieler auf einmal)
+// ════════════════════════════════════════════════════════════
+function openZusatzModal(){
+  if(!_myTeamId){ toast('Kein Team ausgewählt','error'); return; }
+  if(_isSharedTeam){ toast('Nur Lesezugriff für fremde Teams','error'); return; }
+  if(!_players.length){ toast('Kein Kader vorhanden','error'); return; }
+  const d=new Date();
+  const today=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  document.getElementById('zus-datum').value=today;
+  document.getElementById('zus-dauer').value='';
+  document.getElementById('zus-typ').value='';
+  document.getElementById('zus-notiz').value='';
+  const list=document.getElementById('zus-players');
+  list.innerHTML=_players.map(p=>{
+    const nr=p.nummer!=null&&p.nummer!==''?String(p.nummer).padStart(2,'0'):'–';
+    return `<label class="chk-item">
+      <input type="checkbox" class="zus-chk" data-id="${p.id}" data-pos="${p.pos==='TH'?'TH':'FL'}" onchange="updateZusCount()">
+      <span class="ci-nr">${nr}</span><span>${esc(p.name)}</span>
+      <span class="ci-pos">${p.pos==='TH'?'●':'▲'}</span>
+    </label>`;
+  }).join('');
+  updateZusCount();
+  document.getElementById('zus-modal').classList.add('open');
+}
+function closeZusatzModal(){ document.getElementById('zus-modal').classList.remove('open'); }
+function zusSelect(mode){
+  document.querySelectorAll('.zus-chk').forEach(c=>{
+    if(mode==='all') c.checked=true;
+    else if(mode==='none') c.checked=false;
+    else if(mode==='fl') c.checked=(c.dataset.pos==='FL');
+    else if(mode==='th') c.checked=(c.dataset.pos==='TH');
+  });
+  updateZusCount();
+}
+function updateZusCount(){
+  const n=document.querySelectorAll('.zus-chk:checked').length;
+  document.getElementById('zus-count').textContent=`${n} ausgewählt`;
+}
+async function saveZusatz(){
+  const ids=[...document.querySelectorAll('.zus-chk:checked')].map(c=>c.dataset.id);
+  if(!ids.length){ toast('Bitte mindestens eine Spielerin wählen','error'); return; }
+  const datum=document.getElementById('zus-datum').value;
+  if(!datum){ toast('Bitte Datum angeben','error'); return; }
+  const typ=document.getElementById('zus-typ').value||null;
+  const dauerRaw=document.getElementById('zus-dauer').value;
+  let dauer=null;
+  if(dauerRaw!=='' && dauerRaw!=null){ const n=parseInt(dauerRaw,10); if(!isNaN(n)) dauer=Math.max(0,n); }
+  const notiz=document.getElementById('zus-notiz').value.trim()||null;
+  const rows=ids.map(id=>({
+    user_id:currentUser.id, mannschaft_id:_myTeamId, spieler_id:id,
+    datum, typ, dauer_min:dauer, notiz
+  }));
+  const btn=document.getElementById('zus-save'); btn.disabled=true; btn.textContent='Speichert…';
+  const {error}=await supa.from('einzeleinheiten').insert(rows);
+  btn.disabled=false; btn.textContent='Speichern';
+  if(error){ console.warn('[Zusatz speichern]',error.message); toast('Fehler: '+error.message,'error'); return; }
+  closeZusatzModal();
+  toast(`${rows.length} Zusatzeinheit(en) gespeichert`,'success');
+  await reloadAll();
+}
+
+// ── Soll bearbeiten ──
+async function savePlayerSoll(pid,val){
+  const p=_players.find(x=>x.id===pid); if(!p) return;
+  const v=(val===''||val==null)?null:Math.max(0,parseInt(val,10)||0);
+  const {error}=await supa.from('mannschaft_spieler').update({zusatz_soll_woche:v}).eq('id',pid);
+  if(error){ toast('Fehler: '+error.message,'error'); return; }
+  p.zusatz_soll_woche=v;
+  renderPlayerList(); renderDetail(pid);
+  toast('Soll aktualisiert','success');
+}
+async function saveTeamSoll(val){
+  const v=(val===''||val==null)?null:Math.max(0,parseInt(val,10)||0);
+  const {error}=await supa.from('mannschaften').update({zusatz_soll_woche:v}).eq('id',_myTeamId);
+  if(error){ toast('Fehler: '+error.message,'error'); return; }
+  _teamSollWoche=v;
+  const m=_availableTeams.find(t=>String(t.id)===String(_myTeamId)); if(m) m.zusatz_soll_woche=v;
+  renderPlayerList(); if(_selectedPlayerId) renderDetail(_selectedPlayerId);
+  toast('Team-Standard aktualisiert','success');
 }
 
 // ════════════════════════════════════════════════════════════
