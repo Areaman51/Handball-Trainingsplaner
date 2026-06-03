@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260601.1640 — Mannschaftsverwaltung -->
+<!-- Handball Coaching Tools v1.260603.0747 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -112,6 +112,7 @@ tbody tr:hover{background:#fafbff;}
 .pos-fl{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--accent-l);color:var(--accent);}
 .pos-th{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--orange-l);color:var(--orange);}
 .pos-def{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--red-l);color:var(--red);}
+.pos-def-sys{font-family:'DM Mono',monospace;font-size:9.5px;font-weight:700;background:var(--red);color:#fff;border-radius:5px;padding:1px 4px;letter-spacing:.02em;}
 .pos-fl.prim{border:1.5px solid var(--accent);}
 .pos-cell{display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
 /* Positions-Chips im Spieler-Modal */
@@ -261,7 +262,7 @@ tbody tr:hover{background:#fafbff;}
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260601.1640</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260603.0747</div>
     </div>
   </aside>
 
@@ -353,7 +354,7 @@ tbody tr:hover{background:#fafbff;}
         <label class="form-label" style="margin-bottom:6px;">&#9650; Angriffspositionen <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; Reihenfolge anklicken = Priorit&auml;t</span></label>
         <div class="pos-chips" id="pm-angriff-chips"></div>
         <div class="pos-section-hint" id="pm-angriff-hint"></div>
-        <label class="form-label" style="margin:14px 0 6px;">&#9679; Abwehrpositionen <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; Reihenfolge anklicken = Priorit&auml;t</span></label>
+        <label class="form-label" style="margin:14px 0 6px;">&#9679; Abwehrpositionen <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; je System getrennt &middot; Reihenfolge anklicken = Priorit&auml;t</span></label>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <span style="font-size:11.5px;color:var(--soft);font-weight:600;white-space:nowrap;">Abwehrsystem:</span>
           <select class="form-select" id="pm-abwehr-system" style="width:auto;padding:6px 10px;font-size:12.5px;" onchange="onAbwehrSystemChange()">
@@ -664,20 +665,23 @@ function setTab(tab){
 }
 
 // TAB KADER
-// Positionszelle: zeigt Angriffs- (▲) und Abwehrpositionen (●) in Prioritätsreihenfolge
+// Positionszelle: zeigt Angriffs- (▲) und Abwehrpositionen (●) pro System in Prioritätsreihenfolge
 function posCell(p){
   if(p.pos==='TH') return '<span class="pos-th">&#9679; Torh&uuml;ter</span>';
   const ang=(Array.isArray(p.angriff_pos)?p.angriff_pos:[]).map(migratePosCode);
-  const abw=(Array.isArray(p.abwehr_pos)?p.abwehr_pos:[]).map(migratePosCode);
+  const abwBySys=_normAbwBySys(p.abwehr_pos);   // vereinheitlicht (auch Legacy-Arrays)
   let html='<div class="pos-cell">';
   if(ang.length){
     html+=ang.map((c,i)=>`<span class="pos-fl ${i===0?'prim':''}" title="Angriff ${PRIO_LABELS[i]||(i+1)+'.'}">&#9650; ${esc(c)}</span>`).join('');
   } else {
     html+='<span class="pos-fl">&#9650; Feldspieler</span>';
   }
-  if(abw.length){
-    html+=abw.map((c,i)=>`<span class="pos-def" title="Abwehr ${PRIO_LABELS[i]||(i+1)+'.'}">&#9679; ${esc(c)}</span>`).join('');
-  }
+  Object.keys(ABWEHR_SYSTEME).filter(s=>(abwBySys[s]||[]).length).forEach(s=>{
+    const arr=abwBySys[s];
+    const seq=arr.map(c=>esc(c)).join(', ');
+    const title='Abwehr '+s+' &ndash; '+arr.map((c,i)=>(PRIO_LABELS[i]||(i+1)+'.')+' '+c).join(' &middot; ');
+    html+=`<span class="pos-def" title="${title}"><span class="pos-def-sys">${esc(s)}</span>&#9679; ${seq}</span>`;
+  });
   html+='</div>';
   return html;
 }
@@ -1004,7 +1008,9 @@ ANGRIFF_POS.forEach(o=>posLabelMap[o.code]=o.label);
 Object.entries(ABWEHR_POS_LABELS).forEach(([code,label])=>posLabelMap[code]=label);
 
 // Aktuelle Auswahl im Spieler-Modal (Reihenfolge = Priorität)
-let pmAngriff=[], pmAbwehr=[], pmAbwehrSystem='6:0';
+// Angriff: flaches Array (systemunabhängig).
+// Abwehr: pro Abwehrsystem getrennt → { '6:0':['AL',…], '5:1':['HM',…], … }
+let pmAngriff=[], pmAbwehrBySys={}, pmAbwehrSystem='6:0';
 // Abwesenheiten & Verletzungen im Spieler-Modal (Arbeitskopie)
 let pmAbwesenheiten=[], pmVerletzungen=[];
 
@@ -1016,9 +1022,46 @@ function _systemForCodes(arr){
   }
   return '6:0';
 }
+// abwehr_pos in {system:[codes]} normalisieren.
+// Akzeptiert das neue Objekt-Format UND das alte flache Array (Legacy-Migration):
+// ein altes Array wird dem zuerst passenden System zugeordnet.
+function _normAbwBySys(v){
+  const out={};
+  if(Array.isArray(v)){
+    const arr=_normPosArr(v);
+    if(arr.length) out[_systemForCodes(arr)]=arr;
+  } else if(v && typeof v==='object'){
+    for(const [sys,codes] of Object.entries(v)){
+      if(!ABWEHR_SYSTEME[sys]) continue;
+      const a=_normPosArr(codes).filter(c=>ABWEHR_SYSTEME[sys].includes(c));
+      if(a.length) out[sys]=a;
+    }
+  }
+  return out;
+}
+// Erstes System mit hinterlegten Positionen (für Vorauswahl des Dropdowns)
+function _firstConfiguredSystem(bySys){
+  const k=Object.keys(ABWEHR_SYSTEME).find(s=>(bySys[s]||[]).length);
+  return k||'6:0';
+}
+// Aufgeräumtes Speicherobjekt: nur Systeme mit Positionen, gültige Codes
+function _cleanAbwBySys(){
+  const out={};
+  for(const [sys,arr] of Object.entries(pmAbwehrBySys)){
+    if(!ABWEHR_SYSTEME[sys]||!Array.isArray(arr)) continue;
+    const a=arr.filter(c=>ABWEHR_SYSTEME[sys].includes(c));
+    if(a.length) out[sys]=a;
+  }
+  return out;
+}
+// Positions-Array des aktuell gewählten Abwehrsystems (legt es bei Bedarf an)
+function _curAbwArr(){
+  if(!Array.isArray(pmAbwehrBySys[pmAbwehrSystem])) pmAbwehrBySys[pmAbwehrSystem]=[];
+  return pmAbwehrBySys[pmAbwehrSystem];
+}
 
 function togglePmPos(group,code){
-  const arr=group==='ang'?pmAngriff:pmAbwehr;
+  const arr=group==='ang'?pmAngriff:_curAbwArr();
   const i=arr.indexOf(code);
   if(i>=0) arr.splice(i,1); else arr.push(code);
   renderPmChips();
@@ -1032,18 +1075,36 @@ function _prioHint(arr){
   if(!arr.length) return 'Keine Position gew&auml;hlt.';
   return arr.map((c,i)=>`<strong>${PRIO_LABELS[i]||(i+1)+'.'}</strong>: ${c} (${posLabelMap[c]||c})`).join(' &middot; ');
 }
+// Übersicht aller bereits konfigurierten Abwehrsysteme (das aktuelle hervorgehoben)
+function _abwSummary(){
+  const sys=Object.keys(ABWEHR_SYSTEME).filter(s=>(pmAbwehrBySys[s]||[]).length);
+  if(!sys.length) return '';
+  const parts=sys.map(s=>{
+    const seq=pmAbwehrBySys[s].map((c,i)=>i===0?`<strong>${c}</strong>`:c).join('&nbsp;&rsaquo;&nbsp;');
+    const active=s===pmAbwehrSystem;
+    return `<span style="${active?'color:var(--red);':''}">${s}:&nbsp;${seq}</span>`;
+  });
+  return '<div style="margin-top:5px;">Hinterlegt &ndash; '+parts.join(' &nbsp;&middot;&nbsp; ')+'</div>';
+}
 function renderPmChips(){
   const ang=document.getElementById('pm-angriff-chips');
   const abw=document.getElementById('pm-abwehr-chips');
   if(ang) ang.innerHTML=ANGRIFF_POS.map(o=>chipHtml('ang',o,pmAngriff)).join('');
   if(abw){
     const codes=ABWEHR_SYSTEME[pmAbwehrSystem]||ABWEHR_SYSTEME['6:0'];
-    abw.innerHTML=codes.map(c=>chipHtml('abw',{code:c,label:posLabelMap[c]||c},pmAbwehr)).join('');
+    const cur=_curAbwArr();
+    abw.innerHTML=codes.map(c=>chipHtml('abw',{code:c,label:posLabelMap[c]||c},cur)).join('');
   }
   const ah=document.getElementById('pm-angriff-hint');
   const bh=document.getElementById('pm-abwehr-hint');
   if(ah) ah.innerHTML=_prioHint(pmAngriff);
-  if(bh) bh.innerHTML=_prioHint(pmAbwehr);
+  if(bh){
+    const cur=_curAbwArr();
+    const head=cur.length
+      ? `<strong>${pmAbwehrSystem}</strong> &ndash; ${_prioHint(cur)}`
+      : `<strong>${pmAbwehrSystem}</strong>: keine Position gew&auml;hlt.`;
+    bh.innerHTML=head+_abwSummary();
+  }
 }
 function onAbwehrSystemChange(){
   const sel=document.getElementById('pm-abwehr-system');
@@ -1137,8 +1198,8 @@ function openPlayerModal(pid=null,defaultPos='FL'){
   renderAbwesenheiten();
   renderVerletzungen();
   pmAngriff=_normPosArr(p?.angriff_pos);
-  pmAbwehr=_normPosArr(p?.abwehr_pos);
-  pmAbwehrSystem=_systemForCodes(pmAbwehr);
+  pmAbwehrBySys=_normAbwBySys(p?.abwehr_pos);
+  pmAbwehrSystem=_firstConfiguredSystem(pmAbwehrBySys);
   const sysSel=document.getElementById('pm-abwehr-system');
   if(sysSel) sysSel.value=pmAbwehrSystem;
   renderPmChips();
@@ -1173,7 +1234,7 @@ async function savePlayer(){
     aktiv:document.getElementById('pm-aktiv').checked,
     aktiv_bis: aktivBis||null,
     angriff_pos: pos==='TH'?[]:pmAngriff.slice(),
-    abwehr_pos:  pos==='TH'?[]:pmAbwehr.slice(),
+    abwehr_pos:  pos==='TH'?{}:_cleanAbwBySys(),
     abwesenheiten:_cleanAbw(pmAbwesenheiten),
     verletzungen:_cleanVerl(pmVerletzungen)
   };
@@ -1186,7 +1247,7 @@ async function savePlayer(){
       showToast('⚠️ Zusatzdaten nicht gespeichert – SQL-Migration nötig (Konsole)','info');
       console.warn('SQL-Migration erforderlich:\n'+
         "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS angriff_pos jsonb DEFAULT '[]'::jsonb;\n"+
-        "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS abwehr_pos jsonb DEFAULT '[]'::jsonb;\n"+
+        "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS abwehr_pos jsonb DEFAULT '{}'::jsonb;\n"+
         "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS aktiv_bis date;\n"+
         "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS abwesenheiten jsonb DEFAULT '[]'::jsonb;\n"+
         "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS verletzungen jsonb DEFAULT '[]'::jsonb;");
