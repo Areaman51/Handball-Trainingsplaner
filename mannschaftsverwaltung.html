@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260603.0747 — Mannschaftsverwaltung -->
+<!-- Handball Coaching Tools v1.260604.0848 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -109,6 +109,9 @@ tbody tr:hover{background:#fafbff;}
 .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
 .badge-aktiv{background:var(--green-l);color:var(--green);}
 .badge-inaktiv{background:var(--red-l);color:var(--red);}
+.badge-beendet{background:var(--bg);color:var(--soft);}
+.tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:5px;border-radius:9px;background:var(--border);color:var(--soft);font-size:10.5px;font-weight:700;line-height:1;vertical-align:middle;}
+.tab-btn.active .tab-count{background:var(--accent-l);color:var(--accent);}
 .pos-fl{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--accent-l);color:var(--accent);}
 .pos-th{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--orange-l);color:var(--orange);}
 .pos-def{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--red-l);color:var(--red);}
@@ -316,6 +319,7 @@ tbody tr:hover{background:#fafbff;}
         </div>
         <div class="tabs" id="detail-tabs"></div>
         <div id="tab-content-kader"     style="display:none;"></div>
+        <div id="tab-content-inaktiv"   style="display:none;"></div>
         <div id="tab-content-feeds"     style="display:none;"></div>
         <div id="tab-content-info"      style="display:none;"></div>
         <div id="tab-content-freigaben" style="display:none;"></div>
@@ -599,15 +603,12 @@ async function showTeamDetail(tid){
   document.getElementById('detail-actions').innerHTML=owned
     ?`<button class="btn btn-ghost" onclick="openTeamModal('${tid}')">Bearbeiten</button><button class="btn btn-danger" onclick="confirmDeleteTeam('${tid}')">&#128465;</button>`
     :'';
-  const tabs=owned?[['kader','Kader'],['feeds','Feeds'],['info','Info'],['freigaben','Freigaben']]:[['kader','Kader'],['feeds','Feeds']];
   if(!owned&&(activeTab==='info'||activeTab==='freigaben'))activeTab='kader';
-  document.getElementById('detail-tabs').innerHTML=tabs.map(([id,label],i)=>
-    `<button class="tab-btn ${id===activeTab||(i===0&&!tabs.find(t=>t[0]===activeTab))?'active':''}" id="tab-${id}" onclick="setTab('${id}')">${label}</button>`
-  ).join('');
   renderSidebarTeams();
   await loadPlayers(tid);
   if(owned)await loadFreigaben(tid);
   await loadKalender(tid);
+  renderDetailTabs();
   setTab(activeTab);
 }
 
@@ -651,14 +652,34 @@ function renderTeamGrid(){
 }
 
 // TABS
+// Baut die Tab-Leiste inkl. Spielerzähler (aktiv / inaktiv) auf.
+function renderDetailTabs(){
+  const team=allTeams.find(t=>t.id===currentTeamId);if(!team)return;
+  const owned=isOwner(team);
+  const aktivCount=currentPlayers.filter(isPlayerAktiv).length;
+  const inaktivCount=currentPlayers.length-aktivCount;
+  const tabs=owned
+    ?[['kader','Kader',aktivCount],['inaktiv','Inaktiv',inaktivCount],['feeds','Feeds',null],['info','Info',null],['freigaben','Freigaben',null]]
+    :[['kader','Kader',aktivCount],['inaktiv','Inaktiv',inaktivCount],['feeds','Feeds',null]];
+  if(!tabs.find(t=>t[0]===activeTab))activeTab='kader';
+  document.getElementById('detail-tabs').innerHTML=tabs.map(([id,label,cnt])=>
+    `<button class="tab-btn ${id===activeTab?'active':''}" id="tab-${id}" onclick="setTab('${id}')">${label}${cnt!=null?` <span class="tab-count">${cnt}</span>`:''}</button>`
+  ).join('');
+}
+// Nach Spieler-Änderungen: Zähler aktualisieren und aktiven Tab neu rendern.
+function refreshPlayerViews(){
+  renderDetailTabs();
+  if(allTeams.find(t=>t.id===currentTeamId))setTab(activeTab);
+}
 function setTab(tab){
   activeTab=tab;
-  ['kader','feeds','info','freigaben'].forEach(t=>{
+  ['kader','inaktiv','feeds','info','freigaben'].forEach(t=>{
     const btn=document.getElementById(`tab-${t}`);if(btn)btn.classList.toggle('active',t===tab);
-    document.getElementById(`tab-content-${t}`).style.display=t===tab?'':'none';
+    const c=document.getElementById(`tab-content-${t}`);if(c)c.style.display=t===tab?'':'none';
   });
   const team=allTeams.find(t=>t.id===currentTeamId);if(!team)return;
   if(tab==='kader')renderTabKader(team);
+  if(tab==='inaktiv')renderTabInaktiv(team);
   if(tab==='feeds')renderTabFeeds(team);
   if(tab==='info')renderTabInfo(team);
   if(tab==='freigaben')renderTabFreigaben(team);
@@ -692,7 +713,7 @@ function statusMetaChips(p){
   if(p.aktiv_bis){
     const bis=String(p.aktiv_bis).slice(0,10);
     const past=bis<today;
-    chips.push(`<span class="meta-chip ${past?'injury healed':'info'}" title="Aktiv bis ${fmtDateDE(bis)}">${past?'&#9203; beendet':'bis '+fmtDateDE(bis)}</span>`);
+    chips.push(`<span class="meta-chip ${past?'injury healed':'info'}" title="${past?'War aktiv bis':'Aktiv bis'} ${fmtDateDE(bis)}">${past?'&#9203; '+fmtDateDE(bis):'bis '+fmtDateDE(bis)}</span>`);
   }
   const verl=_normEntryArr(p.verletzungen).filter(v=>v&&(v.art||v.von||v.bis));
   const offeneVerl=verl.filter(_verletzungOffen);
@@ -712,22 +733,43 @@ function statusMetaChips(p){
   }
   return chips.length?`<div class="meta-chips">${chips.join('')}</div>`:'';
 }
-function renderTabKader(team){
-  const owned=isOwner(team);
-  const sorted=[...currentPlayers].sort((a,b)=>{if(a.pos!==b.pos)return a.pos==='TH'?-1:1;return(a.nummer??99)-(b.nummer??99);});
-  const rows=sorted.length?sorted.map(p=>`<tr>
+// Effektiver Aktiv-Status: Toggle "Aktiv" an UND (kein "Aktiv bis" ODER Datum noch nicht überschritten).
+// Ein Spieler mit aktiv=true, dessen aktiv_bis in der Vergangenheit liegt, gilt als beendet/inaktiv.
+function playerStatus(p){
+  const today=new Date().toISOString().slice(0,10);
+  if(!p.aktiv) return 'inaktiv';
+  if(p.aktiv_bis && String(p.aktiv_bis).slice(0,10) < today) return 'beendet';
+  return 'aktiv';
+}
+function isPlayerAktiv(p){ return playerStatus(p)==='aktiv'; }
+function statusBadge(p){
+  const s=playerStatus(p);
+  if(s==='aktiv')   return '<span class="badge badge-aktiv">Aktiv</span>';
+  if(s==='beendet') return '<span class="badge badge-beendet" title="Aktiv-Zeitraum abgelaufen">Beendet</span>';
+  return '<span class="badge badge-inaktiv">Inaktiv</span>';
+}
+// Eine Spielerzeile (in Kader- wie Inaktiv-Tab identisch verwendet)
+function playerRowHtml(p,owned){
+  return `<tr>
     <td><span style="font-family:'DM Mono',monospace;font-weight:600;font-size:13px;">${p.nummer!=null?String(p.nummer).padStart(2,'0'):'&#8211;'}</span></td>
     <td style="font-weight:500;">${esc(p.name)}</td>
     <td>${posCell(p)}</td>
-    <td><span class="${p.aktiv?'badge badge-aktiv':'badge badge-inaktiv'}">${p.aktiv?'Aktiv':'Inaktiv'}</span>${statusMetaChips(p)}</td>
+    <td>${statusBadge(p)}${statusMetaChips(p)}</td>
     <td>${owned?`<div style="display:flex;gap:5px;"><button class="btn btn-ghost btn-sm" onclick="openPlayerModal('${p.id}')">&#9999;&#65039;</button><button class="btn btn-danger btn-sm" onclick="confirmDeletePlayer('${p.id}')">&#128465;&#65039;</button></div>`:'&#8211;'}</td>
-  </tr>`).join(''):`<tr><td colspan="5"><div class="empty"><div class="empty-icon">&#128101;</div><div class="empty-text">Noch keine Spieler.</div></div></td></tr>`;
+  </tr>`;
+}
+const sortKader=arr=>[...arr].sort((a,b)=>{if(a.pos!==b.pos)return a.pos==='TH'?-1:1;return(a.nummer??99)-(b.nummer??99);});
+function renderTabKader(team){
+  const owned=isOwner(team);
+  const aktive=currentPlayers.filter(isPlayerAktiv);
+  const sorted=sortKader(aktive);
+  const rows=sorted.length?sorted.map(p=>playerRowHtml(p,owned)).join(''):`<tr><td colspan="5"><div class="empty"><div class="empty-icon">&#128101;</div><div class="empty-text">Noch keine aktiven Spieler.</div></div></td></tr>`;
   document.getElementById('tab-content-kader').innerHTML=`
     ${owned?`
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
       <button class="btn btn-ghost" onclick="toggleHbnImport()" title="Kader von handball.net importieren">&#127760; handball.net</button>
       <button class="btn btn-ghost" onclick="openPlayerModal(null,'FL')">+ &#9650; Feldspieler</button>
-      <button class="btn btn-ghost" onclick="openPlayerModal(null,'TH')">+ &#9679; Torrhüter</button>
+      <button class="btn btn-ghost" onclick="openPlayerModal(null,'TH')">+ &#9679; Torh&uuml;ter</button>
     </div>
     <div id="hbn-import-panel" style="display:none;background:var(--accent-l);border:1.5px solid #bfdbfe;border-radius:10px;padding:16px;margin-bottom:16px;">
       <div style="font-size:13px;font-weight:600;color:#1e3a8a;margin-bottom:8px;">&#127760; Kader von handball.net importieren</div>
@@ -747,7 +789,21 @@ function renderTabKader(team){
       <thead><tr><th>#</th><th>Name</th><th>Position</th><th>Status</th><th>Aktionen</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div></div>
-    <div style="margin-top:10px;font-size:12px;color:var(--xsoft);">${currentPlayers.filter(p=>p.pos==='TH').length} Torrhüter &middot; ${currentPlayers.filter(p=>p.pos==='FL').length} Feldspieler &middot; ${currentPlayers.length} gesamt</div>`;
+    <div style="margin-top:10px;font-size:12px;color:var(--xsoft);">${aktive.filter(p=>p.pos==='TH').length} Torh&uuml;ter &middot; ${aktive.filter(p=>p.pos==='FL').length} Feldspieler &middot; ${aktive.length} aktiv</div>`;
+}
+// TAB INAKTIV — Spieler, die nicht mehr aktiv sind (manuell deaktiviert oder Aktiv-bis abgelaufen)
+function renderTabInaktiv(team){
+  const owned=isOwner(team);
+  const inaktive=currentPlayers.filter(p=>!isPlayerAktiv(p));
+  const sorted=sortKader(inaktive);
+  const rows=sorted.length?sorted.map(p=>playerRowHtml(p,owned)).join(''):`<tr><td colspan="5"><div class="empty"><div class="empty-icon">&#128075;</div><div class="empty-text">Keine inaktiven Spieler.</div></div></td></tr>`;
+  document.getElementById('tab-content-inaktiv').innerHTML=`
+    <div class="info-box" style="margin-bottom:16px;">&#128161; Hier stehen Spieler, die nicht mehr aktiv sind &mdash; entweder manuell deaktiviert oder deren &bdquo;Aktiv&nbsp;bis&ldquo;-Datum erreicht ist. Sie z&auml;hlen nicht zur Anwesenheit und erscheinen nicht im Kader.${owned?' &Uuml;ber das Bearbeiten-Symbol (&#9999;&#65039;) kannst du einen Spieler wieder aktiv setzen.':''}</div>
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Name</th><th>Position</th><th>Status</th><th>Aktionen</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></div>
+    <div style="margin-top:10px;font-size:12px;color:var(--xsoft);">${inaktive.filter(p=>playerStatus(p)==='beendet').length} beendet &middot; ${inaktive.filter(p=>playerStatus(p)==='inaktiv').length} deaktiviert &middot; ${inaktive.length} gesamt</div>`;
 }
 
 // TAB FEEDS
@@ -1256,7 +1312,7 @@ async function savePlayer(){
   if(error){showToast('Fehler: '+error.message,'error');return;}
   showToast(id?'Spieler aktualisiert':'Spieler hinzugefügt','success');
   closePlayerModal();await loadPlayers(currentTeamId);
-  renderTabKader(allTeams.find(t=>t.id===currentTeamId));
+  refreshPlayerViews();
 }
 
 // DELETE
@@ -1288,7 +1344,7 @@ async function executeDelete(){
       const{error}=await supa.from('mannschaft_spieler').delete().eq('id',deleteTarget.id);
       if(error)throw error;
       showToast('Spieler entfernt','success');closeDeleteModal();
-      await loadPlayers(currentTeamId);renderTabKader(allTeams.find(t=>t.id===currentTeamId));
+      await loadPlayers(currentTeamId);refreshPlayerViews();
     }
   }catch(err){showToast('Fehler: '+(err.message||'Unbekannt'),'error');}
   finally{btn.textContent='Endgültig löschen';btn.disabled=false;}
@@ -1551,7 +1607,7 @@ async function hbnImportSelected(newPlayers,similarPlayers){
   const panel=document.getElementById('hbn-import-panel');
   if(panel) panel.style.display='none';
   await loadPlayers(currentTeamId);
-  renderTabKader(allTeams.find(t=>t.id===currentTeamId));
+  refreshPlayerViews();
 }
 
 // ── UTILS ────────────────────────────────────────────────────────
