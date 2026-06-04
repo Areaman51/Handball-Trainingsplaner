@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260602.1530 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260604.0922 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -497,6 +497,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .aw-chip.absence{background:#ede9fe;color:#6d28d9;}
 .aw-chip.upcoming{background:#f1f5f9;color:#475569;}
 .aw-chip.inactive{background:#f3f4f6;color:#6b7280;}
+.aw-chip.guest{background:#e0e7ff;color:#4338ca;}
+.aw-chip.einmalig{background:#dcfce7;color:#15803d;}
+/* Gast / Einmal-Aktion je Spielerzeile */
+.aw-line-btn{flex-shrink:0;padding:5px 11px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:11.5px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--soft);transition:all .15s;white-space:nowrap;}
+.aw-line-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+.aw-line-btn.danger:hover{border-color:#dc2626;color:#dc2626;background:#fee2e2;}
+.aw-group.inactive .aw-group-header{background:#fbfbfc;}
+.aw-group.inactive .aw-name-txt{color:var(--soft);}
+/* „+ Gast" Button in der Anwesenheits-Toolbar */
+.aw-add-guest-btn{margin-left:auto;}
+/* Gast-Auswahl-Modal */
+.awg-team-list{display:flex;flex-direction:column;gap:6px;max-height:48vh;overflow-y:auto;margin-top:6px;}
+.awg-player{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;cursor:pointer;transition:all .12s;}
+.awg-player:hover{border-color:var(--accent);background:var(--accent-light);}
+.awg-player input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
+.awg-player .awg-nr{font-family:'DM Mono',monospace;font-weight:700;font-size:12px;color:var(--soft);min-width:26px;}
+.awg-player .awg-name{flex:1;font-size:13.5px;font-weight:500;}
+.awg-player.added{opacity:.5;pointer-events:none;}
+.awg-player .awg-added-lbl{font-size:10.5px;color:var(--green);font-weight:700;}
 /* Bearbeiten-Button je Spielerin */
 .aw-edit-btn{flex-shrink:0;width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;color:var(--soft);transition:all .15s;}
 .aw-edit-btn:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent);}
@@ -937,7 +956,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260602.1530</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260604.0922</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1040,6 +1059,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <button class="ctb-btn ctb-save" id="aw-save-btn" onclick="saveAnwesenheit()">💾 Anwesenheit speichern</button>
           <button class="ctb-btn ctb-ghost" onclick="setAllAnwesenheit('anwesend')" title="Alle Spielerinnen auf Anwesend setzen">✅ Alle anwesend</button>
           <button class="ctb-btn ctb-ghost" onclick="setAllAnwesenheit('abwesend')" title="Alle Spielerinnen auf Abwesend setzen">❌ Alle abwesend</button>
+          <button class="ctb-btn ctb-ghost" onclick="openAwGuestModal()" title="Gastspieler aus einer anderen Vereinsmannschaft hinzufügen">➕ Gast</button>
           <div class="ctb-spacer"></div>
           <button class="ctb-btn ctb-ghost" onclick="goHome()">🏠 Startseite</button>
           <button class="ctb-btn ctb-ghost" onclick="syncPlayerCountFromAnwesenheit()" title="Anwesende Spieleranzahl in die Einheit übernehmen">👥 → Spieleranzahl</button>
@@ -1689,6 +1709,36 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeAwPlayerEdit()">Abbrechen</button>
       <button class="btn btn-primary" id="awpe-save" onclick="saveAwPlayerEdit()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Gastspieler-Auswahl-Modal -->
+<div class="modal-overlay" id="aw-guest-modal" onclick="if(event.target.id==='aw-guest-modal')closeAwGuestModal()">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">➕ Gastspieler hinzufügen</div>
+        <div class="modal-subtitle">Aus einer anderen Vereinsmannschaft</div>
+      </div>
+      <button class="modal-close" onclick="closeAwGuestModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Mannschaft</label>
+        <select class="form-input" id="awg-team" onchange="awgLoadTeam(this.value)">
+          <option value="">– Mannschaft wählen –</option>
+        </select>
+      </div>
+      <div id="awg-players-wrap" style="display:none;">
+        <label class="form-label">Spieler/innen auswählen</label>
+        <div class="awg-team-list" id="awg-player-list"></div>
+      </div>
+      <div class="form-hint">Gäste werden in dieser Einheit mitgezählt. Ihre Anwesenheit wird zusätzlich in der Statistik <strong>ihrer eigenen Mannschaft</strong> hochgezählt.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAwGuestModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="awg-add-btn" onclick="awgAddSelected()">Hinzufügen</button>
     </div>
   </div>
 </div>
@@ -4278,7 +4328,7 @@ async function loadEinheit(id){
   // Tab auf Planung zurücksetzen, Anwesenheits-Cache leeren
   sessionTab='planung';
   _syncTabUI();
-  anwesenheitDaten={};
+  anwesenheitDaten={}; awGuests=[]; awAktiviert.clear();
   showView('planer'); render();
 }
 
@@ -4774,6 +4824,19 @@ function openIcalTrainingByDate(dateStr, group, time, name){
 let kaderCache      = {};   // mannschaft_id → [{id,name,nummer,pos,angriff_pos,abwehr_pos}]
 let anwesenheitDaten= {};   // spieler_id → 'anwesend'|'abwesend'|'verletzt'
 let anwesenheitDirty= false;
+let awGuests   = [];        // Gastspieler dieser Einheit: [{id,name,nummer,pos,angriff_pos,abwehr_pos,gast_mannschaft_id,gast_mannschaft_name}]
+let awAktiviert= new Set(); // IDs inaktiver Kaderspielerinnen, die für DIESE Einheit aktiviert wurden
+
+// ── Effektiver Aktiv-Status (identisch zu mannschaftsverwaltung.html / spielerstatistik.html) ──
+function _awPlayerStatus(p){
+  const today=new Date().toISOString().slice(0,10);
+  const akt=(p.aktiv===undefined)?true:p.aktiv;   // Spalte evtl. nicht geladen → als aktiv behandeln
+  if(!akt) return 'inaktiv';
+  if(p.aktiv_bis && String(p.aktiv_bis).slice(0,10) < today) return 'beendet';
+  return 'aktiv';
+}
+function _awIsAktiv(p){ return _awPlayerStatus(p)==='aktiv'; }
+function _awParticipates(p){ return _awIsAktiv(p) || awAktiviert.has(String(p.id)); }
 
 // ── Positions-Definitionen (DHB-Standard) ──
 const AW_ATTACK_ORDER=['LA','RL','RM','RR','RA','KR'];
@@ -4810,7 +4873,7 @@ function awPickTeam(name){
   localStorage.setItem('hbs_my_team',name);
   if(t){ localStorage.setItem('aktive_mannschaft_id',String(t.id)); localStorage.setItem('aktive_mannschaft_name',t.name); }
   initMyTeamWidget();
-  anwesenheitDaten={};
+  anwesenheitDaten={}; awGuests=[]; awAktiviert.clear();
   loadAnwesenheit();
 }
 // Mannschaftswechsel über die Statistikleiste (ID-basiert, eindeutig)
@@ -4822,7 +4885,7 @@ function awSwitchTeamById(id){
   localStorage.setItem('aktive_mannschaft_name',t.name);
   localStorage.setItem('hbs_my_team',t.name);
   initMyTeamWidget();
-  anwesenheitDaten={};
+  anwesenheitDaten={}; awGuests=[]; awAktiviert.clear();
   loadAnwesenheit();
 }
 
@@ -4906,19 +4969,33 @@ async function loadAnwesenheit(){
   }
 
   // Gespeicherte Anwesenheit laden (nur wenn Einheit bereits in DB)
-  if(currentEinheitId && !Object.keys(anwesenheitDaten).length){
+  if(currentEinheitId && !Object.keys(anwesenheitDaten).length && !awGuests.length){
     const {data:eData}=await supa.from('einheiten')
       .select('anwesenheit')
       .eq('id',currentEinheitId)
       .maybeSingle();
-    anwesenheitDaten={};
-    (eData?.anwesenheit?.spieler||[]).forEach(s=>{ anwesenheitDaten[s.id]=s.status||'anwesend'; });
+    anwesenheitDaten={}; awGuests=[]; awAktiviert.clear();
+    const savedIds=new Set();
+    (eData?.anwesenheit?.spieler||[]).forEach(s=>{
+      anwesenheitDaten[s.id]=s.status||'anwesend';
+      if(s.gast){
+        awGuests.push({id:s.id,name:s.name,nummer:s.nummer,pos:s.pos,
+          angriff_pos:Array.isArray(s.angriff_pos)?s.angriff_pos:[],
+          abwehr_pos:Array.isArray(s.abwehr_pos)?s.abwehr_pos:[],
+          gast_mannschaft_id:s.gast_mannschaft_id, gast_mannschaft_name:s.gast_mannschaft_name});
+      } else {
+        savedIds.add(String(s.id));
+      }
+    });
+    // Inaktive Kaderspielerinnen, die gespeichert wurden → für diese Einheit aktiviert
+    players.forEach(p=>{ if(!_awIsAktiv(p) && savedIds.has(String(p.id))) awAktiviert.add(String(p.id)); });
   }
 
-  // Standard-Status aus Langzeitdaten ableiten (nur wo noch nichts explizit gesetzt ist):
+  // Standard-Status aus Langzeitdaten ableiten (nur für teilnehmende, d.h. aktive bzw. einmalig aktivierte Spielerinnen):
   // verletzt / abwesend am Einheitsdatum werden automatisch vorbelegt.
   const sd=_awSessionDate();
   players.forEach(p=>{
+    if(!_awParticipates(p)) return;
     if(anwesenheitDaten[p.id]) return;
     const auto=_awAutoStatus(p,sd);
     if(auto) anwesenheitDaten[p.id]=auto;
@@ -4943,8 +5020,12 @@ function renderAnwesenheit(players, teamName){
     return ang.length?ang[0]:'NONE';
   }
 
-  const stats=_getAwStats(players);
-  const total=players.length;
+  // Teilnehmende = aktive Kaderspielerinnen + für diese Einheit aktivierte Inaktive.
+  const teilnehmer=players.filter(_awParticipates);
+  const inaktive  =players.filter(p=>!_awParticipates(p));
+
+  // Statistik über Teilnehmende + Gäste
+  const stats=_getAwStats(teilnehmer.concat(awGuests));
   const labels={anwesend:'✅ Anwesend',abwesend:'❌ Abwesend',verletzt:'🤕 Verletzt'};
   const sd=_awSessionDate();
   const _curTeam=_resolveAwTeam();
@@ -4966,11 +5047,27 @@ function renderAnwesenheit(players, teamName){
   function playerRow(p){
     const status=anwesenheitDaten[p.id]||'anwesend';
     const nr=p.nummer!=null?String(p.nummer).padStart(2,'0'):'–';
+    const einmalig=awAktiviert.has(String(p.id));
+    const marker=einmalig?'<span class="aw-chip einmalig" title="Nur für diese Einheit aktiviert">einmalig dabei</span>':'';
+    const deactivate=einmalig?`<button class="aw-line-btn danger" title="Aus dieser Einheit entfernen" onclick="awDeactivateForSession('${p.id}')">− Einheit</button>`:'';
     return `<div class="aw-player" id="awp-${p.id}">
       <div class="aw-nr">#${nr}</div>
-      <div class="aw-name"><span class="aw-name-txt">${_escHtml(p.name)}</span><div class="aw-pos-tags">${posTags(p)}${_awRecordChips(p)}</div></div>
+      <div class="aw-name"><span class="aw-name-txt">${_escHtml(p.name)}</span><div class="aw-pos-tags">${posTags(p)}${_awRecordChips(p)}${marker}</div></div>
+      ${deactivate}
       <button class="aw-edit-btn" title="Abwesenheiten &amp; Verletzungen bearbeiten" onclick="openAwPlayerEdit('${p.id}')">✏️</button>
       <button class="aw-status-btn ${status}" onclick="toggleAwStatus('${p.id}')">${labels[status]}</button>
+    </div>`;
+  }
+
+  function guestRow(g){
+    const status=anwesenheitDaten[g.id]||'anwesend';
+    const nr=g.nummer!=null?String(g.nummer).padStart(2,'0'):'–';
+    const team=g.gast_mannschaft_name?`<span class="aw-chip guest" title="Gast aus ${_escHtml(g.gast_mannschaft_name)}">👤 ${_escHtml(g.gast_mannschaft_name)}</span>`:'<span class="aw-chip guest">👤 Gast</span>';
+    return `<div class="aw-player" id="awp-${g.id}">
+      <div class="aw-nr">#${nr}</div>
+      <div class="aw-name"><span class="aw-name-txt">${_escHtml(g.name)}</span><div class="aw-pos-tags">${team}</div></div>
+      <button class="aw-line-btn danger" title="Gast entfernen" onclick="awRemoveGuest('${g.id}')">− Gast</button>
+      <button class="aw-status-btn ${status}" onclick="toggleAwStatus('${g.id}')">${labels[status]}</button>
     </div>`;
   }
 
@@ -4986,16 +5083,50 @@ function renderAnwesenheit(players, teamName){
     </div>`;
   }
 
-  // Gruppen in DHB-Reihenfolge: Torhüterinnen → Angriffspositionen → ohne Position.
-  // Jede Spielerin zählt nur in ihrer Primärgruppe; Sekundärpositionen werden nur angezeigt.
+  // Aktive Gruppen in DHB-Reihenfolge: Torhüterinnen → Angriffspositionen → ohne Position.
   const grouped={};
-  players.forEach(p=>{ const k=primKey(p); (grouped[k]=grouped[k]||[]).push(p); });
-  const groupsHtml=['TW',...AW_ATTACK_ORDER,'NONE'].map(k=>{
+  teilnehmer.forEach(p=>{ const k=primKey(p); (grouped[k]=grouped[k]||[]).push(p); });
+  let groupsHtml=['TW',...AW_ATTACK_ORDER,'NONE'].map(k=>{
     const list=grouped[k]; if(!list||!list.length) return '';
     const sym=k==='TW'?'●':'▲';
     const name=k==='TW'?AW_POS_LABEL.TW:(k==='NONE'?'Ohne feste Position':`${AW_POS_LABEL[k]||k} (${k})`);
     return posGroup(`${sym} ${name}`, list);
   }).join('');
+
+  // Gäste-Gruppe
+  if(awGuests.length){
+    const anwCnt=awGuests.filter(g=>(anwesenheitDaten[g.id]||'anwesend')==='anwesend').length;
+    groupsHtml+=`<div class="aw-group">
+      <div class="aw-group-header">
+        <span class="aw-group-label">👤 Gäste</span>
+        <span class="aw-group-count">${anwCnt}/${awGuests.length}</span>
+      </div>
+      ${awGuests.map(guestRow).join('')}
+    </div>`;
+  }
+
+  // Inaktive / ehemalige Spielerinnen (eigene Gruppe, nicht in der Statistik gezählt)
+  if(inaktive.length){
+    const inRow=p=>{
+      const nr=p.nummer!=null?String(p.nummer).padStart(2,'0'):'–';
+      const st=_awPlayerStatus(p);
+      const stChip=`<span class="aw-chip inactive">${st==='beendet'?'beendet':'inaktiv'}</span>`;
+      return `<div class="aw-player">
+        <div class="aw-nr">#${nr}</div>
+        <div class="aw-name"><span class="aw-name-txt">${_escHtml(p.name)}</span><div class="aw-pos-tags">${posTags(p)}${stChip}${_awRecordChips(p)}</div></div>
+        <button class="aw-line-btn" title="Spielerin nur für diese Einheit dabei" onclick="awActivateForSession('${p.id}')">+ Für diese Einheit</button>
+      </div>`;
+    };
+    groupsHtml+=`<div class="aw-group inactive">
+      <div class="aw-group-header">
+        <span class="aw-group-label">⏸️ Inaktiv / Ehemalige</span>
+        <span class="aw-group-count">${inaktive.length}</span>
+      </div>
+      ${inaktive.map(inRow).join('')}
+    </div>`;
+  }
+
+  const rightInfo=`${teilnehmer.length} aktiv${awGuests.length?` · ${awGuests.length} Gast`:''} · Stichtag ${fmtDateDE(sd)} · ${switcherHtml}`;
 
   el.innerHTML=`
     <div class="aw-stats-bar">
@@ -5020,7 +5151,7 @@ function renderAnwesenheit(players, teamName){
           <div class="aw-stat-lbl">Verletzt</div>
         </div>
       </div>
-      <div class="aw-stats-right">${total} im Kader · Stichtag ${fmtDateDE(sd)} · ${switcherHtml}</div>
+      <div class="aw-stats-right">${rightInfo}</div>
     </div>
     ${groupsHtml}
   `;
@@ -5190,13 +5321,121 @@ function toggleAwStatus(id){
   if(team && kaderCache[team.id]) renderAnwesenheit(kaderCache[team.id], team.name);
 }
 
-// ── Alle auf einen Status setzen ──
+// ── Re-Render-Helfer ──
+function _awRerender(){
+  const team=_resolveAwTeam();
+  if(team && kaderCache[team.id]) renderAnwesenheit(kaderCache[team.id], team.name);
+}
+
+// ── Alle auf einen Status setzen (nur Teilnehmende + Gäste) ──
 function setAllAnwesenheit(status){
   const team=_resolveAwTeam();
   if(!team||!kaderCache[team.id]) return;
-  kaderCache[team.id].forEach(p=>{ anwesenheitDaten[p.id]=status; });
+  kaderCache[team.id].filter(_awParticipates).forEach(p=>{ anwesenheitDaten[p.id]=status; });
+  awGuests.forEach(g=>{ anwesenheitDaten[g.id]=status; });
   anwesenheitDirty=true;
-  renderAnwesenheit(kaderCache[team.id], team.name);
+  _awRerender();
+}
+
+// ── Inaktive Spielerin für DIESE Einheit aktivieren / wieder entfernen ──
+function awActivateForSession(id){
+  awAktiviert.add(String(id));
+  const team=_resolveAwTeam();
+  const p=team&&kaderCache[team.id]?kaderCache[team.id].find(x=>String(x.id)===String(id)):null;
+  // Tagesstatus sinnvoll vorbelegen (Verletzung/Abwesenheit am Stichtag berücksichtigen)
+  const auto=p?_awAutoStatus(p,_awSessionDate()):null;
+  anwesenheitDaten[id]=auto||'anwesend';
+  anwesenheitDirty=true;
+  _awRerender();
+}
+function awDeactivateForSession(id){
+  awAktiviert.delete(String(id));
+  delete anwesenheitDaten[id];
+  anwesenheitDirty=true;
+  _awRerender();
+}
+
+// ── Gast entfernen ──
+function awRemoveGuest(id){
+  awGuests=awGuests.filter(g=>String(g.id)!==String(id));
+  delete anwesenheitDaten[id];
+  anwesenheitDirty=true;
+  _awRerender();
+}
+
+// ── Gastspieler-Modal ──
+let awgKaderCache={};   // mannschaft_id → Kader (für Gastauswahl)
+function openAwGuestModal(){
+  const cur=_resolveAwTeam();
+  const others=allMannschaften.filter(m=>!cur||String(m.id)!==String(cur.id));
+  if(!others.length){ showToast('Keine andere Vereinsmannschaft vorhanden','info'); return; }
+  const sel=document.getElementById('awg-team');
+  sel.innerHTML='<option value="">– Mannschaft wählen –</option>'+others.map(m=>`<option value="${_escHtml(String(m.id))}">${_escHtml(m.name)}</option>`).join('');
+  document.getElementById('awg-players-wrap').style.display='none';
+  document.getElementById('awg-player-list').innerHTML='';
+  document.getElementById('aw-guest-modal').classList.add('open');
+}
+function closeAwGuestModal(){ document.getElementById('aw-guest-modal').classList.remove('open'); }
+
+async function awgLoadTeam(teamId){
+  const wrap=document.getElementById('awg-players-wrap');
+  const list=document.getElementById('awg-player-list');
+  if(!teamId){ wrap.style.display='none'; list.innerHTML=''; return; }
+  wrap.style.display='block';
+  list.innerHTML='<div class="aw-loading">⏳ Kader wird geladen…</div>';
+  if(!awgKaderCache[teamId]){
+    let {data,error}=await supa.from('mannschaft_spieler')
+      .select('id,name,nummer,pos,angriff_pos,abwehr_pos,aktiv,aktiv_bis')
+      .eq('mannschaft_id',teamId)
+      .order('pos',{ascending:true}).order('nummer',{ascending:true,nullsFirst:false});
+    if(error && /angriff_pos|abwehr_pos|aktiv_bis|column|schema cache/i.test(error.message||'')){
+      const r2=await supa.from('mannschaft_spieler').select('id,name,nummer,pos').eq('mannschaft_id',teamId)
+        .order('pos',{ascending:true}).order('nummer',{ascending:true,nullsFirst:false});
+      data=r2.data; error=r2.error;
+    }
+    if(error){ list.innerHTML=`<div class="aw-empty">❌ ${_escHtml(error.message)}</div>`; return; }
+    awgKaderCache[teamId]=data||[];
+  }
+  const kader=awgKaderCache[teamId];
+  if(!kader.length){ list.innerHTML='<div class="aw-empty" style="padding:14px;">Kein Kader hinterlegt.</div>'; return; }
+  // Aktive zuerst, dann inaktive
+  const sorted=kader.slice().sort((a,b)=>(_awIsAktiv(a)?0:1)-(_awIsAktiv(b)?0:1));
+  list.innerHTML=sorted.map(p=>{
+    const nr=p.nummer!=null?String(p.nummer).padStart(2,'0'):'–';
+    const already=awGuests.some(g=>String(g.id)===String(p.id));
+    const inactive=!_awIsAktiv(p)?'<span class="aw-chip inactive">inaktiv</span>':'';
+    return `<label class="awg-player ${already?'added':''}">
+      <input type="checkbox" class="awg-chk" value="${_escHtml(String(p.id))}" ${already?'disabled':''}>
+      <span class="awg-nr">#${nr}</span>
+      <span class="awg-name">${_escHtml(p.name)} ${inactive}</span>
+      ${already?'<span class="awg-added-lbl">bereits dabei</span>':''}
+    </label>`;
+  }).join('');
+}
+
+function awgAddSelected(){
+  const teamId=document.getElementById('awg-team').value;
+  if(!teamId){ showToast('Bitte zuerst eine Mannschaft wählen','info'); return; }
+  const team=allMannschaften.find(m=>String(m.id)===String(teamId));
+  const kader=awgKaderCache[teamId]||[];
+  const ids=[...document.querySelectorAll('.awg-chk:checked')].map(c=>c.value);
+  if(!ids.length){ showToast('Bitte mindestens eine Spielerin wählen','info'); return; }
+  let added=0;
+  ids.forEach(id=>{
+    if(awGuests.some(g=>String(g.id)===String(id))) return;
+    const p=kader.find(x=>String(x.id)===String(id)); if(!p) return;
+    awGuests.push({
+      id:p.id, name:p.name, nummer:p.nummer, pos:p.pos,
+      angriff_pos:_awAng(p), abwehr_pos:_awAbw(p),
+      gast_mannschaft_id:teamId, gast_mannschaft_name:team?team.name:''
+    });
+    anwesenheitDaten[p.id]='anwesend';
+    added++;
+  });
+  anwesenheitDirty=true;
+  closeAwGuestModal();
+  _awRerender();
+  if(added) showToast(`👤 ${added} Gast${added>1?'spieler':''} hinzugefügt`,'success');
 }
 
 // ── Anwesenheit in DB speichern ──
@@ -5214,18 +5453,31 @@ async function saveAnwesenheit(){
   if(btn){ btn.textContent='⏳…'; btn.disabled=true; }
 
   const team=_resolveAwTeam();
-  const players=team&&kaderCache[team.id] ? kaderCache[team.id] : [];
+  const kader=team&&kaderCache[team.id] ? kaderCache[team.id] : [];
+  const teilnehmer=kader.filter(_awParticipates);
 
   const payload={
-    spieler: players.map(p=>({
+    spieler: teilnehmer.map(p=>({
       id:    p.id,
       name:  p.name,
       nummer:p.nummer,
       pos:   p.pos,
       angriff_pos:_awAng(p),
       abwehr_pos: _awAbw(p),
-      status:anwesenheitDaten[p.id]||'anwesend'
-    })),
+      status:anwesenheitDaten[p.id]||'anwesend',
+      einmalig: awAktiviert.has(String(p.id)) ? true : undefined
+    })).concat(awGuests.map(g=>({
+      id:    g.id,
+      name:  g.name,
+      nummer:g.nummer,
+      pos:   g.pos,
+      angriff_pos:Array.isArray(g.angriff_pos)?g.angriff_pos:[],
+      abwehr_pos: Array.isArray(g.abwehr_pos)?g.abwehr_pos:[],
+      status:anwesenheitDaten[g.id]||'anwesend',
+      gast: true,
+      gast_mannschaft_id: g.gast_mannschaft_id,
+      gast_mannschaft_name: g.gast_mannschaft_name
+    }))),
     gespeichert_am: new Date().toISOString()
   };
 
@@ -5253,11 +5505,12 @@ function syncPlayerCountFromAnwesenheit(){
   const team=_resolveAwTeam();
   if(!team||!kaderCache[team.id]){ showToast('Kein Kader geladen','info'); return; }
 
-  const players=kaderCache[team.id];
-  const anwesend=players.filter(p=>(anwesenheitDaten[p.id]||'anwesend')==='anwesend');
-  const tw=anwesend.filter(p=>p.pos==='TH').length;
-  const fl=anwesend.filter(p=>p.pos==='FL').length;
+  const _istTH=p=>{const v=String(p.pos||'').trim().toUpperCase();return v==='TH'||v==='TW'||v.startsWith('TOR');};
+  const teilnehmer=kaderCache[team.id].filter(_awParticipates).concat(awGuests);
+  const anwesend=teilnehmer.filter(p=>(anwesenheitDaten[p.id]||'anwesend')==='anwesend');
+  const tw=anwesend.filter(_istTH).length;
   const total=anwesend.length;
+  const fl=total-tw;
 
   // Spieleranzahl als "Gesamt"-String setzen
   sessionMeta.players=`${total} (${tw} TW, ${fl} FL)`;
