@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260604.0848 — Mannschaftsverwaltung -->
+<!-- Handball Coaching Tools v1.260605.0912 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -97,7 +97,26 @@ tbody tr:hover{background:#fafbff;}
 .team-card-outer:hover{border-color:var(--accent);box-shadow:0 4px 18px rgba(0,87,255,.13);transform:translateY(-1px);}
 .team-card-outer.shared{border-color:var(--purple-b);}
 .team-card-outer.shared:hover{border-color:var(--purple);}
-.team-color-dot{width:44px;height:44px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:white;font-weight:700;}
+.team-color-dot{width:44px;height:44px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:white;font-weight:700;overflow:hidden;}
+.team-color-dot img{width:100%;height:100%;object-fit:contain;background:white;}
+/* ── BILD-UPLOAD (Logo / Spielerfoto) ── */
+.img-upload{display:flex;align-items:center;gap:14px;}
+.img-upload-preview{flex-shrink:0;border:1.5px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--xsoft);font-size:22px;position:relative;}
+.img-upload-preview.logo{width:64px;height:64px;border-radius:12px;}
+.img-upload-preview.foto{width:64px;height:64px;border-radius:50%;}
+.img-upload-preview img{width:100%;height:100%;object-fit:cover;}
+.img-upload-preview.logo img{object-fit:contain;background:white;}
+.img-upload-actions{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0;}
+.img-upload-btnrow{display:flex;gap:6px;flex-wrap:wrap;}
+.img-upload input[type=file]{display:none;}
+.img-upload-hint{font-size:11px;color:var(--xsoft);line-height:1.4;}
+.img-upload-spinner{font-size:11px;color:var(--accent);font-weight:600;}
+/* Spieler-Avatar in Tabellenzeile */
+.player-name-cell{display:flex;align-items:center;gap:9px;min-width:0;}
+.player-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;object-fit:cover;background:var(--accent-l);}
+.player-avatar-fallback{width:30px;height:30px;border-radius:50%;flex-shrink:0;background:var(--accent-l);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;}
+/* Logo im Detail-Header */
+.detail-logo{width:40px;height:40px;border-radius:9px;object-fit:contain;background:white;border:1px solid var(--border);flex-shrink:0;}
 .badge-owner{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--accent-l);color:var(--accent);}
 .badge-shared{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--purple-l);color:var(--purple);}
 .feed-chip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:500;background:var(--bg);color:var(--xsoft);border:1px solid var(--border);}
@@ -304,6 +323,7 @@ tbody tr:hover{background:#fafbff;}
         <div class="page-header">
           <div style="display:flex;align-items:center;gap:12px;">
             <button class="btn btn-ghost btn-sm" onclick="showOverview()">&#8592; &#220;bersicht</button>
+            <img id="detail-logo" class="detail-logo" style="display:none;" alt="">
             <div>
               <div style="display:flex;align-items:center;gap:8px;">
                 <div class="page-title" id="detail-title">&#8211;</div>
@@ -335,6 +355,20 @@ tbody tr:hover{background:#fafbff;}
       <input type="hidden" id="tm-id">
       <div class="form-group"><label class="form-label">Mannschaftsname *</label><input class="form-input" id="tm-name" placeholder="z.B. Damen 1" onkeydown="if(event.key==='Enter')saveTeam()"></div>
       <div class="form-group"><label class="form-label">Verein</label><input class="form-input" id="tm-verein" placeholder="z.B. Barmstedter MTV"></div>
+      <div class="form-group">
+        <label class="form-label">Vereinslogo <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; optional</span></label>
+        <div class="img-upload">
+          <div class="img-upload-preview logo" id="tm-logo-preview"><span>&#127942;</span></div>
+          <div class="img-upload-actions">
+            <input type="file" id="tm-logo-file" accept="image/*,.heic,.heif" onchange="onLogoFilePick(event)">
+            <div class="img-upload-btnrow">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('tm-logo-file').click()">Logo w&auml;hlen</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="tm-logo-remove-btn" style="display:none;" onclick="removeLogo()">Entfernen</button>
+            </div>
+            <div class="img-upload-hint" id="tm-logo-hint">PNG/JPG/WebP/HEIC &middot; wird automatisch verkleinert. iPhone-Fotos (HEIC) werden beim Upload in PNG umgewandelt.</div>
+          </div>
+        </div>
+      </div>
       <div class="form-row" style="margin-top:4px;">
         <div class="form-group"><label class="form-label">Farbe &#8211; geplante Einheit</label><div style="display:flex;gap:10px;align-items:center;"><input type="color" class="color-input" id="tm-farbe-geplant" value="#0057ff"><span class="form-hint">Trainingsplaner</span></div></div>
         <div class="form-group"><label class="form-label">Farbe &#8211; ungeplante Einheit</label><div style="display:flex;gap:10px;align-items:center;"><input type="color" class="color-input" id="tm-farbe-ungeplant" value="#94a3b8"><span class="form-hint">Ohne Inhalt</span></div></div>
@@ -354,6 +388,20 @@ tbody tr:hover{background:#fafbff;}
         <div class="form-group"><label class="form-label">Position</label><select class="form-select" id="pm-pos" onchange="onPmPosChange()"><option value="FL">&#9650; Feldspieler</option><option value="TH">&#9679; Torhüter</option></select></div>
       </div>
       <div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="pm-name" placeholder="Vorname Nachname" onkeydown="if(event.key==='Enter')savePlayer()"></div>
+      <div class="form-group">
+        <label class="form-label">Spielerfoto <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; optional</span></label>
+        <div class="img-upload">
+          <div class="img-upload-preview foto" id="pm-foto-preview"><span>&#128100;</span></div>
+          <div class="img-upload-actions">
+            <input type="file" id="pm-foto-file" accept="image/*,.heic,.heif" onchange="onFotoFilePick(event)">
+            <div class="img-upload-btnrow">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('pm-foto-file').click()">Foto w&auml;hlen</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="pm-foto-remove-btn" style="display:none;" onclick="removeFoto()">Entfernen</button>
+            </div>
+            <div class="img-upload-hint" id="pm-foto-hint">Quadratischer Ausschnitt. iPhone-Fotos (HEIC) werden beim Upload in PNG umgewandelt.</div>
+          </div>
+        </div>
+      </div>
       <div id="pm-pos-detail" style="margin-bottom:16px;">
         <label class="form-label" style="margin-bottom:6px;">&#9650; Angriffspositionen <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; Reihenfolge anklicken = Priorit&auml;t</span></label>
         <div class="pos-chips" id="pm-angriff-chips"></div>
@@ -482,10 +530,186 @@ const CORS_FALLBACKS=['https://corsproxy.io/?','https://api.allorigins.win/raw?u
 const HBN_EDGE_FN=SUPA_URL+'/functions/v1/quick-service';
 
 let currentUser=null,allTeams=[],ownerProfiles={},allKalenderMap={},currentTeamId=null,currentPlayers=[],currentFreigaben=[],currentKalender=[],activeTab='kader',deleteTarget=null,searchTimeout=null,editKalenderId=null;
+// Bild-Zustand (Modals)
+let tmLogoFile=null,tmLogoUrl=null,tmLogoRemove=false;   // Team-Logo
+let pmFotoFile=null,pmFotoUrl=null,pmFotoRemove=false;   // Spielerfoto
 
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const isOwner=t=>t&&t.user_id===currentUser?.id;
 const initials=n=>(n||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+
+// ══════════════════════════════════════════
+// BILD-VERARBEITUNG  (HEIC→PNG, Verkleinerung, Upload)
+// ══════════════════════════════════════════
+// Stellschrauben
+const IMG_LOGO_MAX=512;        // längste Kante Logo (px)
+const IMG_FOTO_MAX=600;        // Kantenlänge Spielerfoto (quadratisch, px)
+const IMG_TARGET_BYTES=200*1024; // Zielgröße JPEG (~200 KB)
+const IMG_MIN_QUALITY=0.6;     // untere JPEG-Qualitätsgrenze
+const HEIC2ANY_SRC='https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+
+function fmtBytes(b){if(b<1024)return b+' B';if(b<1048576)return (b/1024).toFixed(0)+' KB';return (b/1048576).toFixed(1)+' MB';}
+
+// iPhone-HEIC erkennen (Browser außer Safari können HEIC nicht decodieren)
+function isHeicFile(file){
+  const t=(file.type||'').toLowerCase();
+  const n=(file.name||'').toLowerCase();
+  return t==='image/heic'||t==='image/heif'||/\.(heic|heif)$/.test(n);
+}
+// heic2any nur bei Bedarf nachladen
+let _heic2anyPromise=null;
+function loadHeic2any(){
+  if(window.heic2any) return Promise.resolve();
+  if(_heic2anyPromise) return _heic2anyPromise;
+  _heic2anyPromise=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=HEIC2ANY_SRC;
+    s.onload=()=>res();
+    s.onerror=()=>{_heic2anyPromise=null;rej(new Error('HEIC-Konverter konnte nicht geladen werden'));};
+    document.head.appendChild(s);
+  });
+  return _heic2anyPromise;
+}
+function loadImageEl(blob){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(blob);
+    const img=new Image();
+    img.onload=()=>{URL.revokeObjectURL(url);res(img);};
+    img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('Bild nicht lesbar'));};
+    img.src=url;
+  });
+}
+function canvasToBlob(canvas,mime,q){
+  return new Promise(res=>canvas.toBlob(b=>res(b),mime,q));
+}
+// Verarbeitet eine Bilddatei: HEIC→PNG, verkleinert, optional quadratischer Zuschnitt.
+// kind: 'logo'  → Seitenverhältnis erhalten, immer PNG (Transparenz für Vereinslogos)
+//       'foto'  → quadratischer Zuschnitt (Mitte), JPEG (bzw. PNG bei HEIC-Herkunft/Transparenz)
+// Rückgabe: { blob, ext, mime } — bei nicht decodierbaren Formaten Original unverändert.
+async function processImageFile(file,kind){
+  let src=file, fromHeic=false;
+  if(isHeicFile(file)){
+    await loadHeic2any();
+    const out=await heic2any({blob:file,toType:'image/png'});
+    src=Array.isArray(out)?out[0]:out;   // iPhone-HEIC → PNG
+    fromHeic=true;
+  }
+  let img;
+  try{ img=await loadImageEl(src); }
+  catch(e){
+    // Nicht decodierbar → Original übernehmen statt zu scheitern
+    const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
+    return {blob:file,ext,mime:file.type||'image/'+ext};
+  }
+  const sw=img.naturalWidth||img.width, sh=img.naturalHeight||img.height;
+  const canvas=document.createElement('canvas');
+  const ctx=canvas.getContext('2d');
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+  if(kind==='foto'){
+    // Quadratischer Mittelzuschnitt für runde Avatare
+    const side=Math.min(sw,sh);
+    const sx=(sw-side)/2, sy=(sh-side)/2;
+    const out=Math.min(side,IMG_FOTO_MAX);
+    canvas.width=out; canvas.height=out;
+    ctx.drawImage(img,sx,sy,side,side,0,0,out,out);
+  } else {
+    // Logo: Seitenverhältnis erhalten
+    const scale=Math.min(1,IMG_LOGO_MAX/Math.max(sw,sh));
+    canvas.width=Math.max(1,Math.round(sw*scale));
+    canvas.height=Math.max(1,Math.round(sh*scale));
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+  }
+  // Transparenz erkennen (Stichprobe)
+  let hasAlpha=false;
+  try{
+    const d=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    for(let i=3;i<d.length;i+=4*997){ if(d[i]<250){hasAlpha=true;break;} }
+  }catch(_){}
+  // Logos immer PNG; HEIC-Fotos auf Wunsch ebenfalls PNG; sonst JPEG (effizienter)
+  const usePng = kind==='logo' || fromHeic || hasAlpha;
+  if(usePng){
+    const blob=await canvasToBlob(canvas,'image/png');
+    return {blob:blob||file,ext:'png',mime:'image/png'};
+  }
+  let q=0.85, blob=await canvasToBlob(canvas,'image/jpeg',q);
+  while(blob && blob.size>IMG_TARGET_BYTES && q>IMG_MIN_QUALITY){
+    q=Math.max(IMG_MIN_QUALITY,q-0.08);
+    blob=await canvasToBlob(canvas,'image/jpeg',q);
+  }
+  return {blob:blob||file,ext:'jpg',mime:'image/jpeg'};
+}
+// Optimieren + in Supabase-Storage (Bucket 'bilder') ablegen, Public-URL zurückgeben.
+async function uploadBildToSupabase(file,kind,refId){
+  const origSize=file.size;
+  let processed;
+  try{ processed=await processImageFile(file,kind); }
+  catch(e){ showToast('❌ Bildfehler: '+(e.message||e),'error'); return null; }
+  const {blob,ext,mime}=processed;
+  const folder=kind==='logo'?'team-logos':'spieler-fotos';
+  const fname=`${refId||'x'}-${Date.now()}.${ext}`;
+  const path=`${currentUser.id}/${folder}/${fname}`;
+  let payload;
+  try{ payload=new File([blob],fname,{type:mime}); }
+  catch(_){ payload=blob; }
+  const {error}=await supa.storage.from('bilder').upload(path,payload,{upsert:true,contentType:mime});
+  if(error){ showToast('❌ Upload-Fehler: '+error.message,'error'); return null; }
+  const {data}=supa.storage.from('bilder').getPublicUrl(path);
+  if(origSize && blob.size && origSize>blob.size){
+    const pct=Math.round((1-blob.size/origSize)*100);
+    showToast(`🖼 Bild optimiert: ${fmtBytes(origSize)} → ${fmtBytes(blob.size)}${pct>0?' (−'+pct+'%)':''}`,'success');
+  }
+  return data.publicUrl;
+}
+
+// ── Datei-Auswahl & Vorschau (Logo / Foto) ──
+function _previewBlob(blob,imgEl,wrapEl){
+  const url=URL.createObjectURL(blob);
+  imgEl.onload=()=>URL.revokeObjectURL(url);
+  imgEl.src=url;
+  imgEl.style.display='';
+  wrapEl.querySelector('span')&&(wrapEl.querySelector('span').style.display='none');
+}
+function _setPreviewImg(wrapEl,url){
+  // entferne alte <img>, setze frische Vorschau aus URL (oder Platzhalter)
+  const old=wrapEl.querySelector('img'); if(old)old.remove();
+  const ph=wrapEl.querySelector('span');
+  if(url){
+    const img=document.createElement('img'); img.src=url; wrapEl.appendChild(img);
+    if(ph)ph.style.display='none';
+  } else if(ph){ ph.style.display=''; }
+}
+function onLogoFilePick(ev){
+  const f=ev.target.files&&ev.target.files[0]; if(!f)return;
+  tmLogoFile=f; tmLogoRemove=false;
+  const wrap=document.getElementById('tm-logo-preview');
+  const old=wrap.querySelector('img'); if(old)old.remove();
+  const img=document.createElement('img'); wrap.appendChild(img);
+  _previewBlob(f,img,wrap);
+  document.getElementById('tm-logo-remove-btn').style.display='';
+  if(isHeicFile(f)) document.getElementById('tm-logo-hint').textContent='HEIC erkannt – wird beim Speichern in PNG umgewandelt.';
+}
+function removeLogo(){
+  tmLogoFile=null; tmLogoRemove=true;
+  document.getElementById('tm-logo-file').value='';
+  _setPreviewImg(document.getElementById('tm-logo-preview'),null);
+  document.getElementById('tm-logo-remove-btn').style.display='none';
+}
+function onFotoFilePick(ev){
+  const f=ev.target.files&&ev.target.files[0]; if(!f)return;
+  pmFotoFile=f; pmFotoRemove=false;
+  const wrap=document.getElementById('pm-foto-preview');
+  const old=wrap.querySelector('img'); if(old)old.remove();
+  const img=document.createElement('img'); wrap.appendChild(img);
+  _previewBlob(f,img,wrap);
+  document.getElementById('pm-foto-remove-btn').style.display='';
+  if(isHeicFile(f)) document.getElementById('pm-foto-hint').textContent='HEIC erkannt – wird beim Speichern in PNG umgewandelt.';
+}
+function removeFoto(){
+  pmFotoFile=null; pmFotoRemove=true;
+  document.getElementById('pm-foto-file').value='';
+  _setPreviewImg(document.getElementById('pm-foto-preview'),null);
+  document.getElementById('pm-foto-remove-btn').style.display='none';
+}
 
 // AUTH — kein eigener Login, Weiterleitung über index.html
 async function onAuth(user){
@@ -595,6 +819,8 @@ async function showTeamDetail(tid){
   document.getElementById('view-detail').style.display='';
   document.getElementById('nav-overview').classList.remove('active');
   document.getElementById('detail-title').textContent=team.name;
+  const dl=document.getElementById('detail-logo');
+  if(dl){ if(team.logo_url){dl.src=team.logo_url;dl.style.display='';} else {dl.removeAttribute('src');dl.style.display='none';} }
   document.getElementById('detail-subtitle').textContent=team.verein||(owned?'Kein Verein':'Geteilt von '+ownerName(team));
   document.getElementById('detail-ownership-badge').innerHTML=owned
     ?'<span class="badge-owner">Eigentümer</span>'
@@ -638,7 +864,7 @@ function renderTeamGrid(){
   const own=allTeams.filter(t=>isOwner(t)),shared=allTeams.filter(t=>!isOwner(t));
   const card=t=>`<div class="team-card-outer ${isOwner(t)?'':'shared'}" onclick="showTeamDetail('${t.id}')">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-      <div class="team-color-dot" style="background:${t.farbe_geplant||'#0057ff'};">${esc((t.name||'?')[0].toUpperCase())}</div>
+      <div class="team-color-dot" style="background:${t.farbe_geplant||'#0057ff'};">${t.logo_url?`<img src="${esc(t.logo_url)}" alt="" loading="lazy">`:esc((t.name||'?')[0].toUpperCase())}</div>
       <div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.name)}</div>${t.verein?`<div style="font-size:12px;color:var(--soft);">${esc(t.verein)}</div>`:''}</div>
       ${isOwner(t)?'<span class="badge-owner">Ich</span>':`<span class="badge-shared" title="Geteilt von ${esc(ownerName(t))}">Geteilt</span>`}
     </div>
@@ -750,9 +976,12 @@ function statusBadge(p){
 }
 // Eine Spielerzeile (in Kader- wie Inaktiv-Tab identisch verwendet)
 function playerRowHtml(p,owned){
+  const avatar=p.foto_url
+    ? `<img class="player-avatar" src="${esc(p.foto_url)}" alt="" loading="lazy">`
+    : `<span class="player-avatar-fallback">${initials(p.name)}</span>`;
   return `<tr>
     <td><span style="font-family:'DM Mono',monospace;font-weight:600;font-size:13px;">${p.nummer!=null?String(p.nummer).padStart(2,'0'):'&#8211;'}</span></td>
-    <td style="font-weight:500;">${esc(p.name)}</td>
+    <td><div class="player-name-cell">${avatar}<span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;">${esc(p.name)}</span></div></td>
     <td>${posCell(p)}</td>
     <td>${statusBadge(p)}${statusMetaChips(p)}</td>
     <td>${owned?`<div style="display:flex;gap:5px;"><button class="btn btn-ghost btn-sm" onclick="openPlayerModal('${p.id}')">&#9999;&#65039;</button><button class="btn btn-danger btn-sm" onclick="confirmDeletePlayer('${p.id}')">&#128465;&#65039;</button></div>`:'&#8211;'}</td>
@@ -996,6 +1225,12 @@ function openTeamModal(tid=null){
   document.getElementById('tm-verein').value=team?team.verein||'':'';
   document.getElementById('tm-farbe-geplant').value=team?team.farbe_geplant||'#0057ff':'#0057ff';
   document.getElementById('tm-farbe-ungeplant').value=team?team.farbe_ungeplant||'#94a3b8':'#94a3b8';
+  // Logo-Zustand zurücksetzen + Vorschau
+  tmLogoFile=null; tmLogoRemove=false; tmLogoUrl=team?(team.logo_url||null):null;
+  document.getElementById('tm-logo-file').value='';
+  _setPreviewImg(document.getElementById('tm-logo-preview'),tmLogoUrl);
+  document.getElementById('tm-logo-remove-btn').style.display=tmLogoUrl?'':'none';
+  document.getElementById('tm-logo-hint').textContent='PNG/JPG/WebP/HEIC · wird automatisch verkleinert. iPhone-Fotos (HEIC) werden beim Upload in PNG umgewandelt.';
   document.getElementById('team-modal').classList.add('open');
   setTimeout(()=>document.getElementById('tm-name').focus(),100);
 }
@@ -1004,9 +1239,29 @@ async function saveTeam(){
   const id=document.getElementById('tm-id').value,name=document.getElementById('tm-name').value.trim();
   if(!name){showToast('Name ist Pflichtfeld.','error');return;}
   const data={name,verein:document.getElementById('tm-verein').value.trim(),farbe_geplant:document.getElementById('tm-farbe-geplant').value,farbe_ungeplant:document.getElementById('tm-farbe-ungeplant').value};
+  // Logo: neue Datei hochladen, entfernen oder unverändert lassen
+  if(tmLogoFile){
+    const saveBtn=document.querySelector('#team-modal .modal-footer .btn-primary');
+    if(saveBtn){saveBtn.textContent='⏳ Lade Logo…';saveBtn.disabled=true;}
+    const url=await uploadBildToSupabase(tmLogoFile,'logo',id||'team');
+    if(saveBtn){saveBtn.textContent='Speichern';saveBtn.disabled=false;}
+    if(url) data.logo_url=url; // bei Fehler: Logo unverändert
+  } else if(tmLogoRemove){
+    data.logo_url=null;
+  }
   let error;
   if(id){({error}=await supa.from('mannschaften').update(data).eq('id',id));}
   else{({error}=await supa.from('mannschaften').insert({...data,user_id:currentUser.id}));}
+  // Fallback, falls Spalte logo_url noch nicht migriert ist
+  if(error && /logo_url|column|PGRST204|schema cache/i.test(String(error.message||'')+String(error.code||''))){
+    const {logo_url,...rest}=data;
+    if(id){({error}=await supa.from('mannschaften').update(rest).eq('id',id));}
+    else{({error}=await supa.from('mannschaften').insert({...rest,user_id:currentUser.id}));}
+    if(!error && ('logo_url' in data)){
+      showToast('⚠️ Logo nicht gespeichert – SQL-Migration nötig (Konsole)','info');
+      console.warn("SQL-Migration erforderlich:\nALTER TABLE mannschaften ADD COLUMN IF NOT EXISTS logo_url text;");
+    }
+  }
   if(error){showToast('Fehler: '+error.message,'error');return;}
   showToast(id?'Mannschaft aktualisiert':'Mannschaft angelegt','success');
   closeTeamModal();await loadTeams();
@@ -1249,6 +1504,12 @@ function openPlayerModal(pid=null,defaultPos='FL'){
   document.getElementById('pm-pos').value=p?p.pos:defaultPos;
   document.getElementById('pm-aktiv').checked=p?!!p.aktiv:true;
   document.getElementById('pm-aktiv-bis').value=p&&p.aktiv_bis?String(p.aktiv_bis).slice(0,10):'';
+  // Foto-Zustand zurücksetzen + Vorschau
+  pmFotoFile=null; pmFotoRemove=false; pmFotoUrl=p?(p.foto_url||null):null;
+  document.getElementById('pm-foto-file').value='';
+  _setPreviewImg(document.getElementById('pm-foto-preview'),pmFotoUrl);
+  document.getElementById('pm-foto-remove-btn').style.display=pmFotoUrl?'':'none';
+  document.getElementById('pm-foto-hint').textContent='Quadratischer Ausschnitt. iPhone-Fotos (HEIC) werden beim Upload in PNG umgewandelt.';
   pmAbwesenheiten=_normEntryArr(p?.abwesenheiten);
   pmVerletzungen=_normEntryArr(p?.verletzungen);
   renderAbwesenheiten();
@@ -1272,7 +1533,7 @@ async function _savePlayerRow(id,data){
 }
 function _isMissingOptCol(err){
   const m=String(err&&err.message||'')+String(err&&err.code||'');
-  return /angriff_pos|abwehr_pos|aktiv_bis|abwesenheiten|verletzungen|column|PGRST204|schema cache/i.test(m);
+  return /angriff_pos|abwehr_pos|aktiv_bis|abwesenheiten|verletzungen|foto_url|column|PGRST204|schema cache/i.test(m);
 }
 // Leere Abwesenheits-/Verletzungs-Einträge vor dem Speichern verwerfen
 function _cleanAbw(arr){return arr.filter(a=>a&&(a.von||a.bis||a.notiz));}
@@ -1283,6 +1544,17 @@ async function savePlayer(){
   const nr=document.getElementById('pm-nummer').value;
   const pos=document.getElementById('pm-pos').value;
   const aktivBis=document.getElementById('pm-aktiv-bis').value;
+  // Foto: neue Datei hochladen, entfernen oder unverändert lassen
+  let fotoUrl; let fotoHandled=false;
+  if(pmFotoFile){
+    const saveBtn=document.querySelector('#player-modal .modal-footer .btn-primary');
+    if(saveBtn){saveBtn.textContent='⏳ Lade Foto…';saveBtn.disabled=true;}
+    const url=await uploadBildToSupabase(pmFotoFile,'foto',id||'spieler');
+    if(saveBtn){saveBtn.textContent='Speichern';saveBtn.disabled=false;}
+    if(url){fotoUrl=url;fotoHandled=true;}
+  } else if(pmFotoRemove){
+    fotoUrl=null;fotoHandled=true;
+  }
   const data={
     mannschaft_id:currentTeamId,name,
     nummer:nr!==''?parseInt(nr,10):null,
@@ -1294,10 +1566,11 @@ async function savePlayer(){
     abwesenheiten:_cleanAbw(pmAbwesenheiten),
     verletzungen:_cleanVerl(pmVerletzungen)
   };
+  if(fotoHandled) data.foto_url=fotoUrl;
   let error=await _savePlayerRow(id,data);
   if(error && _isMissingOptCol(error)){
     // Optionale Spalten fehlen → nur Pflichtfelder speichern + Migrations-Hinweis
-    const {angriff_pos,abwehr_pos,aktiv_bis,abwesenheiten,verletzungen,...rest}=data;
+    const {angriff_pos,abwehr_pos,aktiv_bis,abwesenheiten,verletzungen,foto_url,...rest}=data;
     error=await _savePlayerRow(id,rest);
     if(!error){
       showToast('⚠️ Zusatzdaten nicht gespeichert – SQL-Migration nötig (Konsole)','info');
@@ -1306,7 +1579,8 @@ async function savePlayer(){
         "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS abwehr_pos jsonb DEFAULT '{}'::jsonb;\n"+
         "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS aktiv_bis date;\n"+
         "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS abwesenheiten jsonb DEFAULT '[]'::jsonb;\n"+
-        "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS verletzungen jsonb DEFAULT '[]'::jsonb;");
+        "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS verletzungen jsonb DEFAULT '[]'::jsonb;\n"+
+        "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS foto_url text;");
     }
   }
   if(error){showToast('Fehler: '+error.message,'error');return;}
