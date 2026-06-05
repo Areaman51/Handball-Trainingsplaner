@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260605.0938 — Mannschaftsverwaltung -->
+<!-- Handball Coaching Tools v1.260605.0951 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -119,7 +119,7 @@ tbody tr:hover{background:#fafbff;}
 .detail-logo{width:40px;height:40px;border-radius:9px;object-fit:contain;background:white;border:1px solid var(--border);flex-shrink:0;}
 /* ── ZUSCHNITT-DIALOG ── */
 .crop-hint{font-size:11.5px;color:var(--soft);text-align:center;line-height:1.45;}
-.crop-stage{position:relative;width:280px;height:280px;border-radius:12px;overflow:hidden;background:#0b0e14;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;}
+.crop-stage{position:relative;width:280px;height:280px;border-radius:12px;overflow:hidden;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;background-color:#fff;background-image:linear-gradient(45deg,#e5e7eb 25%,transparent 25%),linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e5e7eb 75%),linear-gradient(-45deg,transparent 75%,#e5e7eb 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;}
 .crop-stage:active{cursor:grabbing;}
 .crop-stage img{position:absolute;top:0;left:0;transform-origin:top left;will-change:transform;pointer-events:none;-webkit-user-drag:none;}
 .crop-ring{position:absolute;inset:0;pointer-events:none;border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.42);outline:2px solid rgba(255,255,255,.65);outline-offset:-2px;}
@@ -674,7 +674,10 @@ async function _storagePutImage(blob,ext,mime,kind,refId,origSize){
   const {error}=await supa.storage.from('bilder').upload(path,payload,{upsert:true,contentType:mime});
   if(error){
     console.error('Storage-Upload fehlgeschlagen:',{path,mime,size:blob&&blob.size,error});
-    const detail=error.message||error.error||('Status '+(error.statusCode||'?'));
+    const raw=error.message||error.error||('Status '+(error.statusCode||'?'));
+    const detail=/bucket not found/i.test(raw)
+      ? "Storage-Bucket „bilder\" fehlt – bitte in Supabase anlegen (Storage → New bucket → Name „bilder\", öffentlich)."
+      : raw;
     showToast('❌ Upload-Fehler: '+detail,'error');
     return null;
   }
