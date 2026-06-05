@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260605.0912 — Mannschaftsverwaltung -->
+<!-- Handball Coaching Tools v1.260605.0938 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -117,6 +117,14 @@ tbody tr:hover{background:#fafbff;}
 .player-avatar-fallback{width:30px;height:30px;border-radius:50%;flex-shrink:0;background:var(--accent-l);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;}
 /* Logo im Detail-Header */
 .detail-logo{width:40px;height:40px;border-radius:9px;object-fit:contain;background:white;border:1px solid var(--border);flex-shrink:0;}
+/* ── ZUSCHNITT-DIALOG ── */
+.crop-hint{font-size:11.5px;color:var(--soft);text-align:center;line-height:1.45;}
+.crop-stage{position:relative;width:280px;height:280px;border-radius:12px;overflow:hidden;background:#0b0e14;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;}
+.crop-stage:active{cursor:grabbing;}
+.crop-stage img{position:absolute;top:0;left:0;transform-origin:top left;will-change:transform;pointer-events:none;-webkit-user-drag:none;}
+.crop-ring{position:absolute;inset:0;pointer-events:none;border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.42);outline:2px solid rgba(255,255,255,.65);outline-offset:-2px;}
+.crop-zoom{display:flex;align-items:center;gap:12px;width:100%;color:var(--soft);font-size:17px;line-height:1;}
+.crop-zoom input[type=range]{flex:1;accent-color:var(--accent);}
 .badge-owner{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--accent-l);color:var(--accent);}
 .badge-shared{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--purple-l);color:var(--purple);}
 .feed-chip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:500;background:var(--bg);color:var(--xsoft);border:1px solid var(--border);}
@@ -398,7 +406,7 @@ tbody tr:hover{background:#fafbff;}
               <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('pm-foto-file').click()">Foto w&auml;hlen</button>
               <button type="button" class="btn btn-ghost btn-sm" id="pm-foto-remove-btn" style="display:none;" onclick="removeFoto()">Entfernen</button>
             </div>
-            <div class="img-upload-hint" id="pm-foto-hint">Quadratischer Ausschnitt. iPhone-Fotos (HEIC) werden beim Upload in PNG umgewandelt.</div>
+            <div class="img-upload-hint" id="pm-foto-hint">Foto w&auml;hlen, dann Ausschnitt anpassen. iPhone-Fotos (HEIC) werden in PNG umgewandelt.</div>
           </div>
         </div>
       </div>
@@ -459,6 +467,18 @@ tbody tr:hover{background:#fafbff;}
       <option value="Sonstiges"></option>
     </datalist>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closePlayerModal()">Abbrechen</button><button class="btn btn-primary" onclick="savePlayer()">Speichern</button></div>
+  </div>
+</div>
+<!-- MODAL Foto-Zuschnitt -->
+<div class="modal-overlay" id="crop-modal">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header"><div class="modal-title">Bildausschnitt w&#228;hlen</div><button class="modal-close" onclick="closeCropModal()">&#215;</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+      <div class="crop-hint">Bild ziehen zum Verschieben, Regler zum Zoomen. Der Kreis zeigt den sp&#228;ter sichtbaren Bereich.</div>
+      <div class="crop-stage" id="crop-stage"><img id="crop-img" draggable="false" alt=""><div class="crop-ring"></div></div>
+      <div class="crop-zoom"><span>&#8722;</span><input type="range" id="crop-zoom" min="1" max="4" step="0.01" value="1" oninput="onCropZoom(this.value)"><span>&#43;</span></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeCropModal()">Abbrechen</button><button class="btn btn-primary" onclick="confirmCrop()">&#220;bernehmen</button></div>
   </div>
 </div>
 <!-- MODAL L&#246;schen -->
@@ -533,6 +553,9 @@ let currentUser=null,allTeams=[],ownerProfiles={},allKalenderMap={},currentTeamI
 // Bild-Zustand (Modals)
 let tmLogoFile=null,tmLogoUrl=null,tmLogoRemove=false;   // Team-Logo
 let pmFotoFile=null,pmFotoUrl=null,pmFotoRemove=false;   // Spielerfoto
+let pmFotoPrepared=null;                                  // {blob,ext,mime,origSize} aus Zuschnitt
+let cropState=null,_cropDrag=null,_cropHandlersAttached=false; // Zuschnitt-Dialog
+const CROP_V=280;                                         // Viewport-Größe (px)
 
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const isOwner=t=>t&&t.user_id===currentUser?.id;
@@ -639,26 +662,39 @@ async function processImageFile(file,kind){
   return {blob:blob||file,ext:'jpg',mime:'image/jpeg'};
 }
 // Optimieren + in Supabase-Storage (Bucket 'bilder') ablegen, Public-URL zurückgeben.
-async function uploadBildToSupabase(file,kind,refId){
-  const origSize=file.size;
-  let processed;
-  try{ processed=await processImageFile(file,kind); }
-  catch(e){ showToast('❌ Bildfehler: '+(e.message||e),'error'); return null; }
-  const {blob,ext,mime}=processed;
-  const folder=kind==='logo'?'team-logos':'spieler-fotos';
-  const fname=`${refId||'x'}-${Date.now()}.${ext}`;
-  const path=`${currentUser.id}/${folder}/${fname}`;
+// Low-Level: Blob in Bucket 'bilder' ablegen. EINE Ebene unter der User-ID
+// (identische Pfadtiefe wie der funktionierende Trainingsplaner-Upload),
+// damit dieselbe Storage-RLS-Policy greift.
+async function _storagePutImage(blob,ext,mime,kind,refId,origSize){
+  const fname=`${kind}-${refId||'x'}-${Date.now()}.${ext}`;
+  const path=`${currentUser.id}/${fname}`;
   let payload;
   try{ payload=new File([blob],fname,{type:mime}); }
   catch(_){ payload=blob; }
   const {error}=await supa.storage.from('bilder').upload(path,payload,{upsert:true,contentType:mime});
-  if(error){ showToast('❌ Upload-Fehler: '+error.message,'error'); return null; }
+  if(error){
+    console.error('Storage-Upload fehlgeschlagen:',{path,mime,size:blob&&blob.size,error});
+    const detail=error.message||error.error||('Status '+(error.statusCode||'?'));
+    showToast('❌ Upload-Fehler: '+detail,'error');
+    return null;
+  }
   const {data}=supa.storage.from('bilder').getPublicUrl(path);
-  if(origSize && blob.size && origSize>blob.size){
+  if(origSize && blob && blob.size && origSize>blob.size){
     const pct=Math.round((1-blob.size/origSize)*100);
     showToast(`🖼 Bild optimiert: ${fmtBytes(origSize)} → ${fmtBytes(blob.size)}${pct>0?' (−'+pct+'%)':''}`,'success');
   }
   return data.publicUrl;
+}
+// Datei → optimieren → hochladen (für Logos; Fotos laufen über den Zuschnitt-Dialog)
+async function uploadBildToSupabase(file,kind,refId){
+  let processed;
+  try{ processed=await processImageFile(file,kind); }
+  catch(e){ showToast('❌ Bildfehler: '+(e.message||e),'error'); return null; }
+  return _storagePutImage(processed.blob,processed.ext,processed.mime,kind,refId,file.size);
+}
+// Bereits aufbereitetes Bild ({blob,ext,mime}) hochladen (Cropper-Ergebnis)
+async function uploadPreparedToSupabase(prepared,kind,refId){
+  return _storagePutImage(prepared.blob,prepared.ext,prepared.mime,kind,refId,prepared.origSize);
 }
 
 // ── Datei-Auswahl & Vorschau (Logo / Foto) ──
@@ -694,21 +730,128 @@ function removeLogo(){
   _setPreviewImg(document.getElementById('tm-logo-preview'),null);
   document.getElementById('tm-logo-remove-btn').style.display='none';
 }
-function onFotoFilePick(ev){
+async function onFotoFilePick(ev){
   const f=ev.target.files&&ev.target.files[0]; if(!f)return;
-  pmFotoFile=f; pmFotoRemove=false;
-  const wrap=document.getElementById('pm-foto-preview');
-  const old=wrap.querySelector('img'); if(old)old.remove();
-  const img=document.createElement('img'); wrap.appendChild(img);
-  _previewBlob(f,img,wrap);
-  document.getElementById('pm-foto-remove-btn').style.display='';
-  if(isHeicFile(f)) document.getElementById('pm-foto-hint').textContent='HEIC erkannt – wird beim Speichern in PNG umgewandelt.';
+  const hint=document.getElementById('pm-foto-hint');
+  const restoreHint='Ziehen zum Verschieben · Zoomen zum Anpassen. iPhone-Fotos (HEIC) werden in PNG umgewandelt.';
+  hint.textContent=isHeicFile(f)?'HEIC wird umgewandelt – einen Moment …':'Bild wird vorbereitet …';
+  let prep;
+  try{ prep=await prepareDisplayableImage(f); }
+  catch(e){ showToast('❌ Bild nicht lesbar: '+(e.message||e),'error'); hint.textContent=restoreHint; ev.target.value=''; return; }
+  hint.textContent=restoreHint;
+  openCropModal(prep.img,prep.fromHeic,prep.url,f.size);
 }
 function removeFoto(){
-  pmFotoFile=null; pmFotoRemove=true;
+  pmFotoFile=null; pmFotoRemove=true; pmFotoPrepared=null;
   document.getElementById('pm-foto-file').value='';
   _setPreviewImg(document.getElementById('pm-foto-preview'),null);
   document.getElementById('pm-foto-remove-btn').style.display='none';
+}
+
+// ── ZUSCHNITT-DIALOG (Spielerfoto) ──
+// Bild dekodieren (inkl. HEIC→PNG) und Object-URL für die Vorschau erhalten.
+async function prepareDisplayableImage(file){
+  let src=file, fromHeic=false;
+  if(isHeicFile(file)){
+    await loadHeic2any();
+    const out=await heic2any({blob:file,toType:'image/png'});
+    src=Array.isArray(out)?out[0]:out;
+    fromHeic=true;
+  }
+  const url=URL.createObjectURL(src);
+  const img=new Image();
+  await new Promise((res,rej)=>{img.onload=res;img.onerror=()=>rej(new Error('Bild nicht lesbar'));img.src=url;});
+  return {img,url,fromHeic};
+}
+function _applyCropTransform(){
+  const im=document.getElementById('crop-img'); if(!im||!cropState)return;
+  cropState.dw=cropState.img.naturalWidth*cropState.scale;
+  cropState.dh=cropState.img.naturalHeight*cropState.scale;
+  im.style.width=cropState.dw+'px';
+  im.style.height=cropState.dh+'px';
+  im.style.transform=`translate(${cropState.x}px,${cropState.y}px)`;
+}
+function _clampCrop(){
+  const {dw,dh,V}=cropState;
+  cropState.x=Math.min(0,Math.max(V-dw,cropState.x));
+  cropState.y=Math.min(0,Math.max(V-dh,cropState.y));
+}
+function _cropPointerDown(e){
+  if(!cropState)return;
+  _cropDrag={px:e.clientX,py:e.clientY,x0:cropState.x,y0:cropState.y};
+  const st=document.getElementById('crop-stage'); st.setPointerCapture&&st.setPointerCapture(e.pointerId);
+}
+function _cropPointerMove(e){
+  if(!_cropDrag||!cropState)return;
+  cropState.x=_cropDrag.x0+(e.clientX-_cropDrag.px);
+  cropState.y=_cropDrag.y0+(e.clientY-_cropDrag.py);
+  _clampCrop(); _applyCropTransform();
+}
+function _cropPointerUp(){ _cropDrag=null; }
+function _ensureCropHandlers(){
+  if(_cropHandlersAttached)return; _cropHandlersAttached=true;
+  const st=document.getElementById('crop-stage'); if(!st)return;
+  st.addEventListener('pointerdown',_cropPointerDown);
+  st.addEventListener('pointermove',_cropPointerMove);
+  st.addEventListener('pointerup',_cropPointerUp);
+  st.addEventListener('pointercancel',_cropPointerUp);
+  st.addEventListener('pointerleave',_cropPointerUp);
+}
+function openCropModal(img,fromHeic,url,origSize){
+  const V=CROP_V;
+  const minScale=V/Math.min(img.naturalWidth,img.naturalHeight);
+  cropState={img,fromHeic,url,origSize,V,minScale,scale:minScale,x:0,y:0,dw:0,dh:0};
+  // Mittig vorpositionieren
+  cropState.x=(V-img.naturalWidth*minScale)/2;
+  cropState.y=(V-img.naturalHeight*minScale)/2;
+  const im=document.getElementById('crop-img'); im.src=url;
+  const z=document.getElementById('crop-zoom'); z.value=1;
+  _ensureCropHandlers();
+  _applyCropTransform();
+  document.getElementById('crop-modal').classList.add('open');
+}
+function closeCropModal(){
+  document.getElementById('crop-modal').classList.remove('open');
+  if(cropState&&cropState.url){ try{URL.revokeObjectURL(cropState.url);}catch(_){} }
+  cropState=null; _cropDrag=null;
+}
+function onCropZoom(v){
+  if(!cropState)return;
+  const factor=parseFloat(v)||1;                 // 1..4, relativ zur Mindestskalierung
+  const newScale=cropState.minScale*factor;
+  const cx=cropState.V/2, cy=cropState.V/2;      // um die Viewport-Mitte zoomen
+  const ix=(cx-cropState.x)/cropState.scale, iy=(cy-cropState.y)/cropState.scale;
+  cropState.scale=newScale;
+  cropState.x=cx-ix*newScale; cropState.y=cy-iy*newScale;
+  _clampCrop(); _applyCropTransform();
+}
+async function confirmCrop(){
+  if(!cropState)return;
+  const {img,scale,x,y,V,fromHeic,origSize}=cropState;
+  const sx=-x/scale, sy=-y/scale, sSize=V/scale; // Quellausschnitt im Originalbild
+  const canvas=document.createElement('canvas');
+  canvas.width=IMG_FOTO_MAX; canvas.height=IMG_FOTO_MAX;
+  const ctx=canvas.getContext('2d'); ctx.imageSmoothingQuality='high';
+  ctx.drawImage(img,sx,sy,sSize,sSize,0,0,IMG_FOTO_MAX,IMG_FOTO_MAX);
+  let hasAlpha=false;
+  try{ const d=ctx.getImageData(0,0,canvas.width,canvas.height).data; for(let i=3;i<d.length;i+=4*997){ if(d[i]<250){hasAlpha=true;break;} } }catch(_){}
+  const usePng = fromHeic || hasAlpha;           // HEIC → PNG (Vorgabe)
+  let blob,ext,mime;
+  if(usePng){ blob=await canvasToBlob(canvas,'image/png'); ext='png'; mime='image/png'; }
+  else {
+    let q=0.85; blob=await canvasToBlob(canvas,'image/jpeg',q);
+    while(blob && blob.size>IMG_TARGET_BYTES && q>IMG_MIN_QUALITY){ q=Math.max(IMG_MIN_QUALITY,q-0.08); blob=await canvasToBlob(canvas,'image/jpeg',q); }
+    ext='jpg'; mime='image/jpeg';
+  }
+  pmFotoPrepared={blob:blob||null,ext,mime,origSize:origSize||(blob?blob.size:0)};
+  pmFotoFile=true; pmFotoRemove=false;           // Marker: neues Foto vorhanden
+  // Vorschau aus zugeschnittenem Blob
+  const wrap=document.getElementById('pm-foto-preview');
+  _setPreviewImg(wrap,null);
+  const im2=document.createElement('img'); wrap.appendChild(im2);
+  _previewBlob(blob,im2,wrap);
+  document.getElementById('pm-foto-remove-btn').style.display='';
+  closeCropModal();
 }
 
 // AUTH — kein eigener Login, Weiterleitung über index.html
@@ -1505,11 +1648,11 @@ function openPlayerModal(pid=null,defaultPos='FL'){
   document.getElementById('pm-aktiv').checked=p?!!p.aktiv:true;
   document.getElementById('pm-aktiv-bis').value=p&&p.aktiv_bis?String(p.aktiv_bis).slice(0,10):'';
   // Foto-Zustand zurücksetzen + Vorschau
-  pmFotoFile=null; pmFotoRemove=false; pmFotoUrl=p?(p.foto_url||null):null;
+  pmFotoFile=null; pmFotoRemove=false; pmFotoPrepared=null; pmFotoUrl=p?(p.foto_url||null):null;
   document.getElementById('pm-foto-file').value='';
   _setPreviewImg(document.getElementById('pm-foto-preview'),pmFotoUrl);
   document.getElementById('pm-foto-remove-btn').style.display=pmFotoUrl?'':'none';
-  document.getElementById('pm-foto-hint').textContent='Quadratischer Ausschnitt. iPhone-Fotos (HEIC) werden beim Upload in PNG umgewandelt.';
+  document.getElementById('pm-foto-hint').textContent='Foto wählen, dann Ausschnitt anpassen. iPhone-Fotos (HEIC) werden in PNG umgewandelt.';
   pmAbwesenheiten=_normEntryArr(p?.abwesenheiten);
   pmVerletzungen=_normEntryArr(p?.verletzungen);
   renderAbwesenheiten();
@@ -1544,12 +1687,12 @@ async function savePlayer(){
   const nr=document.getElementById('pm-nummer').value;
   const pos=document.getElementById('pm-pos').value;
   const aktivBis=document.getElementById('pm-aktiv-bis').value;
-  // Foto: neue Datei hochladen, entfernen oder unverändert lassen
+  // Foto: zugeschnittenes Bild hochladen, entfernen oder unverändert lassen
   let fotoUrl; let fotoHandled=false;
-  if(pmFotoFile){
+  if(pmFotoFile && pmFotoPrepared){
     const saveBtn=document.querySelector('#player-modal .modal-footer .btn-primary');
     if(saveBtn){saveBtn.textContent='⏳ Lade Foto…';saveBtn.disabled=true;}
-    const url=await uploadBildToSupabase(pmFotoFile,'foto',id||'spieler');
+    const url=await uploadPreparedToSupabase(pmFotoPrepared,'foto',id||'spieler');
     if(saveBtn){saveBtn.textContent='Speichern';saveBtn.disabled=false;}
     if(url){fotoUrl=url;fotoHandled=true;}
   } else if(pmFotoRemove){
