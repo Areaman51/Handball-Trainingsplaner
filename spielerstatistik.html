@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260604.0927 — Spielerstatistik -->
+<!-- Handball Coaching Tools v1.260606.1341 — Spielerstatistik -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -152,6 +152,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .pc-meta{font-size:11px;color:var(--soft);margin-top:1px;display:flex;gap:8px;flex-wrap:wrap;}
 .pc-meta .dot{color:var(--border);}
 .pc-pos{font-size:14px;color:var(--xsoft);flex-shrink:0;}
+/* Spielerfoto in der Liste (wie Mannschaftsverwaltung) */
+.pc-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;object-fit:cover;background:var(--accent-l);}
+.pc-avatar-fallback{width:32px;height:32px;border-radius:50%;flex-shrink:0;background:var(--accent-l);
+  color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;
+  font-family:'DM Sans',sans-serif;}
+
+/* Team-Logo im Seitenkopf */
+.team-logo{width:42px;height:42px;border-radius:10px;object-fit:contain;background:white;
+  border:1px solid var(--border);flex-shrink:0;padding:3px;}
 
 /* Detail-Panel */
 .detail-card{background:white;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
@@ -159,6 +168,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .dh-top{display:flex;align-items:center;gap:13px;}
 .dh-avatar{width:46px;height:46px;border-radius:12px;background:var(--accent-l);color:var(--accent);
   display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0;font-family:'DM Mono',monospace;}
+.dh-avatar.has-foto{padding:0;overflow:hidden;background:var(--accent-l);}
+.dh-avatar.has-foto img{width:100%;height:100%;object-fit:cover;}
 .dh-name{font-size:18px;font-weight:700;letter-spacing:-.3px;}
 .dh-sub{font-size:12px;color:var(--soft);margin-top:1px;}
 .alt-nr{font-size:9.5px;color:var(--xsoft);margin-left:6px;background:var(--bg);
@@ -356,7 +367,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260604.0927</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260606.1341</div>
     </div>
   </aside>
 
@@ -375,9 +386,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="content">
       <div class="page-header">
-        <div>
-          <div class="page-title">Spielerstatistik</div>
-          <div class="page-subtitle" id="page-sub">Alle Spielerdaten an einem Ort</div>
+        <div style="display:flex;align-items:center;gap:13px;">
+          <img id="team-logo" class="team-logo" style="display:none;" alt="">
+          <div>
+            <div class="page-title">Spielerstatistik</div>
+            <div class="page-subtitle" id="page-sub">Alle Spielerdaten an einem Ort</div>
+          </div>
         </div>
         <div class="hdr-actions">
           <div class="pos-toggle">
@@ -483,7 +497,7 @@ const POL={
 
 // ── State ──
 let currentUser=null, currentProfile=null;
-let _myTeamId='', _myTeamName='', _myTeamOwnerId='', _isSharedTeam=false;
+let _myTeamId='', _myTeamName='', _myTeamOwnerId='', _isSharedTeam=false, _myTeamLogo='';
 let _availableTeams=[];
 let _posFilter='all';
 let _statusFilter='aktiv';  // 'aktiv' | 'inaktiv' — trennt aktive von ehemaligen/inaktiven Spielerinnen
@@ -536,7 +550,7 @@ async function initMyTeam(){
   _myTeamId  =localStorage.getItem('hbs_my_mannschaft_id')||localStorage.getItem('aktive_mannschaft_id')||'';
 
   const {data}=await supa.from('mannschaften')
-    .select('id,name,verein,user_id,zusatz_soll_woche,zusatz_soll_wochen')
+    .select('id,name,verein,user_id,zusatz_soll_woche,zusatz_soll_wochen,logo_url')
     .order('sort_order',{ascending:true})
     .order('created_at',{ascending:true});
   _availableTeams=data||[];
@@ -555,6 +569,7 @@ async function initMyTeam(){
   // Eigentümer / Freigabe-Status
   const cur=_availableTeams.find(m=>String(m.id)===String(_myTeamId));
   if(cur){ _myTeamOwnerId=cur.user_id||''; _isSharedTeam=!!_myTeamOwnerId && _myTeamOwnerId!==currentUser.id; }
+  _myTeamLogo=(cur && cur.logo_url)?cur.logo_url:'';
   _teamSollWoche=(cur && cur.zusatz_soll_woche!=null)?cur.zusatz_soll_woche:null;
   _teamSollWochen=(cur && cur.zusatz_soll_wochen)?cur.zusatz_soll_wochen:{};
 
@@ -595,6 +610,7 @@ async function switchTeam(id){
   if(!m) return;
   _myTeamId=m.id; _myTeamName=m.name;
   _myTeamOwnerId=m.user_id||''; _isSharedTeam=!!_myTeamOwnerId && _myTeamOwnerId!==currentUser.id;
+  _myTeamLogo=m.logo_url||'';
   _teamSollWoche=(m.zusatz_soll_woche!=null)?m.zusatz_soll_woche:null;
   _teamSollWochen=m.zusatz_soll_wochen||{};
   _persistTeam(); renderTeamWidget();
@@ -663,6 +679,7 @@ async function fetchAllPages(table,sel,filterFn){
 
 async function reloadAll(){
   const listEl=document.getElementById('player-list');
+  renderTeamLogo();
   if(!_myTeamId){
     listEl.innerHTML=`<div class="empty"><div class="e-icon">👥</div>
       <div class="e-title">Kein Team konfiguriert</div>
@@ -697,12 +714,12 @@ async function reloadAll(){
 async function loadKaderWithGameStats(){
   // 1. Kader (inkl. Aktiv-Status; Fallback falls aktiv/aktiv_bis noch nicht migriert)
   let {data:ks,error:kerr}=await supa.from('mannschaft_spieler')
-    .select('id,name,nummer,pos,zusatz_soll_woche,aktiv,aktiv_bis')
+    .select('id,name,nummer,pos,zusatz_soll_woche,aktiv,aktiv_bis,foto_url')
     .eq('mannschaft_id',_myTeamId)
     .order('pos',{ascending:true}).order('nummer',{ascending:true,nullsFirst:false});
   if(kerr){
     ({data:ks}=await supa.from('mannschaft_spieler')
-      .select('id,name,nummer,pos,zusatz_soll_woche')
+      .select('id,name,nummer,pos,zusatz_soll_woche,foto_url')
       .eq('mannschaft_id',_myTeamId)
       .order('pos',{ascending:true}).order('nummer',{ascending:true,nullsFirst:false}));
   }
@@ -1005,8 +1022,12 @@ function renderPlayerList(){
     const nr=p.nummer!=null && p.nummer!==''?String(p.nummer).padStart(2,'0'):'–';
     const st=playerStatus(p);
     const stChip=st!=='aktiv'?`<span class="pc-status ${st}">${st==='beendet'?'Beendet':'Inaktiv'}</span>`:'';
+    const avatar=p.foto_url
+      ? `<img class="pc-avatar" src="${esc(p.foto_url)}" alt="" loading="lazy">`
+      : `<span class="pc-avatar-fallback">${initials(p.name)}</span>`;
     return `<div class="player-card ${p.id===_selectedPlayerId?'active':''}" onclick="selectPlayer('${p.id}')">
       <div class="pc-nr">${nr}</div>
+      ${avatar}
       <div class="pc-body">
         <div class="pc-name">${esc(p.name)}</div>
         <div class="pc-meta">${stChip}<span>${m1}</span><span class="dot">·</span><span>${m2}</span><span class="dot">·</span><span>${m3}</span>${m4?`<span class="dot">·</span><span style="color:#7c3aed;font-weight:600;">${m4}</span>`:''}</div>
@@ -1057,13 +1078,18 @@ function renderDetail(id){
 
   const body=_activeTab==='anwesenheit'?renderAttTab(p):renderGameTab(p,isTH);
 
+  const avatarHtml=p.foto_url
+    ? `<div class="dh-avatar has-foto"><img src="${esc(p.foto_url)}" alt=""></div>`
+    : `<div class="dh-avatar">${nr}</div>`;
+  const nrPrefix=(p.foto_url && nr!=='–')?`#${nr} · `:'';
+
   pane.innerHTML=`<div class="detail-card">
     <div class="detail-head">
       <div class="dh-top">
-        <div class="dh-avatar">${nr}</div>
+        ${avatarHtml}
         <div>
           <div class="dh-name">${esc(p.name)}${alt}</div>
-          <div class="dh-sub">${isTH?'● Torhüterin':'▲ Feldspielerin'} · ${esc(_myTeamName)}</div>
+          <div class="dh-sub">${nrPrefix}${isTH?'● Torhüterin':'▲ Feldspielerin'} · ${esc(_myTeamName)}</div>
         </div>
       </div>
     </div>
@@ -1398,6 +1424,13 @@ function renderTeamSollBox(){
       onchange="saveTeamSoll(this.value)" title="Team-Standard pro Woche (gilt für alle ohne eigenen Wert)">`;
 }
 
+// Team-Logo im Seitenkopf anzeigen / verstecken
+function renderTeamLogo(){
+  const el=document.getElementById('team-logo'); if(!el) return;
+  if(_myTeamLogo){ el.src=_myTeamLogo; el.alt=_myTeamName||''; el.style.display=''; }
+  else { el.removeAttribute('src'); el.style.display='none'; }
+}
+
 // ════════════════════════════════════════════════════════════
 // HELFER
 // ════════════════════════════════════════════════════════════
@@ -1408,6 +1441,7 @@ function fmtDate(d){
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
 }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function initials(n){ return (n||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
 function toast(msg,type='info'){
   const t=document.getElementById('toast');
   t.textContent=msg; t.className='toast '+type+' show';
