@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260605.0951 — Mannschaftsverwaltung -->
+<!-- Handball Coaching Tools v1.260607.2049 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -237,6 +237,15 @@ tbody tr:hover{background:#fafbff;}
 .entry-field{margin-bottom:8px;}
 .entry-del{margin-top:2px;background:transparent;border:none;color:var(--red);font-size:11.5px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;padding:2px 0;}
 .entry-del:hover{text-decoration:underline;}
+/* handball.net-Auswahl im Team-Modal */
+.hbn-pick{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:white;margin-bottom:6px;cursor:pointer;transition:all .12s;}
+.hbn-pick:hover{border-color:var(--accent);background:var(--accent-l);}
+.hbn-pick-logo{width:30px;height:30px;border-radius:7px;object-fit:contain;background:white;border:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.hbn-pick-logo.placeholder{color:var(--xsoft);}
+.hbn-pick-main{flex:1;min-width:0;}
+.hbn-pick-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hbn-pick-sub{font-size:11px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hbn-pick-arrow{color:var(--xsoft);font-size:14px;flex-shrink:0;}
 @media(max-width:768px){.main{margin-left:0;}.form-row{grid-template-columns:1fr;}.team-grid{grid-template-columns:1fr;}.content{padding:16px;}}
 </style>
 </head>
@@ -292,7 +301,7 @@ tbody tr:hover{background:#fafbff;}
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260603.0747</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260607.2049</div>
     </div>
   </aside>
 
@@ -361,28 +370,48 @@ tbody tr:hover{background:#fafbff;}
     <div class="modal-header"><div class="modal-title" id="team-modal-title">Neue Mannschaft</div><button class="modal-close" onclick="closeTeamModal()">&#215;</button></div>
     <div class="modal-body">
       <input type="hidden" id="tm-id">
-      <div class="form-group"><label class="form-label">Mannschaftsname *</label><input class="form-input" id="tm-name" placeholder="z.B. Damen 1" onkeydown="if(event.key==='Enter')saveTeam()"></div>
-      <div class="form-group"><label class="form-label">Verein</label><input class="form-input" id="tm-verein" placeholder="z.B. Barmstedter MTV"></div>
-      <div class="form-group">
-        <label class="form-label">Vereinslogo <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; optional</span></label>
-        <div class="img-upload">
-          <div class="img-upload-preview logo" id="tm-logo-preview"><span>&#127942;</span></div>
-          <div class="img-upload-actions">
-            <input type="file" id="tm-logo-file" accept="image/*,.heic,.heif" onchange="onLogoFilePick(event)">
-            <div class="img-upload-btnrow">
-              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('tm-logo-file').click()">Logo w&auml;hlen</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="tm-logo-remove-btn" style="display:none;" onclick="removeLogo()">Entfernen</button>
+      <!-- Modus-Umschalter (nur bei Neuanlage) -->
+      <div class="tabs" id="tm-mode-tabs" style="margin-bottom:18px;">
+        <button class="tab-btn" id="tm-mode-hbn" onclick="setTeamMode('hbn')">&#127760; handball.net</button>
+        <button class="tab-btn" id="tm-mode-manual" onclick="setTeamMode('manual')">&#9999;&#65039; Manuell</button>
+      </div>
+
+      <!-- handball.net-Suche -->
+      <div id="tm-hbn-section">
+        <div class="form-group">
+          <label class="form-label">Verein suchen</label>
+          <input class="form-input" id="tm-hbn-query" placeholder="z.B. Norderstedt" autocomplete="off" oninput="hbnTeamSearch()" style="margin-bottom:0;">
+          <div class="form-hint" style="margin-top:5px;">Mind. 2 Zeichen &middot; Verein w&auml;hlen &rarr; Mannschaft w&auml;hlen. Stammdaten, Logo und Spielplan werden automatisch &uuml;bernommen.</div>
+        </div>
+        <div id="tm-hbn-results"></div>
+        <div id="tm-hbn-preview"></div>
+      </div>
+
+      <!-- Manuell (Fallback) -->
+      <div id="tm-manual-section" style="display:none;">
+        <div class="form-group"><label class="form-label">Mannschaftsname *</label><input class="form-input" id="tm-name" placeholder="z.B. Damen 1" onkeydown="if(event.key==='Enter')saveTeam()"></div>
+        <div class="form-group"><label class="form-label">Verein</label><input class="form-input" id="tm-verein" placeholder="z.B. Barmstedter MTV"></div>
+        <div class="form-group">
+          <label class="form-label">Vereinslogo <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; optional</span></label>
+          <div class="img-upload">
+            <div class="img-upload-preview logo" id="tm-logo-preview"><span>&#127942;</span></div>
+            <div class="img-upload-actions">
+              <input type="file" id="tm-logo-file" accept="image/*,.heic,.heif" onchange="onLogoFilePick(event)">
+              <div class="img-upload-btnrow">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('tm-logo-file').click()">Logo w&auml;hlen</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="tm-logo-remove-btn" style="display:none;" onclick="removeLogo()">Entfernen</button>
+              </div>
+              <div class="img-upload-hint" id="tm-logo-hint">PNG/JPG/WebP/HEIC &middot; wird automatisch verkleinert. iPhone-Fotos (HEIC) werden beim Upload in PNG umgewandelt.</div>
             </div>
-            <div class="img-upload-hint" id="tm-logo-hint">PNG/JPG/WebP/HEIC &middot; wird automatisch verkleinert. iPhone-Fotos (HEIC) werden beim Upload in PNG umgewandelt.</div>
           </div>
         </div>
-      </div>
-      <div class="form-row" style="margin-top:4px;">
-        <div class="form-group"><label class="form-label">Farbe &#8211; geplante Einheit</label><div style="display:flex;gap:10px;align-items:center;"><input type="color" class="color-input" id="tm-farbe-geplant" value="#0057ff"><span class="form-hint">Trainingsplaner</span></div></div>
-        <div class="form-group"><label class="form-label">Farbe &#8211; ungeplante Einheit</label><div style="display:flex;gap:10px;align-items:center;"><input type="color" class="color-input" id="tm-farbe-ungeplant" value="#94a3b8"><span class="form-hint">Ohne Inhalt</span></div></div>
+        <div class="form-row" style="margin-top:4px;">
+          <div class="form-group"><label class="form-label">Farbe &#8211; geplante Einheit</label><div style="display:flex;gap:10px;align-items:center;"><input type="color" class="color-input" id="tm-farbe-geplant" value="#0057ff"><span class="form-hint">Trainingsplaner</span></div></div>
+          <div class="form-group"><label class="form-label">Farbe &#8211; ungeplante Einheit</label><div style="display:flex;gap:10px;align-items:center;"><input type="color" class="color-input" id="tm-farbe-ungeplant" value="#94a3b8"><span class="form-hint">Ohne Inhalt</span></div></div>
+        </div>
       </div>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeTeamModal()">Abbrechen</button><button class="btn btn-primary" onclick="saveTeam()">Speichern</button></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeTeamModal()">Abbrechen</button><button class="btn btn-primary" id="tm-footer-save" onclick="saveTeam()">Speichern</button></div>
   </div>
 </div>
 <!-- MODAL Spieler -->
@@ -548,8 +577,13 @@ const supa=supabase.createClient(SUPA_URL,SUPA_KEY);
 const ICAL_PROXY_URL=SUPA_URL+'/functions/v1/ical-proxy';
 const CORS_FALLBACKS=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
 const HBN_EDGE_FN=SUPA_URL+'/functions/v1/quick-service';
+const HBN_API_BASE='https://www.handball.net/a/sportdata/1';   // sportdata-JSON-API
 
 let currentUser=null,allTeams=[],ownerProfiles={},allKalenderMap={},currentTeamId=null,currentPlayers=[],currentFreigaben=[],currentKalender=[],activeTab='kader',deleteTarget=null,searchTimeout=null,editKalenderId=null;
+// handball.net-Anlage-Flow (Team-Modal)
+let tmMode='hbn';            // 'hbn' | 'manual'
+let hbnSearchTimeout=null;
+let hbnPickedTeam=null;      // {slug,name,verein,logo,wettbewerbe:[...]}
 // Bild-Zustand (Modals)
 let tmLogoFile=null,tmLogoUrl=null,tmLogoRemove=false;   // Team-Logo
 let pmFotoFile=null,pmFotoUrl=null,pmFotoRemove=false;   // Spielerfoto
@@ -1377,8 +1411,30 @@ function openTeamModal(tid=null){
   _setPreviewImg(document.getElementById('tm-logo-preview'),tmLogoUrl);
   document.getElementById('tm-logo-remove-btn').style.display=tmLogoUrl?'':'none';
   document.getElementById('tm-logo-hint').textContent='PNG/JPG/WebP/HEIC · wird automatisch verkleinert. iPhone-Fotos (HEIC) werden beim Upload in PNG umgewandelt.';
+  // Modus: Bearbeiten → immer Manuell (kein Umschalter); Neuanlage → handball.net
+  const editing=!!team;
+  document.getElementById('tm-mode-tabs').style.display=editing?'none':'';
+  document.getElementById('tm-hbn-query').value='';
+  document.getElementById('tm-hbn-results').innerHTML='';
+  document.getElementById('tm-hbn-preview').innerHTML='';
+  hbnPickedTeam=null;
+  setTeamMode(editing?'manual':'hbn');
   document.getElementById('team-modal').classList.add('open');
-  setTimeout(()=>document.getElementById('tm-name').focus(),100);
+  setTimeout(()=>{
+    const f=tmMode==='hbn'?document.getElementById('tm-hbn-query'):document.getElementById('tm-name');
+    f&&f.focus();
+  },100);
+}
+// Umschalten handball.net ↔ Manuell im Team-Modal
+function setTeamMode(mode){
+  tmMode=mode;
+  document.getElementById('tm-mode-hbn').classList.toggle('active',mode==='hbn');
+  document.getElementById('tm-mode-manual').classList.toggle('active',mode==='manual');
+  document.getElementById('tm-hbn-section').style.display=mode==='hbn'?'':'none';
+  document.getElementById('tm-manual-section').style.display=mode==='manual'?'block':'none';
+  // Footer-Speichern nur im Manuell-Modus (handball.net hat eigenen Anlegen-Button in der Vorschau)
+  const fs=document.getElementById('tm-footer-save');
+  if(fs) fs.style.display=mode==='manual'?'':'none';
 }
 function closeTeamModal(){document.getElementById('team-modal').classList.remove('open');}
 async function saveTeam(){
@@ -1412,6 +1468,181 @@ async function saveTeam(){
   showToast(id?'Mannschaft aktualisiert':'Mannschaft angelegt','success');
   closeTeamModal();await loadTeams();
   currentTeamId?showTeamDetail(currentTeamId):showOverview();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  handball.net — MANNSCHAFT ANLEGEN (Suche → Auswahl → Anlage)
+// ════════════════════════════════════════════════════════════════
+let hbnClubs=[], hbnTeams=[];
+const fixHbnLogo=u=>u?String(u).replace(/^handball-net:/,'https://www.handball.net/'):null;
+
+// sportdata-Endpoint über quick-service-Proxy abrufen (CORS-Umgehung).
+// requestType 'sportdata' = Roh-JSON; 'team'/'schedule' = normalisiert.
+async function hbnApi(path, requestType='sportdata'){
+  const{data:{session}}=await supa.auth.getSession();
+  if(!session?.access_token) throw new Error('Nicht eingeloggt');
+  const res=await fetch(HBN_EDGE_FN,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+    body:JSON.stringify({url:`${HBN_API_BASE}/${path}`,requestType}),
+    signal:AbortSignal.timeout(20000)
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({message:'HTTP '+res.status}));throw new Error(e.message||'HTTP '+res.status);}
+  return res.json();
+}
+
+// Vereinssuche (debounced)
+function hbnTeamSearch(){
+  clearTimeout(hbnSearchTimeout);
+  const q=document.getElementById('tm-hbn-query').value.trim();
+  const res=document.getElementById('tm-hbn-results');
+  document.getElementById('tm-hbn-preview').innerHTML='';
+  hbnPickedTeam=null;
+  if(q.length<2){res.innerHTML='';return;}
+  res.innerHTML='<div style="padding:10px 2px;color:var(--soft);font-size:12.5px;">&#8987; Suche&#8230;</div>';
+  hbnSearchTimeout=setTimeout(async()=>{
+    try{
+      const data=await hbnApi('clubs/search?query='+encodeURIComponent(q));
+      hbnClubs=(data&&data.data)||[];
+      renderHbnClubs();
+    }catch(e){res.innerHTML='<div style="padding:10px 2px;color:var(--red);font-size:12.5px;">&#10060; '+esc(e.message||'Fehler')+'</div>';}
+  },350);
+}
+function renderHbnClubs(){
+  const res=document.getElementById('tm-hbn-results');
+  if(!hbnClubs.length){res.innerHTML='<div style="padding:10px 2px;color:var(--xsoft);font-size:12.5px;">Kein Verein gefunden.</div>';return;}
+  res.innerHTML='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--xsoft);margin:4px 0 6px;">Vereine</div>'+
+    hbnClubs.map((c,i)=>{
+      const logo=fixHbnLogo(c.logo);
+      return `<div class="hbn-pick" onclick="hbnPickClub(${i})">
+        ${logo?`<img src="${esc(logo)}" class="hbn-pick-logo" alt="" loading="lazy">`:'<span class="hbn-pick-logo placeholder">&#127991;&#65039;</span>'}
+        <div class="hbn-pick-main"><div class="hbn-pick-name">${esc(c.name)}</div>${c.acronym?`<div class="hbn-pick-sub">${esc(c.acronym)}</div>`:''}</div>
+        <span class="hbn-pick-arrow">&rarr;</span>
+      </div>`;
+    }).join('');
+}
+// Verein gewählt → Mannschaften laden
+async function hbnPickClub(i){
+  const club=hbnClubs[i]; if(!club)return;
+  const res=document.getElementById('tm-hbn-results');
+  res.innerHTML='<div style="padding:10px 2px;color:var(--soft);font-size:12.5px;">&#8987; Lade Mannschaften&#8230;</div>';
+  try{
+    const data=await hbnApi('clubs/'+encodeURIComponent(club.id)+'/teams');
+    hbnTeams=(data&&data.data)||[];
+    renderHbnTeams(club);
+  }catch(e){res.innerHTML='<div style="padding:10px 2px;color:var(--red);font-size:12.5px;">&#10060; '+esc(e.message||'Fehler')+'</div>';}
+}
+function renderHbnTeams(club){
+  const res=document.getElementById('tm-hbn-results');
+  const back='<button class="btn btn-ghost btn-sm" style="margin-bottom:8px;" onclick="hbnTeamSearch()">&larr; Zur&uuml;ck zur Vereinssuche</button>';
+  if(!hbnTeams.length){res.innerHTML=back+'<div style="padding:8px 2px;color:var(--xsoft);font-size:12.5px;">Keine Mannschaften gefunden.</div>';return;}
+  res.innerHTML=back+
+    `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--xsoft);margin:4px 0 6px;">${esc(club.name)} &ndash; Mannschaften</div>`+
+    hbnTeams.map((t,i)=>{
+      const dt=t.defaultTournament||{};
+      return `<div class="hbn-pick" onclick="hbnPickTeam(${i})">
+        <span class="hbn-pick-logo placeholder">&#129286;</span>
+        <div class="hbn-pick-main"><div class="hbn-pick-name">${esc(t.name)}</div>${dt.acronym?`<div class="hbn-pick-sub">${esc(dt.acronym)}${dt.name?' &middot; '+esc(dt.name):''}</div>`:''}</div>
+        <span class="hbn-pick-arrow">&rarr;</span>
+      </div>`;
+    }).join('');
+}
+// Mannschaft gewählt → Stammdaten + Wettbewerbe laden, Vorschau zeigen
+async function hbnPickTeam(i){
+  const t=hbnTeams[i]; if(!t)return;
+  const prev=document.getElementById('tm-hbn-preview');
+  document.getElementById('tm-hbn-results').innerHTML='';
+  prev.innerHTML='<div style="padding:10px 2px;color:var(--soft);font-size:12.5px;">&#8987; Lade Mannschaftsdaten&#8230;</div>';
+  try{
+    const[info,sched]=await Promise.all([
+      hbnApi('teams/'+encodeURIComponent(t.id),'team').catch(()=>null),
+      hbnApi('teams/'+encodeURIComponent(t.id)+'/schedule','schedule').catch(()=>null)
+    ]);
+    const saisons=(sched&&sched.saisons)||[];
+    const aktiv=saisons.find(s=>s.selected)||saisons[0]||null;
+    const dt=t.defaultTournament||{};
+    hbnPickedTeam={
+      slug:t.id,
+      name:(info&&info.name)||t.name||'',
+      verein:(info&&info.verein)||t.name||'',
+      logo:(info&&info.logo)||fixHbnLogo(t.logo)||null,
+      wettbewerb:aktiv?aktiv.name:(dt.name||''),
+      wettbewerbe:saisons.map(s=>s.name),
+      spielzahl:(sched&&sched.spiele&&sched.spiele.length)||0
+    };
+    renderHbnPreview();
+  }catch(e){prev.innerHTML='<div style="padding:10px 2px;color:var(--red);font-size:12.5px;">&#10060; '+esc(e.message||'Fehler')+'</div>';}
+}
+function renderHbnPreview(){
+  const p=hbnPickedTeam, prev=document.getElementById('tm-hbn-preview');
+  if(!p){prev.innerHTML='';return;}
+  const comps=p.wettbewerbe.length
+    ? p.wettbewerbe.map(w=>`<li>${esc(w)}</li>`).join('')
+    : '<li style="color:var(--xsoft);">Keine Wettbewerbe erkannt</li>';
+  prev.innerHTML=`
+    <div class="card" style="padding:16px;margin-top:14px;border-color:var(--accent);">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <div class="team-color-dot" style="background:#0057ff;">${p.logo?`<img src="${esc(p.logo)}" alt="">`:esc((p.name||'?')[0].toUpperCase())}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(p.name)}</div>
+          <div style="font-size:12px;color:var(--soft);">${esc(p.verein)}${p.spielzahl?' &middot; '+p.spielzahl+' Spiele':''}</div>
+        </div>
+        <span class="badge-owner">&#127760; handball.net</span>
+      </div>
+      <div class="form-group"><label class="form-label">Mannschaftsname <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; anpassbar</span></label>
+        <input class="form-input" id="tm-hbn-name" value="${esc(p.name)}" style="margin-bottom:0;" onkeydown="if(event.key==='Enter')hbnCreateTeam()"></div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--xsoft);margin:14px 0 4px;">Erkannte Wettbewerbe (${p.wettbewerbe.length})</div>
+      <ul style="margin:0 0 6px 18px;font-size:12.5px;color:var(--text);line-height:1.6;">${comps}</ul>
+      <div class="info-box" style="margin-top:10px;">&#128197; Es wird automatisch ein Spielplan-Feed (handball.net) mit Ergebnissen angelegt. Trainings- &amp; weitere Feeds kannst du danach erg&auml;nzen.</div>
+      <button class="btn btn-primary" id="tm-hbn-create" style="width:100%;justify-content:center;margin-top:14px;" onclick="hbnCreateTeam()">&#10003; Mannschaft anlegen</button>
+    </div>`;
+}
+// Anlage: Mannschaft + automatischer Spielplan-Feed
+async function hbnCreateTeam(){
+  if(!hbnPickedTeam){showToast('Keine Mannschaft gewählt.','error');return;}
+  const nameEl=document.getElementById('tm-hbn-name');
+  const name=(nameEl?nameEl.value:'').trim()||hbnPickedTeam.name;
+  if(!name){showToast('Name ist Pflichtfeld.','error');return;}
+  const btn=document.getElementById('tm-hbn-create');
+  if(btn){btn.textContent='⏳ Lege an…';btn.disabled=true;}
+
+  const data={
+    name,
+    verein:hbnPickedTeam.verein||'',
+    logo_url:hbnPickedTeam.logo||null,
+    hbn_team_id:hbnPickedTeam.slug,
+    farbe_geplant:'#0057ff', farbe_ungeplant:'#94a3b8',
+    user_id:currentUser.id
+  };
+  let inserted=null,error;
+  ({data:inserted,error}=await supa.from('mannschaften').insert(data).select().maybeSingle());
+  // Fallback, falls hbn_team_id / logo_url noch nicht migriert sind
+  if(error && /hbn_team_id|logo_url|column|PGRST204|schema cache/i.test(String(error.message||'')+String(error.code||''))){
+    const{hbn_team_id,logo_url,...rest}=data;
+    ({data:inserted,error}=await supa.from('mannschaften').insert(rest).select().maybeSingle());
+    if(!error){
+      showToast('⚠️ handball.net-Verknüpfung/Logo nicht gespeichert – SQL-Migration nötig (Konsole)','info');
+      console.warn('SQL-Migration erforderlich:\n'+
+        'ALTER TABLE mannschaften ADD COLUMN IF NOT EXISTS hbn_team_id text;\n'+
+        'ALTER TABLE mannschaften ADD COLUMN IF NOT EXISTS logo_url text;');
+    }
+  }
+  if(btn){btn.textContent='✓ Mannschaft anlegen';btn.disabled=false;}
+  if(error){showToast('Fehler: '+error.message,'error');return;}
+
+  // Spielplan-Feed automatisch anlegen (handball.net team-iCal)
+  const teamId=inserted&&inserted.id;
+  if(teamId){
+    const icsUrl=`${HBN_API_BASE}/calendar/team/${hbnPickedTeam.slug}.ics`;
+    const feedName='Spielplan'+(hbnPickedTeam.wettbewerb?' – '+hbnPickedTeam.wettbewerb:'');
+    const{error:fe}=await supa.from('mannschaft_kalender').insert({mannschaft_id:teamId,name:feedName,url:icsUrl,typ:'spiele',aktiv:true});
+    if(fe) console.warn('Spielplan-Feed nicht angelegt:',fe.message);
+  }
+
+  showToast('✓ '+name+' aus handball.net angelegt','success');
+  closeTeamModal();
+  await loadTeams();
+  teamId?showTeamDetail(teamId):showOverview();
 }
 
 // PLAYER MODAL
