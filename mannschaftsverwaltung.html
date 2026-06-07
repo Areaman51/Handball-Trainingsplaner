@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260607.2049 — Mannschaftsverwaltung -->
+<!-- Handball Coaching Tools v1.260607.2108 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -246,6 +246,9 @@ tbody tr:hover{background:#fafbff;}
 .hbn-pick-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .hbn-pick-sub{font-size:11px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .hbn-pick-arrow{color:var(--xsoft);font-size:14px;flex-shrink:0;}
+.hbn-fac-row{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;cursor:pointer;}
+.hbn-fac-row:hover{background:var(--accent-l);}
+.hbn-fac-row input[disabled]{cursor:default;}
 @media(max-width:768px){.main{margin-left:0;}.form-row{grid-template-columns:1fr;}.team-grid{grid-template-columns:1fr;}.content{padding:16px;}}
 </style>
 </head>
@@ -301,7 +304,7 @@ tbody tr:hover{background:#fafbff;}
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260607.2049</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260607.2108</div>
     </div>
   </aside>
 
@@ -567,6 +570,14 @@ tbody tr:hover{background:#fafbff;}
       <button class="btn btn-ghost" onclick="closeKalenderModal()">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveKalender()">Speichern</button>
     </div>
+  </div>
+</div>
+<!-- MODAL handball.net-Wettbewerb verknüpfen -->
+<div class="modal-overlay" id="hbn-comp-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">&#127760; handball.net-Wettbewerb verkn&uuml;pfen</div><button class="modal-close" onclick="closeHbnCompModal()">&#215;</button></div>
+    <div class="modal-body" id="hbn-comp-body"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeHbnCompModal()">Abbrechen</button><button class="btn btn-primary" id="hbn-comp-save" onclick="hbnAddCompFeeds()">Hinzuf&uuml;gen</button></div>
   </div>
 </div>
 <div id="toast"></div>
@@ -1239,13 +1250,51 @@ function renderTabFeeds(team){
 
   document.getElementById('tab-content-feeds').innerHTML=`
     <div class="card" style="padding:20px;margin-bottom:16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:8px;flex-wrap:wrap;">
         <div style="font-size:14px;font-weight:600;">&#128197; Kalender (${currentKalender.length})</div>
-        ${owned?'<button class="btn btn-primary btn-sm" onclick="openKalenderModal()">+ Kalender hinzuf&uuml;gen</button>':''}
+        ${owned?`<div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${team.hbn_team_id?`<button class="btn btn-ghost btn-sm" onclick="openHbnCompModal()" title="Weitere Wettbewerbe/Saisons von handball.net verkn&uuml;pfen">&#127760; handball.net-Wettbewerb</button>`:''}
+          <button class="btn btn-primary btn-sm" onclick="openKalenderModal()">+ Kalender hinzuf&uuml;gen</button>
+        </div>`:''}
       </div>
       ${rows}
     </div>
     <div class="info-box">&#128161; Du kannst beliebig viele Kalender je Mannschaft hinterlegen &mdash; z.B. Training, Spielplan, Pokal und mehr. Die URLs werden automatisch im Trainingsplaner und in der Bank-Statistik verwendet.</div>`;
+}
+
+// handball.net-Wettbewerbe nachträglich verknüpfen (neue Saisons etc.)
+async function openHbnCompModal(){
+  const team=allTeams.find(t=>t.id===currentTeamId);
+  if(!team||!team.hbn_team_id){showToast('Keine handball.net-Verknüpfung an dieser Mannschaft.','info');return;}
+  document.getElementById('hbn-comp-modal').classList.add('open');
+  const body=document.getElementById('hbn-comp-body');
+  body.innerHTML='<div style="padding:20px 0;text-align:center;color:var(--soft);font-size:13px;">&#8987; Lade Wettbewerbe&#8230;</div>';
+  try{
+    const sched=await hbnApi('teams/'+encodeURIComponent(team.hbn_team_id)+'/schedule','schedule');
+    const facets=((sched&&sched.saisons)||[]).map(_hbnSplitFacet);
+    window._hbnCompFacets=facets;
+    const existing=new Set((currentKalender||[]).map(k=>k.url));
+    const html=hbnFacetCheckboxesHtml(facets,team.hbn_team_id,new Set(),existing);
+    body.innerHTML=`<div style="font-size:12.5px;color:var(--soft);margin-bottom:2px;">Bereits verkn&uuml;pfte Wettbewerbe sind deaktiviert. W&auml;hle neue (z.B. eine neue Saison) zum Hinzuf&uuml;gen.</div>
+      <div id="hbn-comp-facets" style="max-height:340px;overflow-y:auto;margin:0 -4px;padding:0 4px;">${html}</div>`;
+  }catch(e){body.innerHTML='<div style="padding:16px 0;color:var(--red);font-size:12.5px;">&#10060; '+esc(e.message||'Fehler')+'</div>';}
+}
+function closeHbnCompModal(){document.getElementById('hbn-comp-modal').classList.remove('open');}
+async function hbnAddCompFeeds(){
+  const team=allTeams.find(t=>t.id===currentTeamId);
+  if(!team||!team.hbn_team_id)return;
+  const cont=document.getElementById('hbn-comp-facets');
+  const facets=window._hbnCompFacets||[];
+  const btn=document.getElementById('hbn-comp-save');
+  if(btn){btn.textContent='⏳ Füge hinzu…';btn.disabled=true;}
+  const n=await hbnCreateFeedsFromContainer(cont,currentTeamId,team.hbn_team_id,facets);
+  if(btn){btn.textContent='Hinzufügen';btn.disabled=false;}
+  if(!n){showToast('Nichts ausgewählt.','info');return;}
+  showToast('✓ '+n+' Wettbewerb'+(n>1?'e':'')+' verknüpft','success');
+  closeHbnCompModal();
+  await loadKalender(currentTeamId);
+  await refreshKalenderMap(currentTeamId);
+  renderTabFeeds(allTeams.find(t=>t.id===currentTeamId));
 }
 
 async function testKalenderUrl(url, statusId){
@@ -1476,6 +1525,60 @@ async function saveTeam(){
 let hbnClubs=[], hbnTeams=[];
 const fixHbnLogo=u=>u?String(u).replace(/^handball-net:/,'https://www.handball.net/'):null;
 
+// tournamentSeason-Facet zerlegen: Saison (Klammerzusatz am Ende) vom Wettbewerb trennen
+function _hbnSplitFacet(f){
+  const m=/\(([^)]+)\)\s*$/.exec(f.name||'');
+  const season=m?m[1].trim():'Sonstige';
+  const comp=m?f.name.slice(0,m.index).trim():(f.name||'');
+  const yr=((/(\d{4})\s*\/\s*(\d{4})/.exec(season)||[])[2])||((/(\d{4})/.exec(season)||[])[1])||'0';
+  return {id:f.id,name:f.name||'',selected:!!f.selected,season,comp,_yr:yr};
+}
+function hbnFacetIcsUrl(slug,fid){return `${HBN_API_BASE}/calendar/team/${slug}.ics?tournamentSeason=${encodeURIComponent(fid)}`;}
+function hbnFacetTyp(name){return /pokal/i.test(name||'')?'pokal':'spiele';}
+// Wettbewerb-Checkboxen, gruppiert nach Saison (neueste zuerst).
+// Bereits verknüpfte Feeds (existing = Set von URLs) erscheinen deaktiviert + markiert.
+function hbnFacetCheckboxesHtml(facets,slug,preselect,existing){
+  preselect=preselect||new Set(); existing=existing||new Set();
+  if(!facets.length) return '<div style="font-size:12.5px;color:var(--xsoft);padding:4px 0;">Keine Wettbewerbe gefunden.</div>';
+  const groups={};
+  facets.forEach((f,i)=>{(groups[f.season]=groups[f.season]||[]).push(i);});
+  const keys=Object.keys(groups).sort((a,b)=>{
+    const ya=Math.max(...groups[a].map(i=>+facets[i]._yr||0));
+    const yb=Math.max(...groups[b].map(i=>+facets[i]._yr||0));
+    return yb-ya;
+  });
+  return keys.map(k=>`
+    <div style="margin-top:10px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-bottom:2px;">${esc(k)}</div>
+      ${groups[k].map(i=>{
+        const f=facets[i];
+        const exists=existing.has(hbnFacetIcsUrl(slug,f.id));
+        const checked=exists||preselect.has(f.id);
+        const icon=hbnFacetTyp(f.name)==='pokal'?'&#127942;':'&#128197;';
+        return `<label class="hbn-fac-row">
+          <input type="checkbox" class="hbnfac" data-fid="${esc(f.id)}" ${checked?'checked':''} ${exists?'disabled':''}>
+          <span style="flex:1;font-size:12.5px;">${icon} ${esc(f.comp)}</span>
+          ${exists?'<span style="font-size:10.5px;color:var(--green);font-weight:600;">verkn&uuml;pft</span>':''}
+        </label>`;
+      }).join('')}
+    </div>`).join('');
+}
+// Ausgewählte Facets eines Containers als Spielplan-Feeds anlegen, Anzahl zurückgeben
+async function hbnCreateFeedsFromContainer(containerEl,teamId,slug,facets){
+  if(!containerEl) return 0;
+  const checks=[...containerEl.querySelectorAll('.hbnfac:checked:not(:disabled)')];
+  let n=0;
+  for(const cb of checks){
+    const f=facets.find(x=>x.id===cb.dataset.fid); if(!f)continue;
+    const{error}=await supa.from('mannschaft_kalender').insert({
+      mannschaft_id:teamId, name:f.comp+' ('+f.season+')',
+      url:hbnFacetIcsUrl(slug,f.id), typ:hbnFacetTyp(f.name), aktiv:true
+    });
+    if(error){console.warn('Feed nicht angelegt:',f.name,error.message);} else n++;
+  }
+  return n;
+}
+
 // sportdata-Endpoint über quick-service-Proxy abrufen (CORS-Umgehung).
 // requestType 'sportdata' = Roh-JSON; 'team'/'schedule' = normalisiert.
 async function hbnApi(path, requestType='sportdata'){
@@ -1558,8 +1661,11 @@ async function hbnPickTeam(i){
       hbnApi('teams/'+encodeURIComponent(t.id),'team').catch(()=>null),
       hbnApi('teams/'+encodeURIComponent(t.id)+'/schedule','schedule').catch(()=>null)
     ]);
-    const saisons=(sched&&sched.saisons)||[];
-    const aktiv=saisons.find(s=>s.selected)||saisons[0]||null;
+    const facets=((sched&&sched.saisons)||[]).map(_hbnSplitFacet);
+    const aktiv=facets.find(s=>s.selected)||facets[0]||null;
+    const aktivSeason=aktiv?aktiv.season:null;
+    const preselect=new Set(facets.filter(s=>s.season===aktivSeason).map(s=>s.id));
+    if(aktiv) preselect.add(aktiv.id);
     const dt=t.defaultTournament||{};
     hbnPickedTeam={
       slug:t.id,
@@ -1567,7 +1673,7 @@ async function hbnPickTeam(i){
       verein:(info&&info.verein)||t.name||'',
       logo:(info&&info.logo)||fixHbnLogo(t.logo)||null,
       wettbewerb:aktiv?aktiv.name:(dt.name||''),
-      wettbewerbe:saisons.map(s=>s.name),
+      facets, preselect,
       spielzahl:(sched&&sched.spiele&&sched.spiele.length)||0
     };
     renderHbnPreview();
@@ -1576,9 +1682,7 @@ async function hbnPickTeam(i){
 function renderHbnPreview(){
   const p=hbnPickedTeam, prev=document.getElementById('tm-hbn-preview');
   if(!p){prev.innerHTML='';return;}
-  const comps=p.wettbewerbe.length
-    ? p.wettbewerbe.map(w=>`<li>${esc(w)}</li>`).join('')
-    : '<li style="color:var(--xsoft);">Keine Wettbewerbe erkannt</li>';
+  const facetHtml=hbnFacetCheckboxesHtml(p.facets,p.slug,p.preselect,new Set());
   prev.innerHTML=`
     <div class="card" style="padding:16px;margin-top:14px;border-color:var(--accent);">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
@@ -1591,9 +1695,9 @@ function renderHbnPreview(){
       </div>
       <div class="form-group"><label class="form-label">Mannschaftsname <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; anpassbar</span></label>
         <input class="form-input" id="tm-hbn-name" value="${esc(p.name)}" style="margin-bottom:0;" onkeydown="if(event.key==='Enter')hbnCreateTeam()"></div>
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--xsoft);margin:14px 0 4px;">Erkannte Wettbewerbe (${p.wettbewerbe.length})</div>
-      <ul style="margin:0 0 6px 18px;font-size:12.5px;color:var(--text);line-height:1.6;">${comps}</ul>
-      <div class="info-box" style="margin-top:10px;">&#128197; Es wird automatisch ein Spielplan-Feed (handball.net) mit Ergebnissen angelegt. Trainings- &amp; weitere Feeds kannst du danach erg&auml;nzen.</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--xsoft);margin:14px 0 2px;">Saisons &amp; Wettbewerbe <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--xsoft);">&ndash; ausw&auml;hlen</span></div>
+      <div style="font-size:11.5px;color:var(--xsoft);margin-bottom:2px;">Pro Auswahl wird ein Spielplan-Feed (inkl. Ergebnissen) angelegt. Aktuelle Saison ist vorausgew&auml;hlt.</div>
+      <div id="tm-hbn-facets" style="max-height:240px;overflow-y:auto;margin:0 -4px;padding:0 4px;">${facetHtml}</div>
       <button class="btn btn-primary" id="tm-hbn-create" style="width:100%;justify-content:center;margin-top:14px;" onclick="hbnCreateTeam()">&#10003; Mannschaft anlegen</button>
     </div>`;
 }
@@ -1630,13 +1734,15 @@ async function hbnCreateTeam(){
   if(btn){btn.textContent='✓ Mannschaft anlegen';btn.disabled=false;}
   if(error){showToast('Fehler: '+error.message,'error');return;}
 
-  // Spielplan-Feed automatisch anlegen (handball.net team-iCal)
+  // Spielplan-Feeds anlegen: je gewähltem Wettbewerb/Saison einer
   const teamId=inserted&&inserted.id;
   if(teamId){
-    const icsUrl=`${HBN_API_BASE}/calendar/team/${hbnPickedTeam.slug}.ics`;
-    const feedName='Spielplan'+(hbnPickedTeam.wettbewerb?' – '+hbnPickedTeam.wettbewerb:'');
-    const{error:fe}=await supa.from('mannschaft_kalender').insert({mannschaft_id:teamId,name:feedName,url:icsUrl,typ:'spiele',aktiv:true});
-    if(fe) console.warn('Spielplan-Feed nicht angelegt:',fe.message);
+    const cont=document.getElementById('tm-hbn-facets');
+    const n=await hbnCreateFeedsFromContainer(cont,teamId,hbnPickedTeam.slug,hbnPickedTeam.facets);
+    if(!n){ // kein Facet wählbar/gewählt → Team-iCal als ein Spielplan-Feed (Fallback)
+      const{error:fe}=await supa.from('mannschaft_kalender').insert({mannschaft_id:teamId,name:'Spielplan'+(hbnPickedTeam.wettbewerb?' – '+hbnPickedTeam.wettbewerb:''),url:`${HBN_API_BASE}/calendar/team/${hbnPickedTeam.slug}.ics`,typ:'spiele',aktiv:true});
+      if(fe) console.warn('Spielplan-Feed nicht angelegt:',fe.message);
+    }
   }
 
   showToast('✓ '+name+' aus handball.net angelegt','success');
