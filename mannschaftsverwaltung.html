@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260607.2108 — Mannschaftsverwaltung -->
+<!-- Handball Coaching Tools v1.260607.2117 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -304,7 +304,7 @@ tbody tr:hover{background:#fafbff;}
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260607.2108</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260607.2117</div>
     </div>
   </aside>
 
@@ -1193,15 +1193,24 @@ function renderTabKader(team){
     </div>
     <div id="hbn-import-panel" style="display:none;background:var(--accent-l);border:1.5px solid #bfdbfe;border-radius:10px;padding:16px;margin-bottom:16px;">
       <div style="font-size:13px;font-weight:600;color:#1e3a8a;margin-bottom:8px;">&#127760; Kader von handball.net importieren</div>
+      ${team.hbn_team_id?`
+      <div style="font-size:12.5px;font-weight:600;color:#1e3a8a;margin-bottom:2px;">&#128202; &Uuml;ber Saison zusammenstellen <span style="font-weight:400;opacity:.75;">&ndash; empfohlen</span></div>
+      <div style="font-size:12px;color:#1e3a8a;margin-bottom:8px;line-height:1.5;">
+        W&auml;hle Saison/Wettbewerb &#8594; handball.net wird &uuml;ber <strong>alle Spiele</strong> dieser Auswahl ausgewertet und jede eingesetzte Spielerin gesammelt und abgeglichen.
+      </div>
+      <div id="hbn-season-facets" style="background:white;border:1px solid var(--border);border-radius:9px;padding:6px 10px;max-height:220px;overflow-y:auto;margin-bottom:10px;">&#8987; Lade Wettbewerbe&#8230;</div>
+      <button class="btn btn-primary" onclick="hbnRosterFromSeason()">&#128229; Kader zusammenstellen</button>
+      <div style="text-align:center;font-size:11px;color:#1e3a8a;opacity:.65;margin:14px 0 8px;">&mdash; oder einzeln per Spiel-URL &mdash;</div>
+      `:`
       <div style="font-size:12px;color:#1e3a8a;margin-bottom:12px;line-height:1.5;">
         handball.net-Spielseite aufrufen &#8594; URL der Aufstellungsseite kopieren und hier einfügen.
         Neue Spieler werden mit dem bestehenden Kader abgeglichen.
-      </div>
+      </div>`}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <input class="form-input" id="hbn-match-url"
           placeholder="https://www.handball.net/spiele/.../aufstellung"
           style="flex:1;min-width:200px;margin:0;" onkeydown="if(event.key==='Enter')hbnLoadRoster()">
-        <button class="btn btn-primary" onclick="hbnLoadRoster()">Laden</button>
+        <button class="btn btn-ghost" onclick="hbnLoadRoster()">Einzelspiel laden</button>
       </div>
       <div id="hbn-import-result" style="margin-top:12px;"></div>
     </div>`:''}
@@ -2160,12 +2169,27 @@ function parseICalDate(s){
 //  handball.net KADER-IMPORT
 // ════════════════════════════════════════════════════════════════
 
-function toggleHbnImport(){
+async function toggleHbnImport(){
   const panel=document.getElementById('hbn-import-panel');
   if(!panel)return;
   const open=panel.style.display==='none';
   panel.style.display=open?'':'none';
-  if(open) setTimeout(()=>document.getElementById('hbn-match-url')?.focus(),100);
+  if(!open) return;
+  const team=allTeams.find(t=>t.id===currentTeamId);
+  const facetWrap=document.getElementById('hbn-season-facets');
+  if(facetWrap && team && team.hbn_team_id){
+    facetWrap.innerHTML='<div style="font-size:12px;color:#1e3a8a;">&#8987; Lade Wettbewerbe&#8230;</div>';
+    try{
+      const sched=await hbnApi('teams/'+encodeURIComponent(team.hbn_team_id)+'/schedule','schedule');
+      const facets=((sched&&sched.saisons)||[]).map(_hbnSplitFacet);
+      window._hbnRosterFacets=facets;
+      const aktiv=facets.find(s=>s.selected)||facets[0]||null;
+      const pre=new Set(aktiv?[aktiv.id]:[]);
+      facetWrap.innerHTML=hbnFacetCheckboxesHtml(facets,team.hbn_team_id,pre,new Set());
+    }catch(e){facetWrap.innerHTML='<div style="font-size:12px;color:var(--red);">&#10060; '+esc(e.message||'Fehler')+'</div>';}
+  } else {
+    setTimeout(()=>document.getElementById('hbn-match-url')?.focus(),100);
+  }
 }
 
 /** Ruft die handball.net-Seite via Edge Function ab */
@@ -2239,6 +2263,69 @@ async function hbnLoadRoster(){
       <span style="font-size:11px;opacity:.8;display:block;margin-top:4px;">
         Tipp: Die /aufstellung-URL des Spiels verwenden.</span></div>`;
   }
+}
+
+/** Kader über ALLE Spiele der gewählten Saison(s)/Wettbewerbe zusammenstellen.
+ *  Liest die in #hbn-season-facets angehakten tournamentSeasons, sammelt deren
+ *  Spiele, wertet jede Aufstellung aus und aggregiert die eigenen Spielerinnen
+ *  (Dedup über stabile handball.net-Spieler-ID), dann Abgleich via renderHbnDiff. */
+async function hbnRosterFromSeason(){
+  const team=allTeams.find(t=>t.id===currentTeamId);
+  const res=document.getElementById('hbn-import-result');
+  const wrap=document.getElementById('hbn-season-facets');
+  if(!team||!team.hbn_team_id){showToast('Keine handball.net-Verknüpfung.','error');return;}
+  const slug=team.hbn_team_id;
+  const facets=window._hbnRosterFacets||[];
+  const chosen=[...(wrap?wrap.querySelectorAll('.hbnfac:checked'):[])].map(cb=>cb.dataset.fid);
+  if(!chosen.length){showToast('Bitte mindestens einen Wettbewerb wählen.','info');return;}
+  res.innerHTML='<div style="color:var(--soft);font-size:12.5px;">&#8987; Lade Spielpläne&#8230;</div>';
+  try{
+    // 1) Spiele aller gewählten Wettbewerbe sammeln, über hbn_id deduplizieren
+    const seen=new Set(); const games=[];
+    for(const fid of chosen){
+      const sched=await hbnApi('teams/'+encodeURIComponent(slug)+'/schedule?tournamentSeason='+encodeURIComponent(fid),'schedule');
+      ((sched&&sched.spiele)||[]).forEach(s=>{
+        if(s.hbn_id && !seen.has(s.hbn_id)){seen.add(s.hbn_id);games.push(s);}
+      });
+    }
+    // nur gespielte Partien tragen Aufstellungen
+    const played=games.filter(s=>s.status==='beendet'||s.status==='live');
+    if(!played.length){res.innerHTML='<div style="color:var(--red);font-size:12.5px;">Keine gespielten Partien mit Aufstellung gefunden.</div>';return;}
+
+    // 2) Aufstellungen einsammeln (4 parallel) + aggregieren
+    const agg=new Map(); // hbn_id → {name,nummer:{},einsaetze,tore}
+    let done=0; const total=played.length;
+    const prog=()=>{res.innerHTML=`<div style="color:var(--soft);font-size:12.5px;">&#8987; Werte Aufstellungen aus&#8230; ${done}/${total} Spiele</div>`;};
+    prog();
+    const queue=[...played];
+    async function worker(){
+      while(queue.length){
+        const sp=queue.shift();
+        try{
+          const lu=await hbnApi('games/'+encodeURIComponent(sp.hbn_id)+'/lineup','lineup');
+          const players = sp.heim_slug===slug ? (lu.heim||[]) : sp.gast_slug===slug ? (lu.gast||[]) : [];
+          players.forEach(pl=>{
+            if(!pl.hbn_id) return;
+            let e=agg.get(pl.hbn_id);
+            if(!e){e={name:pl.name||'',nummer:{},einsaetze:0,tore:0};agg.set(pl.hbn_id,e);}
+            e.einsaetze++; e.tore+=(pl.tore||0);
+            if((pl.name||'').length>e.name.length) e.name=pl.name;     // vollständigeren Namen behalten
+            if(pl.nummer!=null) e.nummer[pl.nummer]=(e.nummer[pl.nummer]||0)+1;
+          });
+        }catch(_){ /* Spiel ohne Aufstellung → überspringen */ }
+        done++; prog();
+      }
+    }
+    await Promise.all([worker(),worker(),worker(),worker()]);
+
+    // 3) In renderHbnDiff-Format: häufigste Rückennummer, Position FL (TH-Erkennung via API nicht möglich)
+    const roster=[...agg.values()].map(e=>{
+      const nr=Object.keys(e.nummer).sort((a,b)=>e.nummer[b]-e.nummer[a])[0];
+      return {name:e.name, nummer:nr?parseInt(nr,10):null, pos:'FL', _einsaetze:e.einsaetze};
+    }).sort((a,b)=>(b._einsaetze-a._einsaetze)||((a.nummer||99)-(b.nummer||99)));
+    if(!roster.length){res.innerHTML='<div style="color:var(--red);font-size:12.5px;">Keine Spielerinnen in den Aufstellungen gefunden.</div>';return;}
+    renderHbnDiff(roster, team.name+' &middot; '+played.length+' Spiele ausgewertet');
+  }catch(e){res.innerHTML='<div style="color:var(--red);font-size:12.5px;">&#10060; '+esc(e.message||'Fehler')+'</div>';}
 }
 
 function renderHbnTeamChoice(data){
