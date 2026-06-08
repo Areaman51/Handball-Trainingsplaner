@@ -273,7 +273,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260608.1010</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260608.1946</div>
     </div>
   </aside>
 
@@ -497,6 +497,19 @@ function activeSaisonYear(){
   const s = allSaisons.find(x=>x.id===aktiveSaisonId);
   if(!s || !s.end_date) return null;
   return parseInt(s.end_date.slice(0,4),10);
+}
+// Datumsbereich der aktiven Saison (Start = Ende der Vorsaison, exklusiv)
+function activeSaisonRange(){
+  return aktiveSaisonId ? (saisonRanges[aktiveSaisonId] || null) : null;
+}
+// Liegt ein Datum innerhalb der aktiven Saison? (für Trainings-/iCal-Feeds ohne Saisonbezug)
+function inActiveSeasonRange(d){
+  const r = activeSaisonRange();
+  if(!r || !d) return true;                 // keine Saison gewählt → kein Filter
+  const ds = toDateStr(d);
+  if(r.start && ds <= r.start) return false; // vor Saisonbeginn (= Ende der Vorsaison)
+  if(r.end && ds > r.end) return false;      // nach Saisonende
+  return true;
 }
 // Jahr aus einem Feed-/Wettbewerbsnamen ziehen: "… (Hallenrunde 2025/2026)" → 2026, "Sommer 2026" → 2026
 function feedYear(name){
@@ -806,6 +819,8 @@ async function syncFeeds(){
       try{
         const {events: evs, rawText} = await fetchICalFeed(f.url);
         const isSpiel = (f.typ==='spiel'||f.typ==='spiele'||f.typ==='pokal');
+        // ── Saison-Kopplung: nur Events im Zeitraum der aktiven Saison laden (z.B. Sportmember/SpielerPlus) ──
+        const keptEvs = evs.filter(e=>!e.dtstart || inActiveSeasonRange(e.dtstart));
 
         // ── Protokoll-Daten aus dem Feed extrahieren ──
         const unfolded = rawText.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
@@ -825,22 +840,22 @@ async function syncFeeds(){
 
         // Pro Feed: erstes Event + alle Spiele separat loggen
         console.log(
-          `%c${t.name} · ${f.name}%c  ${evs.length} Events`,
+          `%c${t.name} · ${f.name}%c  ${keptEvs.length}/${evs.length} Events (Saison)`,
           'font-weight:700','font-weight:400',
           {DTSTART: veventDtstart||'–', VTIMEZONE: vtimezoneTzid||'–', geparst: parsedTime||'–'}
         );
-        if(isSpiel && evs.length){
+        if(isSpiel && keptEvs.length){
           console.group('  Spiel-Events');
-          evs.slice(0,5).forEach(e=>console.log(
+          keptEvs.slice(0,5).forEach(e=>console.log(
             e.dtstart?.toISOString(),
             '→', e.dtstart ? String(e.dtstart.getHours()).padStart(2,'0')+':'+String(e.dtstart.getMinutes()).padStart(2,'0') : '–',
             e.summary
           ));
-          if(evs.length>5) console.log(`  … und ${evs.length-5} weitere`);
+          if(keptEvs.length>5) console.log(`  … und ${keptEvs.length-5} weitere`);
           console.groupEnd();
         }
 
-        evs.forEach(e=>newEvents.push({
+        keptEvs.forEach(e=>newEvents.push({
           ...e,
           mannschaftId:   t.id,
           mannschaftName: t.name,
