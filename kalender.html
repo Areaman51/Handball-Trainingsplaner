@@ -97,6 +97,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   background:var(--white);cursor:pointer;font-size:12.5px;font-weight:600;
   color:var(--soft);font-family:'DM Sans',sans-serif;transition:all .15s;}
 .kal-today-btn:hover{background:var(--accent-l);border-color:var(--accent);color:var(--accent);}
+.kal-season-sel{padding:6px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);
+  font-size:12.5px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;outline:none;max-width:230px;}
+.kal-season-sel:focus{border-color:var(--accent);}
 
 /* ── GRID ── */
 .kal-wrap{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);
@@ -265,7 +268,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260608.0917</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260608.0955</div>
     </div>
   </aside>
 
@@ -287,6 +290,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="kal-nav">
         <button class="kal-nav-btn" onclick="kalNav(-1)">‹</button>
         <div class="kal-monat" id="kal-monat">…</div>
+        <select id="kal-season" class="kal-season-sel" onchange="setActiveSeason(this.value)" style="display:none;" title="Aktive Saison (geräteübergreifend)"></select>
         <button class="kal-today-btn" onclick="goToday()">Heute</button>
         <button class="kal-nav-btn" onclick="kalNav(1)">›</button>
       </div>
@@ -366,6 +370,9 @@ let allMannschaften = [];
 let mannschaftKalender = {};   // mannschaft_id → [{url,typ,name}]
 let icalEvents  = [];           // geparste iCal-Events (gecacht)
 let icalLoaded  = false;
+let allSaisons  = [];           // saisons-Tabelle (Name + end_date)
+let aktiveSaisonId = null;      // global gewählte Saison (profiles.aktive_saison_id)
+let saisonRanges = {};          // saison_id → {start,end}
 
 // ── DEBUG-Helfer (global, sofort verfügbar) ───────────────────
 window.debugGames = function(){
@@ -408,6 +415,8 @@ async function onAuth(user){
   // Mannschaften + iCal laden
   setLoadingText('Mannschaften werden geladen…');
   await loadMannschaften();
+  await loadSaisons();
+  renderSeasonPicker();
   setLoadingText('Kalender-Feeds werden synchronisiert…');
   await syncFeeds();
   renderKalender();
@@ -433,6 +442,69 @@ async function loadMannschaften(){
       mannschaftKalender[k.mannschaft_id].push(k);
     });
   }
+}
+
+// ════════════════════════════════════════════════════════════
+// SAISON-AUSWAHL (global, geräteübergreifend via profiles.aktive_saison_id)
+// Gekoppelt an handball.net: lädt nur Wettbewerbe der gewählten Saison.
+// ════════════════════════════════════════════════════════════
+async function loadSaisons(){
+  const {data} = await supa.from('saisons').select('id,name,end_date').order('end_date',{ascending:false});
+  allSaisons = data || [];
+  // Saison-Datumsbereiche (Start = Ende der vorigen Saison)
+  saisonRanges = {};
+  const asc = [...allSaisons].sort((a,b)=>(a.end_date||'').localeCompare(b.end_date||''));
+  asc.forEach((s,i)=>{ saisonRanges[s.id] = { start: i>0 ? asc[i-1].end_date : null, end: s.end_date }; });
+  // aktive Saison aus profiles lesen (graceful, falls Spalte noch nicht migriert)
+  let stored = null;
+  const {data:prof,error:pe} = await supa.from('profiles').select('aktive_saison_id').eq('id',currentUser.id).maybeSingle();
+  if(pe) console.warn('aktive_saison_id evtl. nicht migriert:',pe.message);
+  else stored = prof?.aktive_saison_id || null;
+  if(stored && !allSaisons.find(s=>s.id===stored)) stored = null;   // gelöschte Saison ignorieren
+  if(!stored && allSaisons.length) stored = allSaisons[0].id;        // Default: neueste Saison
+  aktiveSaisonId = stored;
+  // Default-Wahl persistieren, falls noch nichts gespeichert war
+  if(aktiveSaisonId && aktiveSaisonId !== prof?.aktive_saison_id){
+    supa.from('profiles').update({aktive_saison_id:aktiveSaisonId}).eq('id',currentUser.id)
+      .then(({error})=>{ if(error) console.warn('Saison-Default speichern:',error.message); });
+  }
+}
+
+function renderSeasonPicker(){
+  const sel = document.getElementById('kal-season');
+  if(!sel) return;
+  if(!allSaisons.length){ sel.style.display='none'; return; }
+  sel.style.display='';
+  sel.innerHTML = allSaisons.map(s=>`<option value="${s.id}"${s.id===aktiveSaisonId?' selected':''}>${s.name||s.end_date}</option>`).join('');
+}
+
+// Sport-Jahr der aktiven Saison (aus end_date) → für Kopplung mit handball.net-Wettbewerben
+function activeSaisonYear(){
+  const s = allSaisons.find(x=>x.id===aktiveSaisonId);
+  if(!s || !s.end_date) return null;
+  return parseInt(s.end_date.slice(0,4),10);
+}
+// Jahr aus einem Feed-/Wettbewerbsnamen ziehen: "… (Hallenrunde 2025/2026)" → 2026, "Sommer 2026" → 2026
+function feedYear(name){
+  const m = String(name||'').match(/(\d{4})\s*\/\s*(\d{4})/);
+  if(m) return parseInt(m[2],10);
+  const s = String(name||'').match(/(20\d{2})/);
+  return s ? parseInt(s[1],10) : null;
+}
+
+async function setActiveSeason(id){
+  aktiveSaisonId = id || null;
+  if(currentUser && id){
+    supa.from('profiles').update({aktive_saison_id:id}).eq('id',currentUser.id)
+      .then(({error})=>{ if(error) console.warn('Saison speichern:',error.message); });
+  }
+  // Falls heute außerhalb der Saison liegt → Kalender auf das Saisonende springen
+  const r = saisonRanges[id];
+  if(r && r.end){
+    const today = toDateStr(new Date());
+    if((r.start && today <= r.start) || today > r.end){ kalDate = new Date(r.end+'T00:00:00'); }
+  }
+  await syncFeeds();   // lädt nur die Wettbewerbe der gewählten Saison + rendert neu
 }
 
 // ════════════════════════════════════════════════════════════
@@ -665,10 +737,42 @@ async function syncFeeds(){
       ...(t.ical_spiele   ? [{url:t.ical_spiele,  typ:'spiel',   name:'Spielplan'}]:[]),
     ];
     const allFeeds = feeds.length ? feeds : legacyFeeds;
+
+    // ══ PRIMÄR: handball.net JSON-Spielplan (mit Ergebnissen), wenn Team verknüpft ══
+    // JSON hat Vorrang; iCal-Spielpläne sind nur Fallback (kein Ergebnis).
+    let jsonGamesOk = false;
+    if(t.hbn_team_id){
+      // tournamentSeasons aus den handball.net-Spielfeeds des Teams (Mehrfachauswahl möglich)
+      const tsMap = new Map();   // tournamentSeason → Feedname
+      allFeeds.forEach(f=>{ const h=parseHbnGameFeed(f.url); if(h) tsMap.set(h.tournamentSeason||'', f.name||'Spielplan'); });
+      let entries;
+      if(tsMap.size){
+        entries = [...tsMap.entries()];
+        // Kopplung an aktive Saison: nur Wettbewerbe des Saison-Jahres laden (beschleunigt)
+        const yr = activeSaisonYear();
+        if(yr!=null) entries = entries.filter(([ts,name])=>{ const fy=feedYear(name); return fy==null || fy===yr; });
+      } else {
+        entries = [['','Spielplan']];   // '' = Default-Wettbewerb (kein Facet-Feed)
+      }
+      for(const [ts,feedName] of entries){
+        try{
+          const evs = await hbnScheduleEvents(t, {name:feedName}, {slug:t.hbn_team_id, tournamentSeason: ts||null});
+          evs.forEach(e=>newEvents.push(e));
+          const played = evs.filter(e=>e.score_home!=null).length;
+          console.log(`%c${t.name} · ${feedName}%c  ${evs.length} Spiele (JSON)${played?` · ${played} mit Ergebnis`:''}`,'font-weight:700','font-weight:400');
+          ok++; jsonGamesOk = true;
+        }catch(e){
+          fail++;
+          console.warn(`${t.name} · ${feedName} (handball.net JSON): ${e.message}`);
+        }
+      }
+    }
+
     for(const f of allFeeds){
       // ── handball.net-Spielplan: JSON über quick-service (mit Ergebnissen) ──
       const hbn = parseHbnGameFeed(f.url);
       if(hbn){
+        if(jsonGamesOk) continue;   // bereits über Team-JSON geladen → Dublette vermeiden
         try{
           const evs = await hbnScheduleEvents(t, f, hbn);
           evs.forEach(e=>newEvents.push(e));
@@ -681,9 +785,11 @@ async function syncFeeds(){
         }
         continue;
       }
+      // generischer Spiel-iCal nur als Fallback, wenn kein JSON-Spielplan geladen wurde
+      if(jsonGamesOk && (f.typ==='spiel'||f.typ==='spiele'||f.typ==='pokal')) continue;
       try{
         const {events: evs, rawText} = await fetchICalFeed(f.url);
-        const isSpiel = (f.typ==='spiel'||f.typ==='spiele');
+        const isSpiel = (f.typ==='spiel'||f.typ==='spiele'||f.typ==='pokal');
 
         // ── Protokoll-Daten aus dem Feed extrahieren ──
         const unfolded = rawText.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
@@ -890,13 +996,15 @@ async function renderKalender(){
 
     // Supabase-Spiele (iCal-Zeit bevorzugen wenn vorhanden – DB kann veraltet sein)
     spiele.forEach(s=>{
-      const bg = teams.find(t=>t.name===s.heim||t.name===s.gast)?.farbe_geplant||'#d97706';
+      const bg0 = teams.find(t=>t.name===s.heim||t.name===s.gast)?.farbe_geplant||'#d97706';
       const icalMatch = icalDay.find(ev=>ev.typ==='spiel'&&(
         ev.summary.includes(s.heim)||ev.summary.includes(s.gast)));
       const displayTime = icalMatch ? toTimeStr(icalMatch.dtstart) : (s.uhrzeit?.slice(0,5)||'');
+      const sc = (icalMatch && icalMatch.score_home!=null && icalMatch.score_away!=null) ? icalMatch.score_home+':'+icalMatch.score_away+' ' : '';
+      const bg = sc ? '#15803d' : bg0;
       addEventDot(cell,{
-        label:'🏆 '+(displayTime?displayTime+' ':'')+s.heim+' – '+s.gast,
-        title:`Spiel: ${s.heim} vs. ${s.gast} · ${statusLabel(s.status)}`,
+        label:'🏆 '+(sc || (displayTime?displayTime+' ':''))+s.heim+' – '+s.gast,
+        title:`Spiel: ${s.heim} vs. ${s.gast} · ${statusLabel(s.status)}${sc?' · '+sc.trim():''}`,
         bg, cls:'spiel',
         onclick:(ev)=>{ev.stopPropagation();navigateToSpiel(s);}
       });
@@ -1027,12 +1135,13 @@ function renderList(year,month,einheitenMap,spieleMap,icalMap,spieleLookup){
     const icalMatch=(icalSpielByDatum[s.datum]||[]).find(ev=>
       ev.summary.includes(s.heim)||ev.summary.includes(s.gast));
     const displayTime = icalMatch ? toTimeStr(icalMatch.dtstart) : (s.uhrzeit?.slice(0,5)||'');
+    const sc = (icalMatch && icalMatch.score_home!=null && icalMatch.score_away!=null) ? `<strong>${icalMatch.score_home}:${icalMatch.score_away}</strong> ` : '';
     items.push({
       sortKey:s.datum+(displayTime||''),day,
       html:listItem({
-        bg:teamColor,day,wd:WOCHENTAGE[new Date(s.datum+'T00:00:00').getDay()],
-        name:s.heim+' – '+s.gast,
-        sub:(displayTime?displayTime+' Uhr · ':'')+'Spiel'+statusBadge,
+        bg: sc ? '#15803d' : teamColor,day,wd:WOCHENTAGE[new Date(s.datum+'T00:00:00').getDay()],
+        name:sc+s.heim+' – '+s.gast,
+        sub:(sc?'':(displayTime?displayTime+' Uhr · ':''))+'Spiel'+statusBadge,
         badge:'',onclick:`navigateToSpiel(${JSON.stringify(s).replace(/"/g,"'")})`,icon:'🏆'
       })
     });
