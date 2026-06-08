@@ -265,7 +265,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260514.1200</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260608.0917</div>
     </div>
   </aside>
 
@@ -352,6 +352,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 const SUPA_URL = 'https://dlofjsmnkwltuutpxoer.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2Zqc21ua3dsdHV1dHB4b2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODQ3NzcsImV4cCI6MjA5MjM2MDc3N30.XHSHILC_ac8FAPSeaAAtIwDRgu6LwS1C4WqBElpyQaA';
 const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// handball.net sportdata-JSON über die quick-service Edge-Function (CORS-sicher, mit Ergebnissen)
+const HBN_EDGE_FN = SUPA_URL + '/functions/v1/quick-service';
+const HBN_API_BASE = 'https://www.handball.net/a/sportdata/1';
 
 // ════════════════════════════════════════════════════════════
 // STATE
@@ -586,6 +590,66 @@ function getBaseUrl(url=''){
   return url.replace(/\/(info|aufstellung|ticker|spielbericht|tabelle|halle)\/?$/,'').trim();
 }
 
+// ════════════════════════════════════════════════════════════
+// handball.net JSON-SPIELPLAN (über quick-service Edge-Function)
+// ════════════════════════════════════════════════════════════
+async function hbnApi(path, requestType='schedule'){
+  const {data:{session}} = await supa.auth.getSession();
+  if(!session?.access_token) throw new Error('Nicht eingeloggt');
+  const res = await fetch(HBN_EDGE_FN,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+    body:JSON.stringify({url:`${HBN_API_BASE}/${path}`,requestType}),
+    signal:AbortSignal.timeout(20000)
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({message:'HTTP '+res.status}));throw new Error(e.message||'HTTP '+res.status);}
+  return res.json();
+}
+
+// handball.net-Spielplan-Feed erkennen → {slug, tournamentSeason} | null
+// Feed-URL-Muster: …/calendar/team/{slug}.ics?tournamentSeason={fid}
+function parseHbnGameFeed(url){
+  if(!url || !/handball\.net/i.test(url) || !/\/calendar\/team\//i.test(url)) return null;
+  const m = url.match(/\/calendar\/team\/(.+?)\.ics(?:\?|$)/i);
+  if(!m) return null;
+  const ts = url.match(/[?&]tournamentSeason=([^&]+)/i);
+  return { slug: decodeURIComponent(m[1]), tournamentSeason: ts ? decodeURIComponent(ts[1]) : null };
+}
+
+// JSON-Spielplan einer Mannschaft (ein Feed) → Event-Objekte (gleiche Form wie iCal-Events,
+// plus Ergebnis/Status). Filtert auf den im Feed gewählten Wettbewerb (tournamentSeason).
+async function hbnScheduleEvents(team, feed, hbn){
+  const path = `teams/${encodeURIComponent(hbn.slug)}/schedule`
+    + (hbn.tournamentSeason ? `?tournamentSeason=${encodeURIComponent(hbn.tournamentSeason)}` : '');
+  const data = await hbnApi(path, 'schedule');
+  const spiele = (data && data.spiele) || [];
+  const ourSlug = team.hbn_team_id || hbn.slug;
+  return spiele.map(g=>{
+    const dt = g.startsAt ? new Date(g.startsAt) : (g.datum ? new Date(g.datum) : null);
+    return {
+      dtstart: dt, dtend: null,
+      summary: (g.heim||'') + ' - ' + (g.gast||''),
+      uid: g.hbn_id || '',
+      url: g.hbn_url || '',
+      location: [g.halle, g.ort].filter(Boolean).join(', '),
+      typ: 'spiel',
+      mannschaftId: team.id,
+      mannschaftName: team.name,
+      feedName: feed.name,
+      farbe_geplant: team.farbe_geplant || '#0057ff',
+      farbe_ungeplant: team.farbe_ungeplant || '#94a3b8',
+      // ── handball.net-Extras ──
+      hbn_id: g.hbn_id || '',
+      hbn_status: g.status || '',            // geplant | live | beendet
+      score_home: (g.score_home ?? null),
+      score_away: (g.score_away ?? null),
+      heim: g.heim || '', gast: g.gast || '',
+      heim_slug: g.heim_slug || null, gast_slug: g.gast_slug || null,
+      our_slug: ourSlug,
+    };
+  }).filter(e=>e.dtstart);
+}
+
 async function syncFeeds(){
   const btn = document.getElementById('sync-btn');
   const icon = document.getElementById('sync-icon');
@@ -602,6 +666,21 @@ async function syncFeeds(){
     ];
     const allFeeds = feeds.length ? feeds : legacyFeeds;
     for(const f of allFeeds){
+      // ── handball.net-Spielplan: JSON über quick-service (mit Ergebnissen) ──
+      const hbn = parseHbnGameFeed(f.url);
+      if(hbn){
+        try{
+          const evs = await hbnScheduleEvents(t, f, hbn);
+          evs.forEach(e=>newEvents.push(e));
+          const played = evs.filter(e=>e.score_home!=null).length;
+          console.log(`%c${t.name} · ${f.name}%c  ${evs.length} Spiele (JSON)${played?` · ${played} mit Ergebnis`:''}`,'font-weight:700','font-weight:400');
+          ok++;
+        }catch(e){
+          fail++;
+          console.warn(`${t.name} · ${f.name} (handball.net JSON): ${e.message}`);
+        }
+        continue;
+      }
       try{
         const {events: evs, rawText} = await fetchICalFeed(f.url);
         const isSpiel = (f.typ==='spiel'||f.typ==='spiele');
@@ -855,10 +934,14 @@ async function renderKalender(){
           (s.gast&&ev.summary.includes(s.gast))
         );
         if(exists) return;
+        const hasScore = ev.score_home!=null && ev.score_away!=null;
+        const scoreStr = hasScore ? ev.score_home+':'+ev.score_away+' ' : '';
+        const livePre  = ev.hbn_status==='live' ? '🔴 ' : '';
+        const gBg = ev.hbn_status==='beendet' ? '#15803d' : '#d97706';
         addEventDot(cell,{
-          label:'🏆 '+(time?time+' ':'')+ev.summary,
-          title:'Spiel (noch ohne Statistik): '+ev.summary,
-          bg:'#d97706', cls:'spiel',
+          label:'🏆 '+livePre+(scoreStr || (time?time+' ':''))+ev.summary,
+          title:(ev.hbn_status==='beendet'?'Ergebnis: ':ev.hbn_status==='live'?'Live: ':'Spiel (noch ohne Statistik): ')+ev.summary+(hasScore?` (${ev.score_home}:${ev.score_away})`:''),
+          bg:gBg, cls:'spiel',
           onclick:(ev2)=>{ev2.stopPropagation();confirmSpielAnlegen(ev,dateStr,time);}
         });
       }
@@ -988,15 +1071,21 @@ function renderList(year,month,einheitenMap,spieleMap,icalMap,spieleLookup){
           (s.heim&&ev.summary.includes(s.heim))||(s.gast&&ev.summary.includes(s.gast))
         );
         if(exists) return;
-        const evJson=JSON.stringify({summary:ev.summary,url:ev.url||'',location:ev.location||'',mannschaftName:ev.mannschaftName}).replace(/'/g,'&#39;');
+        const evJson=JSON.stringify({summary:ev.summary,url:ev.url||'',location:ev.location||'',mannschaftName:ev.mannschaftName,score_home:ev.score_home??null,score_away:ev.score_away??null,hbn_status:ev.hbn_status||''}).replace(/'/g,'&#39;');
+        const lHasScore = ev.score_home!=null && ev.score_away!=null;
+        const lScore = lHasScore ? `<strong>${ev.score_home}:${ev.score_away}</strong> ` : '';
+        const lBar = ev.hbn_status==='beendet' ? '#15803d' : '#d97706';
+        const lBadge = ev.hbn_status==='live' ? '<span class="kli-badge badge-live">🔴 Live</span>'
+          : ev.hbn_status==='beendet' ? '<span class="kli-badge badge-done">✅ Ergebnis</span>'
+          : '<span class="kli-badge badge-game">Kein Eintrag</span>';
         items.push({
           sortKey:dateStr+(time||''),day,
           html:`<div class="kal-list-item" onclick="confirmSpielAnlegenFromData('${evJson}','${dateStr}','${time}')">
-            <div class="kli-bar" style="background:#d97706;"></div>
+            <div class="kli-bar" style="background:${lBar};"></div>
             <div class="kli-date"><div class="kli-day">${day}</div><div class="kli-wd">${WOCHENTAGE[new Date(dateStr+'T00:00:00').getDay()]}</div></div>
             <div class="kli-info">
-              <div class="kli-name">🏆 ${ev.summary}</div>
-              <div class="kli-sub">${time?time+' Uhr · ':''}${ev.mannschaftName}${ev.location?' · '+ev.location:''}<span class="kli-badge badge-game">Kein Eintrag</span></div>
+              <div class="kli-name">🏆 ${lScore}${ev.summary}</div>
+              <div class="kli-sub">${lHasScore?'':(time?time+' Uhr · ':'')}${ev.mannschaftName}${ev.location?' · '+ev.location:''}${lBadge}</div>
             </div>
             <div class="kli-arrow">+</div>
           </div>`
@@ -1081,7 +1170,8 @@ function navigateToSpiel(s){
 function confirmSpielAnlegen(icalEv, dateStr, time){
   const {heim,gast} = parseSummary(icalEv.summary||'');
   const hbn_url = getBaseUrl(icalEv.url||'');
-  showSpielModal({heim,gast,datum:dateStr,uhrzeit:time,hbn_url,location:icalEv.location||''});
+  const ergebnis = (icalEv.score_home!=null && icalEv.score_away!=null) ? `${icalEv.score_home}:${icalEv.score_away}` : '';
+  showSpielModal({heim,gast,datum:dateStr,uhrzeit:time,hbn_url,location:icalEv.location||'',ergebnis,status:icalEv.hbn_status||''});
 }
 
 function confirmSpielAnlegenFromData(jsonStr, dateStr, time){
@@ -1091,13 +1181,15 @@ function confirmSpielAnlegenFromData(jsonStr, dateStr, time){
   }catch(e){console.warn('Parse error',e);}
 }
 
-function showSpielModal({heim,gast,datum,uhrzeit,hbn_url,location}){
+function showSpielModal({heim,gast,datum,uhrzeit,hbn_url,location,ergebnis,status}){
   document.getElementById('ms-title').textContent = heim && gast ? `${heim} – ${gast}` : 'Spiel';
   document.getElementById('ms-sub').textContent = datum ? new Date(datum+'T00:00:00').toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}) : '';
   const meta = document.getElementById('ms-meta');
+  const statusTxt = status==='live'?'🔴 Live':status==='beendet'?'✅ Endstand':'';
   meta.innerHTML = [
     datum  ? `📅 ${datum}` : '',
     uhrzeit? `⏰ ${uhrzeit} Uhr` : '',
+    ergebnis? `🏆 Ergebnis: <strong>${ergebnis}</strong>${statusTxt?' · '+statusTxt:''}` : '',
     heim   ? `🏠 ${heim}` : '',
     gast   ? `✈️ ${gast}` : '',
     location? `📍 ${location}` : '',
