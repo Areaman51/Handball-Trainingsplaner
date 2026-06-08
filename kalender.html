@@ -97,8 +97,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   background:var(--white);cursor:pointer;font-size:12.5px;font-weight:600;
   color:var(--soft);font-family:'DM Sans',sans-serif;transition:all .15s;}
 .kal-today-btn:hover{background:var(--accent-l);border-color:var(--accent);color:var(--accent);}
-.kal-season-sel{padding:6px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);
+.kal-season-wrap{display:flex;align-items:center;gap:8px;background:var(--accent-l);
+  border:1.5px solid #bcd0ff;border-radius:9px;padding:4px 6px 4px 12px;}
+.kal-season-lbl{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--accent);white-space:nowrap;}
+.kal-season-sel{padding:6px 10px;border-radius:7px;border:1.5px solid var(--border);background:var(--white);
   font-size:12.5px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;outline:none;max-width:230px;}
+.kal-season-wrap .kal-season-sel{border:none;padding:5px 8px;}
 .kal-season-sel:focus{border-color:var(--accent);}
 
 /* ── GRID ── */
@@ -268,7 +273,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260608.0955</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260608.1010</div>
     </div>
   </aside>
 
@@ -290,7 +295,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="kal-nav">
         <button class="kal-nav-btn" onclick="kalNav(-1)">‹</button>
         <div class="kal-monat" id="kal-monat">…</div>
-        <select id="kal-season" class="kal-season-sel" onchange="setActiveSeason(this.value)" style="display:none;" title="Aktive Saison (geräteübergreifend)"></select>
+        <div class="kal-season-wrap" id="kal-season-wrap" style="display:none;">
+          <span class="kal-season-lbl">🏆 Saison</span>
+          <select id="kal-season" class="kal-season-sel" onchange="setActiveSeason(this.value)" title="Aktive Saison – geräteübergreifend gespeichert"></select>
+        </div>
         <button class="kal-today-btn" onclick="goToday()">Heute</button>
         <button class="kal-nav-btn" onclick="kalNav(1)">›</button>
       </div>
@@ -461,7 +469,12 @@ async function loadSaisons(){
   if(pe) console.warn('aktive_saison_id evtl. nicht migriert:',pe.message);
   else stored = prof?.aktive_saison_id || null;
   if(stored && !allSaisons.find(s=>s.id===stored)) stored = null;   // gelöschte Saison ignorieren
-  if(!stored && allSaisons.length) stored = allSaisons[0].id;        // Default: neueste Saison
+  if(!stored && allSaisons.length){
+    // Default: die Saison, deren Zeitraum HEUTE enthält (sonst neueste)
+    const today = toDateStr(new Date());
+    const cur = allSaisons.find(s=>{ const r=saisonRanges[s.id]; return r && r.end && (!r.start || today>r.start) && today<=r.end; });
+    stored = (cur || allSaisons[0]).id;
+  }
   aktiveSaisonId = stored;
   // Default-Wahl persistieren, falls noch nichts gespeichert war
   if(aktiveSaisonId && aktiveSaisonId !== prof?.aktive_saison_id){
@@ -472,9 +485,10 @@ async function loadSaisons(){
 
 function renderSeasonPicker(){
   const sel = document.getElementById('kal-season');
+  const wrap = document.getElementById('kal-season-wrap');
   if(!sel) return;
-  if(!allSaisons.length){ sel.style.display='none'; return; }
-  sel.style.display='';
+  if(!allSaisons.length){ if(wrap) wrap.style.display='none'; return; }
+  if(wrap) wrap.style.display='';
   sel.innerHTML = allSaisons.map(s=>`<option value="${s.id}"${s.id===aktiveSaisonId?' selected':''}>${s.name||s.end_date}</option>`).join('');
 }
 
@@ -740,7 +754,6 @@ async function syncFeeds(){
 
     // ══ PRIMÄR: handball.net JSON-Spielplan (mit Ergebnissen), wenn Team verknüpft ══
     // JSON hat Vorrang; iCal-Spielpläne sind nur Fallback (kein Ergebnis).
-    let jsonGamesOk = false;
     if(t.hbn_team_id){
       // tournamentSeasons aus den handball.net-Spielfeeds des Teams (Mehrfachauswahl möglich)
       const tsMap = new Map();   // tournamentSeason → Feedname
@@ -760,7 +773,7 @@ async function syncFeeds(){
           evs.forEach(e=>newEvents.push(e));
           const played = evs.filter(e=>e.score_home!=null).length;
           console.log(`%c${t.name} · ${feedName}%c  ${evs.length} Spiele (JSON)${played?` · ${played} mit Ergebnis`:''}`,'font-weight:700','font-weight:400');
-          ok++; jsonGamesOk = true;
+          ok++;
         }catch(e){
           fail++;
           console.warn(`${t.name} · ${feedName} (handball.net JSON): ${e.message}`);
@@ -772,7 +785,10 @@ async function syncFeeds(){
       // ── handball.net-Spielplan: JSON über quick-service (mit Ergebnissen) ──
       const hbn = parseHbnGameFeed(f.url);
       if(hbn){
-        if(jsonGamesOk) continue;   // bereits über Team-JSON geladen → Dublette vermeiden
+        if(t.hbn_team_id) continue;   // verknüpftes Team → ausschließlich (gefiltertes) Team-JSON oben
+        // unverknüpftes Team (Fallback): per-Feed JSON, aber Saison-Kopplung beachten
+        const yr=activeSaisonYear(), fy=feedYear(f.name);
+        if(yr!=null && fy!=null && fy!==yr) continue;   // andere Saison → überspringen
         try{
           const evs = await hbnScheduleEvents(t, f, hbn);
           evs.forEach(e=>newEvents.push(e));
@@ -785,8 +801,8 @@ async function syncFeeds(){
         }
         continue;
       }
-      // generischer Spiel-iCal nur als Fallback, wenn kein JSON-Spielplan geladen wurde
-      if(jsonGamesOk && (f.typ==='spiel'||f.typ==='spiele'||f.typ==='pokal')) continue;
+      // verknüpftes Team → Spiele kommen ausschließlich aus JSON; iCal-Spielfeeds überspringen
+      if(t.hbn_team_id && (f.typ==='spiel'||f.typ==='spiele'||f.typ==='pokal')) continue;
       try{
         const {events: evs, rawText} = await fetchICalFeed(f.url);
         const isSpiel = (f.typ==='spiel'||f.typ==='spiele'||f.typ==='pokal');
