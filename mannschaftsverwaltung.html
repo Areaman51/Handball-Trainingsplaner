@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260607.2117 — Mannschaftsverwaltung -->
+<!-- Handball Coaching Tools v1.260608.0852 — Mannschaftsverwaltung -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -304,7 +304,7 @@ tbody tr:hover{background:#fafbff;}
     </div>
 
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260607.2117</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260608.0852</div>
     </div>
   </aside>
 
@@ -593,6 +593,7 @@ const HBN_API_BASE='https://www.handball.net/a/sportdata/1';   // sportdata-JSON
 let currentUser=null,allTeams=[],ownerProfiles={},allKalenderMap={},currentTeamId=null,currentPlayers=[],currentFreigaben=[],currentKalender=[],activeTab='kader',deleteTarget=null,searchTimeout=null,editKalenderId=null;
 // handball.net-Anlage-Flow (Team-Modal)
 let tmMode='hbn';            // 'hbn' | 'manual'
+let tmLinkId=null;           // gesetzt, wenn eine bestehende Mannschaft nachträglich verknüpft wird
 let hbnSearchTimeout=null;
 let hbnPickedTeam=null;      // {slug,name,verein,logo,wettbewerbe:[...]}
 // Bild-Zustand (Modals)
@@ -1018,7 +1019,7 @@ async function showTeamDetail(tid){
     :'<span class="badge-shared">Geteilt</span>';
   document.getElementById('detail-readonly-banner').style.display=owned?'none':'';
   document.getElementById('detail-actions').innerHTML=owned
-    ?`<button class="btn btn-ghost" onclick="openTeamModal('${tid}')">Bearbeiten</button><button class="btn btn-danger" onclick="confirmDeleteTeam('${tid}')">&#128465;</button>`
+    ?`${team.hbn_team_id?'':`<button class="btn btn-ghost" onclick="linkExistingTeam('${tid}')" title="Diese Mannschaft mit handball.net verkn&uuml;pfen">&#127760; Verkn&uuml;pfen</button>`}<button class="btn btn-ghost" onclick="openTeamModal('${tid}')">Bearbeiten</button><button class="btn btn-danger" onclick="confirmDeleteTeam('${tid}')">&#128465;</button>`
     :'';
   if(!owned&&(activeTab==='info'||activeTab==='freigaben'))activeTab='kader';
   renderSidebarTeams();
@@ -1455,6 +1456,7 @@ async function revokeFreigabe(fid,name){
 
 // TEAM MODAL
 function openTeamModal(tid=null){
+  tmLinkId=null;
   const team=tid?allTeams.find(t=>t.id===tid):null;
   if(team&&!isOwner(team)){showToast('Nur der Eigentümer kann bearbeiten.','error');return;}
   document.getElementById('team-modal-title').textContent=team?'Mannschaft bearbeiten':'Neue Mannschaft';
@@ -1494,7 +1496,66 @@ function setTeamMode(mode){
   const fs=document.getElementById('tm-footer-save');
   if(fs) fs.style.display=mode==='manual'?'':'none';
 }
-function closeTeamModal(){document.getElementById('team-modal').classList.remove('open');}
+function closeTeamModal(){tmLinkId=null;document.getElementById('team-modal').classList.remove('open');}
+
+// Bestehende Mannschaft nachträglich mit handball.net verknüpfen (öffnet Team-Modal im handball.net-Such-Modus)
+function linkExistingTeam(tid){
+  const team=allTeams.find(t=>t.id===tid);
+  if(!team||!isOwner(team)){showToast('Nur der Eigentümer kann verknüpfen.','error');return;}
+  tmLinkId=tid;
+  document.getElementById('team-modal-title').textContent='Mit handball.net verknüpfen';
+  document.getElementById('tm-id').value='';
+  document.getElementById('tm-mode-tabs').style.display='none';
+  document.getElementById('tm-hbn-query').value='';
+  document.getElementById('tm-hbn-results').innerHTML='';
+  document.getElementById('tm-hbn-preview').innerHTML='';
+  hbnPickedTeam=null;
+  setTeamMode('hbn');
+  document.getElementById('team-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('tm-hbn-query').focus(),100);
+}
+
+// Verknüpfung schreiben: hbn_team_id (+ Logo/Verein falls leer) an bestehende Mannschaft, dann gewählte Feeds anlegen
+async function hbnLinkExisting(){
+  if(!tmLinkId||!hbnPickedTeam){showToast('Keine Auswahl.','error');return;}
+  const team=allTeams.find(t=>t.id===tmLinkId);
+  if(!team){showToast('Mannschaft nicht gefunden.','error');return;}
+  const btn=document.getElementById('tm-hbn-create');
+  const reset=()=>{if(btn){btn.disabled=false;btn.innerHTML='&#128279; Verkn&uuml;pfen &amp; Feeds anlegen';}};
+  if(btn){btn.disabled=true;btn.textContent='⏳ Verknüpfe…';}
+  const upd={hbn_team_id:hbnPickedTeam.slug};
+  if(!team.logo_url && hbnPickedTeam.logo) upd.logo_url=hbnPickedTeam.logo;
+  if(!team.verein && hbnPickedTeam.verein) upd.verein=hbnPickedTeam.verein;
+  let {error}=await supa.from('mannschaften').update(upd).eq('id',tmLinkId);
+  const msg=()=>error?(error.message||''):'';
+  // optionale Spalte logo_url fehlt → ohne Logo erneut versuchen
+  if(error && /logo_url/i.test(msg()) && !/hbn_team_id/i.test(msg())){
+    delete upd.logo_url; ({error}=await supa.from('mannschaften').update(upd).eq('id',tmLinkId));
+  }
+  // Pflichtspalte hbn_team_id fehlt → Migration nötig, sauber abbrechen
+  if(error && /hbn_team_id|column|PGRST204|schema cache/i.test(msg())){
+    reset();
+    showToast('⚠️ Spalte hbn_team_id fehlt – bitte SQL-Migration ausführen','info');
+    console.warn('Migration nötig: ALTER TABLE mannschaften ADD COLUMN IF NOT EXISTS hbn_team_id text;');
+    return;
+  }
+  if(error){ reset(); showToast('Fehler: '+error.message,'error'); return; }
+  // lokalen Stand aktualisieren
+  team.hbn_team_id=hbnPickedTeam.slug;
+  if(upd.logo_url) team.logo_url=upd.logo_url;
+  if(upd.verein) team.verein=upd.verein;
+  // gewählte Wettbewerbe als Feeds anlegen
+  const cont=document.getElementById('tm-hbn-facets');
+  const n=await hbnCreateFeedsFromContainer(cont,tmLinkId,hbnPickedTeam.slug,hbnPickedTeam.facets);
+  const linkedId=tmLinkId;
+  showToast('✓ Mit handball.net verknüpft'+(n?(' · '+n+' Feed'+(n>1?'s':'')+' angelegt'):''),'success');
+  tmLinkId=null;
+  closeTeamModal();
+  await loadTeams();
+  await loadKalender(linkedId);
+  await refreshKalenderMap(linkedId);
+  showTeamDetail(linkedId);
+}
 async function saveTeam(){
   const id=document.getElementById('tm-id').value,name=document.getElementById('tm-name').value.trim();
   if(!name){showToast('Name ist Pflichtfeld.','error');return;}
@@ -1692,6 +1753,15 @@ function renderHbnPreview(){
   const p=hbnPickedTeam, prev=document.getElementById('tm-hbn-preview');
   if(!p){prev.innerHTML='';return;}
   const facetHtml=hbnFacetCheckboxesHtml(p.facets,p.slug,p.preselect,new Set());
+  const linkMode=!!tmLinkId;
+  const linkTeam=linkMode?allTeams.find(t=>t.id===tmLinkId):null;
+  const nameBlock=linkMode
+    ? `<div class="info-box" style="margin:4px 0 0;">&#128279; Wird mit deiner bestehenden Mannschaft <strong>${esc(linkTeam?linkTeam.name:'')}</strong> verkn&uuml;pft. Name &amp; Kader bleiben erhalten.</div>`
+    : `<div class="form-group"><label class="form-label">Mannschaftsname <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; anpassbar</span></label>
+        <input class="form-input" id="tm-hbn-name" value="${esc(p.name)}" style="margin-bottom:0;" onkeydown="if(event.key==='Enter')hbnCreateTeam()"></div>`;
+  const actionBtn=linkMode
+    ? `<button class="btn btn-primary" id="tm-hbn-create" style="width:100%;justify-content:center;margin-top:14px;" onclick="hbnLinkExisting()">&#128279; Verkn&uuml;pfen &amp; Feeds anlegen</button>`
+    : `<button class="btn btn-primary" id="tm-hbn-create" style="width:100%;justify-content:center;margin-top:14px;" onclick="hbnCreateTeam()">&#10003; Mannschaft anlegen</button>`;
   prev.innerHTML=`
     <div class="card" style="padding:16px;margin-top:14px;border-color:var(--accent);">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
@@ -1702,12 +1772,11 @@ function renderHbnPreview(){
         </div>
         <span class="badge-owner">&#127760; handball.net</span>
       </div>
-      <div class="form-group"><label class="form-label">Mannschaftsname <span style="font-weight:400;color:var(--xsoft);text-transform:none;letter-spacing:0;">&ndash; anpassbar</span></label>
-        <input class="form-input" id="tm-hbn-name" value="${esc(p.name)}" style="margin-bottom:0;" onkeydown="if(event.key==='Enter')hbnCreateTeam()"></div>
+      ${nameBlock}
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--xsoft);margin:14px 0 2px;">Saisons &amp; Wettbewerbe <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--xsoft);">&ndash; ausw&auml;hlen</span></div>
       <div style="font-size:11.5px;color:var(--xsoft);margin-bottom:2px;">Pro Auswahl wird ein Spielplan-Feed (inkl. Ergebnissen) angelegt. Aktuelle Saison ist vorausgew&auml;hlt.</div>
       <div id="tm-hbn-facets" style="max-height:240px;overflow-y:auto;margin:0 -4px;padding:0 4px;">${facetHtml}</div>
-      <button class="btn btn-primary" id="tm-hbn-create" style="width:100%;justify-content:center;margin-top:14px;" onclick="hbnCreateTeam()">&#10003; Mannschaft anlegen</button>
+      ${actionBtn}
     </div>`;
 }
 // Anlage: Mannschaft + automatischer Spielplan-Feed
