@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260531.2200 — Mannschaftsstatistik -->
+<!-- Handball Coaching Tools v1.260609.1051 — Mannschaftsstatistik -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -214,7 +214,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260531.2200</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260609.1051</div>
     </div>
   </aside>
 
@@ -316,7 +316,7 @@ async function signOut(){
 async function initMyTeam(){
   _myTeamName=localStorage.getItem('hbs_my_team')||localStorage.getItem('aktive_mannschaft_name')||'';
   _myTeamId  =localStorage.getItem('hbs_my_mannschaft_id')||localStorage.getItem('aktive_mannschaft_id')||'';
-  const {data}=await supa.from('mannschaften').select('id,name,verein,user_id')
+  const {data}=await supa.from('mannschaften').select('id,name,verein,user_id,hbn_team_id')
     .order('sort_order',{ascending:true}).order('created_at',{ascending:true});
   _availableTeams=data||[];
   if(_availableTeams.length===1){ _myTeamId=_availableTeams[0].id; _myTeamName=_availableTeams[0].name; }
@@ -356,6 +356,7 @@ async function switchTeam(id){
   _myTeamId=m.id; _myTeamName=m.name;
   _myTeamOwnerId=m.user_id||''; _isSharedTeam=!!_myTeamOwnerId && _myTeamOwnerId!==currentUser.id;
   _persistTeam(); renderTeamWidget();
+  _hbnResCache={};
   await loadSaisons(); renderSaisonPicker();
   await reloadAll();
   toast('Team: '+m.name,'success');
@@ -377,6 +378,29 @@ async function loadSaisons(){
   }
   saisons=merged;
   if(_saisonId && !saisons.find(s=>s.id===_saisonId)) _saisonId=null;
+
+  // ── synchronisierte aktive Saison (geräte-/seitenübergreifend via profiles.aktive_saison_id) ──
+  let stored=null;
+  const {data:prof,error:pe}=await supa.from('profiles').select('aktive_saison_id').eq('id',currentUser.id).maybeSingle();
+  if(pe) console.warn('aktive_saison_id evtl. nicht migriert:',pe.message);
+  else stored=prof?.aktive_saison_id||null;
+  if(stored && !saisons.find(s=>s.id===stored)) stored=null;
+  // _saisonId nur (neu) setzen, wenn aktuell keine gültige Saison gewählt ist
+  if(!_saisonId || !saisons.find(s=>s.id===_saisonId)){
+    if(stored){ _saisonId=stored; }
+    else if(saisons.length){
+      // Default: die Saison, deren Zeitraum HEUTE enthält (sonst neueste)
+      const _t=new Date();
+      const today=`${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`;
+      const cur=saisons.find(s=>{ const rg=getSaisonRange(s.id); return rg && today>=rg.start && today<=rg.end; });
+      _saisonId=(cur||saisons[saisons.length-1]).id;
+      // Default persistieren, falls noch nichts gespeichert war
+      if(_saisonId && _saisonId!==prof?.aktive_saison_id){
+        supa.from('profiles').update({aktive_saison_id:_saisonId}).eq('id',currentUser.id)
+          .then(({error})=>{ if(error) console.warn('Saison-Default speichern:',error.message); });
+      }
+    }
+  }
 }
 function getSaisonRange(id){
   if(!id) return null;
@@ -394,7 +418,91 @@ function renderSaisonPicker(){
     ${saisons.map(s=>`<option value="${s.id}"${_saisonId===s.id?' selected':''}>${esc(s.name)}</option>`).join('')}
   </select></div>`;
 }
-function setSaison(id){ _saisonId=id||null; reloadAll(); }
+function setSaison(id){
+  _saisonId=id||null;
+  // Spezifische Saison synchronisieren (geräte-/seitenübergreifend);
+  // "Alle Saisons" bleibt eine lokale Ansicht und löscht die globale Saison nicht.
+  if(_saisonId && currentUser){
+    supa.from('profiles').update({aktive_saison_id:_saisonId}).eq('id',currentUser.id)
+      .then(({error})=>{ if(error) console.warn('Saison speichern:',error.message); });
+  }
+  reloadAll();
+}
+
+// ════════════════════════════════════════════════════════════
+// handball.net JSON (Ergebnis-Anreicherung der Bilanz)
+// ════════════════════════════════════════════════════════════
+const HBN_API_BASE='https://www.handball.net/a/sportdata/1';
+let _hbnResCache={};   // `${teamId}|${jahr}` → { 'YYYY-MM-DD': {score_home,score_away,status} }
+
+async function hbnApi(path){
+  const {data:{session}}=await supa.auth.getSession();
+  if(!session?.access_token) throw new Error('Nicht eingeloggt');
+  const res=await fetch(`${SUPA_URL}/functions/v1/quick-service`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+    body:JSON.stringify({url:`${HBN_API_BASE}/${path}`,requestType:'schedule'}),
+    signal:AbortSignal.timeout(20000)
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({message:'HTTP '+res.status}));throw new Error(e.message||'HTTP '+res.status);}
+  return res.json();
+}
+// handball.net-Spielplan-Feed → {slug, tournamentSeason} | null
+function parseHbnGameFeed(url){
+  if(!url || !/handball\.net/i.test(url) || !/\/calendar\/team\//i.test(url)) return null;
+  const m=url.match(/\/calendar\/team\/(.+?)\.ics(?:\?|$)/i);
+  if(!m) return null;
+  const ts=url.match(/[?&]tournamentSeason=([^&]+)/i);
+  return { slug:decodeURIComponent(m[1]), tournamentSeason: ts?decodeURIComponent(ts[1]):null };
+}
+// Jahr aus Feed-/Wettbewerbsname ("… 2025/2026" → 2026)
+function feedYear(name){
+  const m=String(name||'').match(/(\d{4})\s*\/\s*(\d{4})/);
+  if(m) return parseInt(m[2],10);
+  const s=String(name||'').match(/(20\d{2})/);
+  return s?parseInt(s[1],10):null;
+}
+// Sport-Jahr der aktiven Saison (aus end_date) – null bei "Alle Saisons"
+function activeSaisonYear(){
+  const s=saisons.find(x=>x.id===_saisonId);
+  if(!s||!s.end_date) return null;
+  return parseInt(String(s.end_date).slice(0,4),10);
+}
+function hbnLocalDate(ms){ if(ms==null) return ''; const d=new Date(ms); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
+// Lädt echte Ergebnisse des eigenen Teams aus handball.net (JSON-schedule), je Spieltag.
+// Matching erfolgt über das Datum + eigenen Team-Slug (heim_slug/gast_slug) – namensunabhängig.
+async function fetchHbnResults(){
+  const team=_availableTeams.find(m=>String(m.id)===String(_myTeamId));
+  const slug=team?.hbn_team_id;
+  if(!slug) return {};
+  const yr=activeSaisonYear();
+  const ck=`${_myTeamId}|${yr??'all'}`;
+  if(_hbnResCache[ck]) return _hbnResCache[ck];
+  // tournamentSeasons aus den Spiel-Feeds des Teams
+  const {data:kal}=await supa.from('mannschaft_kalender').select('url,typ,name')
+    .eq('mannschaft_id',_myTeamId).eq('aktiv',true).in('typ',['spiele','pokal','sonstige']);
+  const tsMap=new Map();
+  (kal||[]).forEach(f=>{ const h=parseHbnGameFeed(f.url); if(h) tsMap.set(h.tournamentSeason||'', f.name||''); });
+  let entries = tsMap.size ? [...tsMap.entries()] : [['','']];
+  // Saison-Kopplung: nur Wettbewerbe des aktiven Saison-Jahres (falls eine Saison gewählt)
+  if(yr!=null && tsMap.size) entries=entries.filter(([ts,name])=>{ const fy=feedYear(name); return fy==null||fy===yr; });
+  const map={};
+  for(const [ts] of entries){
+    try{
+      const path=`teams/${encodeURIComponent(slug)}/schedule`+(ts?`?tournamentSeason=${encodeURIComponent(ts)}`:'');
+      const j=await hbnApi(path);
+      (j?.spiele||[]).forEach(s=>{
+        if(s.heim_slug!==slug && s.gast_slug!==slug) return;          // nur eigene Spiele
+        if(s.score_home==null && s.score_away==null) return;          // nur mit Ergebnis
+        const datum=hbnLocalDate(s.startsAt);
+        if(datum) map[datum]={score_home:s.score_home,score_away:s.score_away,status:s.status};
+      });
+    }catch(e){ console.warn('[hbn-results]',e.message); }
+  }
+  _hbnResCache[ck]=map;
+  return map;
+}
 
 // ════════════════════════════════════════════════════════════
 // DATEN LADEN
@@ -446,13 +554,27 @@ async function loadTeamData(){
   const seasonSpiele=(spiele||[]).filter(inSeason);
   const filteredSpielIds=seasonSpiele.map(s=>s.id);
 
+  // handball.net-Ergebnisse (für Spiele ohne lokales Ergebnis) – genauere Bilanz
+  let hbnRes={};
+  try{ hbnRes=await fetchHbnResults(); }catch(e){ console.warn('[hbn-results]',e.message); }
+
   // 2. Ergebnisse aufbereiten
   const results=[];
   let gespielt=0, siege=0, remis=0, niederlagen=0, torFor=0, torGegen=0;
   let heimSpiele=0, heimSiege=0, ausSpiele=0, ausSiege=0;
   seasonSpiele.forEach(sp=>{
-    const sh=Number(sp.score_home||0), sa=Number(sp.score_away||0);
-    const hasResult = sp.status==='beendet' || sh>0 || sa>0;
+    let sh=Number(sp.score_home||0), sa=Number(sp.score_away||0);
+    let status=sp.status, fromHbn=false;
+    let hasResult = status==='beendet' || sh>0 || sa>0;
+    // Fehlt das Ergebnis lokal? → aus handball.net nachziehen (Match per Spieltag)
+    if(!hasResult){
+      const h=hbnRes[sp.datum];
+      if(h && (h.score_home!=null || h.score_away!=null)){
+        sh=Number(h.score_home||0); sa=Number(h.score_away||0);
+        status=h.status||status; fromHbn=true;
+        hasResult = status==='beendet' || sh>0 || sa>0;
+      }
+    }
     const isAway = sp.spielart==='auswaerts';
     const our  = isAway?sa:sh;
     const their= isAway?sh:sa;
@@ -465,7 +587,7 @@ async function loadTeamData(){
       if(isAway){ ausSpiele++; if(outcome==='S') ausSiege++; }
       else { heimSpiele++; if(outcome==='S') heimSiege++; }
     }
-    results.push({...sp, our, their, hasResult, outcome, isAway});
+    results.push({...sp, score_home:sh, score_away:sa, status, our, their, hasResult, outcome, isAway, _fromHbn:fromHbn});
   });
   results.sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));
 
@@ -583,7 +705,7 @@ function renderUebersicht(){
 function renderSpiele(){
   const rows=_data.results.map(r=>{
     const badge=r.hasResult?`<span class="res-badge ${r.outcome}">${r.outcome}</span>`:'<span style="color:var(--xsoft);font-size:11px;">geplant</span>';
-    const score=r.hasResult?`${r.our} : ${r.their}`:'– : –';
+    const score=r.hasResult?`${r.our} : ${r.their}${r._fromHbn?' <span title="Ergebnis aus handball.net" style="font-size:10px;opacity:.7;">🌐</span>':''}`:'– : –';
     return `<tr>
       <td class="lcol">${fmtDate(r.datum)}</td>
       <td>${r.isAway?'✈️':'🏠'}</td>
