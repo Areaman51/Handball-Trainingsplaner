@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260604.0922 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260609.1015 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -884,6 +884,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .ical-sync-btn svg{transition:transform .1s;}
 .ical-sync-btn.spinning svg{animation:ical-spin .8s linear infinite;}
 @keyframes ical-spin{to{transform:rotate(360deg)}}
+/* Saison-Auswahl (global, geräteübergreifend) */
+.tp-season-wrap{display:inline-flex;align-items:center;gap:8px;background:var(--accent-light);
+  border:1.5px solid #bcd0ff;border-radius:9px;padding:3px 6px 3px 11px;}
+.tp-season-lbl{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--accent);white-space:nowrap;}
+.tp-season-sel{border:none;padding:4px 7px;border-radius:7px;background:var(--white);
+  font-size:12px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;outline:none;max-width:200px;}
+.tp-season-sel:focus{box-shadow:0 0 0 2px rgba(0,87,255,.25);}
 .kal-legend{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 18px;border-top:1px solid var(--border);background:#fafafa;}
 .kal-legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
 .kal-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--soft);}
@@ -956,7 +964,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260604.0922</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260609.1015</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1111,6 +1119,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
               <div style="font-size:12px;color:var(--soft);margin-top:2px;" id="kal-subtitle">Trainingseinheiten</div>
             </div>
             <div style="display:flex;gap:6px;align-items:center;">
+              <div class="tp-season-wrap" id="tp-season-wrap" style="display:none;">
+                <span class="tp-season-lbl">🏆 Saison</span>
+                <select id="tp-season" class="tp-season-sel" onchange="setActiveSeason(this.value)" title="Aktive Saison – geräteübergreifend gespeichert"></select>
+              </div>
               <button class="ical-sync-btn" id="ical-sync-btn" onclick="refreshAllFeeds()" title="iCal-Feeds aktualisieren">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10"/><path d="M20.49 15a9 9 0 01-14.85 3.36L1 14"/></svg>
                 Feeds sync
@@ -1870,6 +1882,9 @@ async function onAuthSuccess(user){
   setLoadingText('Mannschaften laden…');
   await reloadMannschaften();
   initMyTeamWidget();
+  setLoadingText('Saison laden…');
+  await loadSaisons();
+  renderSeasonSelect();
   if(allMannschaften.length > 0) refreshAllFeeds();
 
   // ── URL-Parameter-Handler (Navigation von kalender.html) ──
@@ -4226,7 +4241,7 @@ async function renderKalender() {
     legItems.innerHTML=teams.map(t=>`
       <div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_geplant};"></div> ${t.name} geplant</div>
       <div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_ungeplant};"></div> ${t.name} ungeplant</div>
-      ${t.ical_spiele?`<div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_geplant};border:1.5px solid rgba(0,0,0,.15);"></div> ${t.name} Spiel</div>`:''}
+      ${(t.ical_spiele||t.hbn_team_id)?`<div class="kal-legend-item"><div class="kal-legend-dot" style="background:${t.farbe_geplant};border:1.5px solid rgba(0,0,0,.15);"></div> ${t.name} Spiel</div>`:''}
     `).join('');
   }
 }
@@ -4339,6 +4354,9 @@ async function loadEinheit(id){
 // ── Mannschaften: Supabase-backed (ersetzt localStorage) ──────────
 let icalEvents        = [];
 let allMannschaften   = [];   // in-memory cache, befüllt nach Login
+let allSaisons        = [];   // saisons-Tabelle (Name + end_date)
+let aktiveSaisonId    = null; // global gewählte Saison (profiles.aktive_saison_id)
+let saisonRanges      = {};   // saison_id → {start,end}
 
 /** Synchroner Accessor – gibt den aktuellen Cache zurück */
 function loadMannschaften(){ return allMannschaften; }
@@ -4424,6 +4442,9 @@ async function testFeed(inputId, statusId){
 
 // ── iCal-Fetch via Supabase Edge Function ──
 const ICAL_PROXY_URL = SUPA_URL + '/functions/v1/ical-proxy';
+// handball.net sportdata-JSON über die quick-service Edge-Function (CORS-sicher, mit Ergebnissen)
+const HBN_EDGE_FN  = SUPA_URL + '/functions/v1/quick-service';
+const HBN_API_BASE = 'https://www.handball.net/a/sportdata/1';
 const CORS_FALLBACKS = [
   'https://corsproxy.io/?',
   'https://api.allorigins.win/raw?url=',
@@ -4482,6 +4503,151 @@ function icalDateStr(d){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+// ════════════════════════════════════════════════════════════
+// SAISON-AUSWAHL (global, geräteübergreifend via profiles.aktive_saison_id)
+// Gekoppelt an handball.net: lädt nur Wettbewerbe der gewählten Saison.
+// Identische Mechanik wie kalender.html.
+// ════════════════════════════════════════════════════════════
+async function loadSaisons(){
+  if(!currentUser) return;
+  const {data} = await supa.from('saisons').select('id,name,end_date').order('end_date',{ascending:false});
+  allSaisons = data || [];
+  // Saison-Datumsbereiche (Start = Ende der vorigen Saison)
+  saisonRanges = {};
+  const asc = [...allSaisons].sort((a,b)=>(a.end_date||'').localeCompare(b.end_date||''));
+  asc.forEach((s,i)=>{ saisonRanges[s.id] = { start: i>0 ? asc[i-1].end_date : null, end: s.end_date }; });
+  // aktive Saison aus profiles lesen (graceful, falls Spalte noch nicht migriert)
+  let stored = null;
+  const {data:prof,error:pe} = await supa.from('profiles').select('aktive_saison_id').eq('id',currentUser.id).maybeSingle();
+  if(pe) console.warn('aktive_saison_id evtl. nicht migriert:',pe.message);
+  else stored = prof?.aktive_saison_id || null;
+  if(stored && !allSaisons.find(s=>s.id===stored)) stored = null;   // gelöschte Saison ignorieren
+  if(!stored && allSaisons.length){
+    // Default: die Saison, deren Zeitraum HEUTE enthält (sonst neueste)
+    const today = icalDateStr(new Date());
+    const cur = allSaisons.find(s=>{ const r=saisonRanges[s.id]; return r && r.end && (!r.start || today>r.start) && today<=r.end; });
+    stored = (cur || allSaisons[0]).id;
+  }
+  aktiveSaisonId = stored;
+  // Default-Wahl persistieren, falls noch nichts gespeichert war
+  if(aktiveSaisonId && aktiveSaisonId !== prof?.aktive_saison_id){
+    supa.from('profiles').update({aktive_saison_id:aktiveSaisonId}).eq('id',currentUser.id)
+      .then(({error})=>{ if(error) console.warn('Saison-Default speichern:',error.message); });
+  }
+}
+
+function renderSeasonSelect(){
+  const sel  = document.getElementById('tp-season');
+  const wrap = document.getElementById('tp-season-wrap');
+  if(!sel) return;
+  if(!allSaisons.length){ if(wrap) wrap.style.display='none'; return; }
+  if(wrap) wrap.style.display='inline-flex';
+  sel.innerHTML = allSaisons.map(s=>`<option value="${s.id}"${s.id===aktiveSaisonId?' selected':''}>${s.name||s.end_date}</option>`).join('');
+}
+
+// Sport-Jahr der aktiven Saison (aus end_date) → für Kopplung mit handball.net-Wettbewerben
+function activeSaisonYear(){
+  const s = allSaisons.find(x=>x.id===aktiveSaisonId);
+  if(!s || !s.end_date) return null;
+  return parseInt(s.end_date.slice(0,4),10);
+}
+// Datumsbereich der aktiven Saison (Start = Ende der Vorsaison, exklusiv)
+function activeSaisonRange(){
+  return aktiveSaisonId ? (saisonRanges[aktiveSaisonId] || null) : null;
+}
+// Liegt ein Datum innerhalb der aktiven Saison? (für Trainings-/iCal-Feeds ohne Saisonbezug)
+function inActiveSeasonRange(d){
+  const r = activeSaisonRange();
+  if(!r || !d) return true;                 // keine Saison gewählt → kein Filter
+  const ds = icalDateStr(d);
+  if(r.start && ds <= r.start) return false; // vor Saisonbeginn (= Ende der Vorsaison)
+  if(r.end && ds > r.end) return false;      // nach Saisonende
+  return true;
+}
+// Jahr aus einem Feed-/Wettbewerbsnamen ziehen: "… (Hallenrunde 2025/2026)" → 2026, "Sommer 2026" → 2026
+function feedYear(name){
+  const m = String(name||'').match(/(\d{4})\s*\/\s*(\d{4})/);
+  if(m) return parseInt(m[2],10);
+  const s = String(name||'').match(/(20\d{2})/);
+  return s ? parseInt(s[1],10) : null;
+}
+
+async function setActiveSeason(id){
+  aktiveSaisonId = id || null;
+  if(currentUser && id){
+    supa.from('profiles').update({aktive_saison_id:id}).eq('id',currentUser.id)
+      .then(({error})=>{ if(error) console.warn('Saison speichern:',error.message); });
+  }
+  // Falls heute außerhalb der Saison liegt → Kalender auf das Saisonende springen
+  const r = saisonRanges[id];
+  if(r && r.end){
+    const today = icalDateStr(new Date());
+    if((r.start && today <= r.start) || today > r.end){ kalDate = new Date(r.end+'T00:00:00'); }
+  }
+  await refreshAllFeeds();   // lädt nur die Wettbewerbe der gewählten Saison + rendert neu
+}
+
+// ════════════════════════════════════════════════════════════
+// handball.net JSON-SPIELPLAN (über quick-service Edge-Function)
+// JSON hat Vorrang vor iCal-Spielfeeds (liefert Ergebnis/Status).
+// ════════════════════════════════════════════════════════════
+async function hbnApi(path, requestType='schedule'){
+  const {data:{session}} = await supa.auth.getSession();
+  if(!session?.access_token) throw new Error('Nicht eingeloggt');
+  const res = await fetch(HBN_EDGE_FN,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+    body:JSON.stringify({url:`${HBN_API_BASE}/${path}`,requestType}),
+    signal:AbortSignal.timeout(20000)
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({message:'HTTP '+res.status}));throw new Error(e.message||'HTTP '+res.status);}
+  return res.json();
+}
+
+// handball.net-Spielplan-Feed erkennen → {slug, tournamentSeason} | null
+// Feed-URL-Muster: …/calendar/team/{slug}.ics?tournamentSeason={fid}
+function parseHbnGameFeed(url){
+  if(!url || !/handball\.net/i.test(url) || !/\/calendar\/team\//i.test(url)) return null;
+  const m = url.match(/\/calendar\/team\/(.+?)\.ics(?:\?|$)/i);
+  if(!m) return null;
+  const ts = url.match(/[?&]tournamentSeason=([^&]+)/i);
+  return { slug: decodeURIComponent(m[1]), tournamentSeason: ts ? decodeURIComponent(ts[1]) : null };
+}
+
+// JSON-Spielplan einer Mannschaft (ein Feed) → Event-Objekte (gleiche Form wie iCal-Events,
+// plus Ergebnis/Status). Filtert auf den im Feed gewählten Wettbewerb (tournamentSeason).
+async function hbnScheduleEvents(team, feed, hbn){
+  const path = `teams/${encodeURIComponent(hbn.slug)}/schedule`
+    + (hbn.tournamentSeason ? `?tournamentSeason=${encodeURIComponent(hbn.tournamentSeason)}` : '');
+  const data = await hbnApi(path, 'schedule');
+  const spiele = (data && data.spiele) || [];
+  const ourSlug = team.hbn_team_id || hbn.slug;
+  return spiele.map(g=>{
+    const dt = g.startsAt ? new Date(g.startsAt) : (g.datum ? new Date(g.datum) : null);
+    return {
+      dtstart: dt, dtend: null,
+      summary: (g.heim||'') + ' - ' + (g.gast||''),
+      uid: g.hbn_id || '',
+      url: g.hbn_url || '',
+      location: [g.halle, g.ort].filter(Boolean).join(', '),
+      typ: 'spiel',
+      mannschaftId: team.id,
+      mannschaftName: team.name,
+      kalenderName: feed.name,
+      farbe_geplant: team.farbe_geplant || '#0057ff',
+      farbe_ungeplant: team.farbe_ungeplant || '#94a3b8',
+      // ── handball.net-Extras ──
+      hbn_id: g.hbn_id || '',
+      hbn_status: g.status || '',            // geplant | live | beendet
+      score_home: (g.score_home ?? null),
+      score_away: (g.score_away ?? null),
+      heim: g.heim || '', gast: g.gast || '',
+      heim_slug: g.heim_slug || null, gast_slug: g.gast_slug || null,
+      our_slug: ourSlug,
+    };
+  }).filter(e=>e.dtstart);
+}
+
 // ── Alle Feeds laden ──
 async function refreshAllFeeds(){
   const btn=document.getElementById('ical-sync-btn');
@@ -4492,24 +4658,72 @@ async function refreshAllFeeds(){
   for(const t of teams){
     const kalender=(mannschaftKalender[t.id]||[]);
     // Fallback: ical_training/ical_spiele direkt aus Mannschaft (Legacy)
-    const feeds=kalender.length ? kalender : [
+    const allFeeds=kalender.length ? kalender : [
       ...(t.ical_training?[{url:t.ical_training,typ:'training',name:'Training'}]:[]),
       ...(t.ical_spiele  ?[{url:t.ical_spiele,  typ:'spiele',  name:'Spielplan'}]:[]),
     ];
-    for(const k of feeds){
+
+    // ══ PRIMÄR: handball.net JSON-Spielplan (mit Ergebnissen), wenn Team verknüpft ══
+    // JSON hat Vorrang; iCal-Spielpläne sind nur Fallback (kein Ergebnis).
+    if(t.hbn_team_id){
+      // tournamentSeasons aus den handball.net-Spielfeeds des Teams (Mehrfachauswahl möglich)
+      const tsMap=new Map();   // tournamentSeason → Feedname
+      allFeeds.forEach(f=>{ const h=parseHbnGameFeed(f.url); if(h) tsMap.set(h.tournamentSeason||'', f.name||'Spielplan'); });
+      let entries;
+      if(tsMap.size){
+        entries=[...tsMap.entries()];
+        // Kopplung an aktive Saison: nur Wettbewerbe des Saison-Jahres laden (beschleunigt)
+        const yr=activeSaisonYear();
+        if(yr!=null) entries=entries.filter(([ts,name])=>{ const fy=feedYear(name); return fy==null || fy===yr; });
+      } else {
+        entries=[['','Spielplan']];   // '' = Default-Wettbewerb (kein Facet-Feed)
+      }
+      for(const [ts,feedName] of entries){
+        try{
+          const evs=await hbnScheduleEvents(t,{name:feedName},{slug:t.hbn_team_id,tournamentSeason:ts||null});
+          evs.forEach(e=>newEvents.push(e));
+          const played=evs.filter(e=>e.score_home!=null).length;
+          console.log(`%c${t.name} · ${feedName}%c  ${evs.length} Spiele (JSON)${played?` · ${played} mit Ergebnis`:''}`,'font-weight:700','font-weight:400');
+          ok++;
+        }catch(e){fail++;console.warn(`${t.name} · ${feedName} (handball.net JSON): ${e.message}`);}
+      }
+    }
+
+    for(const f of allFeeds){
+      // ── handball.net-Spielplan: JSON über quick-service (mit Ergebnissen) ──
+      const hbn=parseHbnGameFeed(f.url);
+      if(hbn){
+        if(t.hbn_team_id) continue;   // verknüpftes Team → ausschließlich (gefiltertes) Team-JSON oben
+        // unverknüpftes Team (Fallback): per-Feed JSON, aber Saison-Kopplung beachten
+        const yr=activeSaisonYear(), fy=feedYear(f.name);
+        if(yr!=null && fy!=null && fy!==yr) continue;   // andere Saison → überspringen
+        try{
+          const evs=await hbnScheduleEvents(t,f,hbn);
+          evs.forEach(e=>newEvents.push(e));
+          const played=evs.filter(e=>e.score_home!=null).length;
+          console.log(`%c${t.name} · ${f.name}%c  ${evs.length} Spiele (JSON)${played?` · ${played} mit Ergebnis`:''}`,'font-weight:700','font-weight:400');
+          ok++;
+        }catch(e){fail++;console.warn(`${t.name} · ${f.name} (handball.net JSON): ${e.message}`);}
+        continue;
+      }
+      // verknüpftes Team → Spiele kommen ausschließlich aus JSON; iCal-Spielfeeds überspringen
+      if(t.hbn_team_id && (f.typ==='spiel'||f.typ==='spiele'||f.typ==='pokal')) continue;
       try{
-        const evs=await fetchICalFeed(k.url);
-        evs.forEach(e=>newEvents.push({
+        const evs=await fetchICalFeed(f.url);
+        const isTraining=(f.typ==='training');
+        // ── Saison-Kopplung: nur Events im Zeitraum der aktiven Saison (z.B. Sportsmember-Training) ──
+        const keptEvs=evs.filter(e=>!e.dtstart||inActiveSeasonRange(e.dtstart));
+        keptEvs.forEach(e=>newEvents.push({
           ...e,
           mannschaftId:t.id,
           mannschaftName:t.name,
-          kalenderName:k.name,
-          typ:k.typ==='training'?'training':'spiel',
+          kalenderName:f.name,
+          typ:isTraining?'training':'spiel',
           farbe_geplant:t.farbe_geplant,
           farbe_ungeplant:t.farbe_ungeplant
         }));
         ok++;
-      }catch(e){fail++;console.warn(`Feed ${k.name} (${t.name}): ${e.message}`);}
+      }catch(e){fail++;console.warn(`Feed ${f.name} (${t.name}): ${e.message}`);}
     }
   }
   icalEvents=newEvents;
