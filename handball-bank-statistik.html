@@ -556,7 +556,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v5.260531.2200</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v5.260609.1034</div>
     </div>
   </aside>
 
@@ -1085,9 +1085,11 @@ const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 // HANDBALL.NET — Edge Function
 // ════════════════════════════════════════════════════════════
 const EDGE_FN = `${SUPA_URL}/functions/v1/quick-service`;
+// handball.net sportdata-JSON-API (CORS-sicher über die Edge-Function, mit Ergebnissen/Status)
+const HBN_API_BASE = 'https://www.handball.net/a/sportdata/1';
 
-// Ruft die Edge Function auf — universaler Einstiegspunkt
-async function hbnFetch(url, requestType) {
+// ── Roh-Aufruf der Edge Function (Legacy-Scraping: ical/match/ticker per HTML/iCal) ──
+async function hbnRaw(url, requestType) {
   const session = await supa.auth.getSession();
   const token = session.data?.session?.access_token;
 
@@ -1105,6 +1107,95 @@ async function hbnFetch(url, requestType) {
     throw new Error(err.message || `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+// ── Sportdata-JSON-Aufruf (schedule/combined/lineup …) ──
+async function hbnJson(path, requestType) {
+  return hbnRaw(`${HBN_API_BASE}/${path}`, requestType);
+}
+
+// Team-Slug + tournamentSeason aus einem handball.net-Spielplan-Feed (Kalender-Stil)
+// …/calendar/team/{slug}.ics?tournamentSeason={fid}  → {slug, tournamentSeason}
+function hbnIcalTeam(u) {
+  const m = String(u || '').match(/\/calendar\/team\/(.+?)\.ics(?:\?|$)/i);
+  if (!m) return null;
+  const ts = String(u || '').match(/[?&]tournamentSeason=([^&]+)/i);
+  return { slug: decodeURIComponent(m[1]), tournamentSeason: ts ? decodeURIComponent(ts[1]) : null };
+}
+// Spiel-ID aus …/spiele/{id}/…  (info/aufstellung/ticker)
+function hbnGameId(u) {
+  const m = String(u || '').match(/handball\.net\/(?:de\/)?spiele\/([^\/?#]+)/i);
+  return m ? m[1] : null;
+}
+// Epoch-ms → lokales Datum/Zeit (DST-korrekt; Browser = Europe/Berlin)
+function hbnLocalDate(ms){ if(ms==null) return ''; const d=new Date(ms); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function hbnLocalTime(ms){ if(ms==null) return ''; const d=new Date(ms); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+
+// ── Adapter: JSON-Antworten → exakt die Legacy-Formen, die die Konsumenten erwarten ──
+// schedule → { games:[{datum,uhrzeit,heim,gast,ort,uid,url,baseUrl, +score/status}] }
+function adaptScheduleToIcal(j){
+  const games = (j?.spiele || []).map(s => {
+    const url = s.hbn_url || '';
+    return {
+      datum: hbnLocalDate(s.startsAt), uhrzeit: hbnLocalTime(s.startsAt),
+      heim: s.heim || '', gast: s.gast || '', ort: s.ort || '',
+      uid: s.hbn_id || '', url, baseUrl: getBaseUrl(url),
+      // genauere Daten (von Konsumenten optional nutzbar):
+      score_home: s.score_home, score_away: s.score_away, status: s.status,
+    };
+  });
+  games.sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+  return { type: 'ical', games };
+}
+// combined → Match-Form (heim/gast/datum/uhrzeit/ort/heimRoster/gastRoster/score/status/ticker)
+function adaptCombinedToMatch(j){
+  const auf = j?.aufstellung || {};
+  const mapR = arr => (arr || []).map(p => ({ nummer: p.nummer, name: p.name, pos: 'FL', hbn_id: p.hbn_id }));
+  return {
+    heim: j?.heim || '', gast: j?.gast || '',
+    datum: hbnLocalDate(j?.startsAt), uhrzeit: hbnLocalTime(j?.startsAt), ort: j?.ort || '',
+    heimRoster: mapR(auf.heim), gastRoster: mapR(auf.gast),
+    parseMethod: 'sportdata-json',
+    score_home: j?.score_home, score_away: j?.score_away, status: j?.status || '',
+    ticker: (j?.ticker || []).map(e => ({ minute: e.minute, playerName: e.playerName, score: e.score })),
+  };
+}
+// combined → Ticker-Form (status/score/heim/gast/lastMinute/events[]) – Events bereits passend geformt
+function adaptCombinedToTicker(j){
+  const events = (j?.ticker || []);
+  const lastMinute = events.length ? Math.max(...events.map(e => e.minute || 0)) : 0;
+  return {
+    parseMethod: 'sportdata-json', status: j?.status || '',
+    score_home: j?.score_home, score_away: j?.score_away,
+    heim: j?.heim || '', gast: j?.gast || '',
+    lastMinute, events,
+    _debugRawSusp: [], // JSON liefert Strafen strukturiert als 2min/rot-Events → kein HTML-Hack mehr nötig
+  };
+}
+
+// Ruft die Edge Function auf — universaler Einstiegspunkt.
+// JSON-Endpunkte primär (genauere Daten, Ergebnisse, Live), Legacy-Scraping nur als Fallback.
+async function hbnFetch(url, requestType) {
+  try {
+    if (requestType === 'ical') {
+      const t = hbnIcalTeam(url);
+      if (t) {
+        const path = `teams/${encodeURIComponent(t.slug)}/schedule`
+          + (t.tournamentSeason ? `?tournamentSeason=${encodeURIComponent(t.tournamentSeason)}` : '');
+        return adaptScheduleToIcal(await hbnJson(path, 'schedule'));
+      }
+    } else if (requestType === 'match' || requestType === 'ticker') {
+      const id = hbnGameId(url);
+      if (id) {
+        const j = await hbnJson(`games/${encodeURIComponent(id)}/combined`, 'combined');
+        return requestType === 'match' ? adaptCombinedToMatch(j) : adaptCombinedToTicker(j);
+      }
+    }
+  } catch (e) {
+    console.warn(`[hbnFetch] JSON-Pfad (${requestType}) fehlgeschlagen – Fallback auf Legacy-Scraping:`, e.message);
+  }
+  // Fallback: Original-Scraping (iCal/HTML) – z.B. für nicht-handball.net-Feeds oder bei JSON-Fehler
+  return hbnRaw(url, requestType);
 }
 
 // ── Tab-Switch im Spiel-Modal ────────────────────────────────
