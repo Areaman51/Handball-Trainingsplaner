@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260609.1015 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260612.1006 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -523,6 +523,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .aw-team-switch{display:inline-flex;align-items:center;gap:6px;margin-left:8px;}
 .aw-team-switch select{padding:5px 9px;border:1.5px solid var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:12px;background:#fff;color:var(--text);cursor:pointer;outline:none;max-width:200px;}
 .aw-team-switch select:focus{border-color:var(--accent);}
+/* Sortier-Umschalter in der Anwesenheitsliste */
+.aw-sort-bar{display:flex;align-items:center;gap:10px;padding:9px 22px;background:#fff;border:1px solid var(--border);border-bottom:none;flex-wrap:wrap;}
+.aw-sort-lbl{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);}
+.aw-sort-seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.aw-sort-seg.aw-sort-sub{margin-left:2px;}
+.aw-sort-btn{padding:5px 13px;border:none;border-right:1px solid var(--border);background:#fff;cursor:pointer;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--soft);transition:all .12s;}
+.aw-sort-btn:last-child{border-right:none;}
+.aw-sort-btn:hover{background:var(--accent-light);color:var(--accent);}
+.aw-sort-btn.active{background:var(--accent);color:#fff;}
+@media(max-width:600px){
+  .aw-sort-bar{padding:8px 14px;gap:8px;}
+  .aw-sort-btn{padding:5px 10px;font-size:11.5px;}
+}
 @media(max-width:600px){
   .aw-edit-btn{width:28px;height:28px;font-size:12px;}
   .aw-team-switch{margin-left:0;width:100%;}
@@ -964,7 +977,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260609.1015</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260612.1006</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -1954,7 +1967,7 @@ const PP_POS_DEF={
   RM:{grp:'a',sym:'▲',lbl:'RM (Rückraum M)'},
   RR:{grp:'a',sym:'▲',lbl:'RR (Rückraum R)'},
   RA:{grp:'a',sym:'▲',lbl:'RA (Rechtsaußen)'},
-  KR:{grp:'a',sym:'▲',lbl:'KR (Kreisläufer)'},
+  KS:{grp:'a',sym:'▲',lbl:'KS (Kreisläufer)'},
   // Abwehr inkl. Torwart (●)
   TW:{grp:'d',sym:'●',lbl:'TW (Torwart)'},
   AL:{grp:'d',sym:'●',lbl:'Außen L (1)'},
@@ -2090,7 +2103,9 @@ function initPlayerPicker(pickerId,val){
     sv(pickerId+'-f-max',p.feld?.max??'');
   } else if(modus==='positionen'){
     PP_POSITIONS.forEach(pos=>{
-      const obj=p.positionen?.[pos]||{};
+      let obj=p.positionen?.[pos]||{};
+      // Legacy: früherer Kreisläufer-Code 'KR' → jetzt 'KS' (Altübungen weiterhin korrekt laden)
+      if(pos==='KS' && !obj.min && !obj.max && p.positionen?.['KR']) obj=p.positionen['KR'];
       sv(pickerId+'-p-'+pos+'-min',obj.min||'');
       sv(pickerId+'-p-'+pos+'-max',obj.max||'');
     });
@@ -5040,6 +5055,8 @@ let anwesenheitDaten= {};   // spieler_id → 'anwesend'|'abwesend'|'verletzt'
 let anwesenheitDirty= false;
 let awGuests   = [];        // Gastspieler dieser Einheit: [{id,name,nummer,pos,angriff_pos,abwehr_pos,gast_mannschaft_id,gast_mannschaft_name}]
 let awAktiviert= new Set(); // IDs inaktiver Kaderspielerinnen, die für DIESE Einheit aktiviert wurden
+let awSortMode = 'position'; // Anwesenheits-Sortierung: 'position' | 'nummer' | 'name'
+let awNameSort = 'nachname'; // bei awSortMode==='name': 'vorname' | 'nachname'
 
 // ── Effektiver Aktiv-Status (identisch zu mannschaftsverwaltung.html / spielerstatistik.html) ──
 function _awPlayerStatus(p){
@@ -5053,11 +5070,40 @@ function _awIsAktiv(p){ return _awPlayerStatus(p)==='aktiv'; }
 function _awParticipates(p){ return _awIsAktiv(p) || awAktiviert.has(String(p.id)); }
 
 // ── Positions-Definitionen (DHB-Standard) ──
-const AW_ATTACK_ORDER=['LA','RL','RM','RR','RA','KR'];
-const AW_POS_LABEL={TW:'Torh&uuml;terinnen',LA:'Linksau&szlig;en',RL:'R&uuml;ckraum links',RM:'R&uuml;ckraummitte',RR:'R&uuml;ckraum rechts',RA:'Rechtsau&szlig;en',KR:'Kreisl&auml;ufer'};
+const AW_ATTACK_ORDER=['LA','RL','RM','RR','RA','KS'];
+const AW_POS_LABEL={TW:'Torh&uuml;terinnen',LA:'Linksau&szlig;en',RL:'R&uuml;ckraum links',RM:'R&uuml;ckraummitte',RR:'R&uuml;ckraum rechts',RA:'Rechtsau&szlig;en',KS:'Kreisl&auml;ufer'};
 
 function _awAng(p){return Array.isArray(p.angriff_pos)?p.angriff_pos.filter(x=>x!=null).map(String):[];}
 function _awAbw(p){return Array.isArray(p.abwehr_pos)?p.abwehr_pos.filter(x=>x!=null).map(String):[];}
+
+// Kreisläufer-Code-Varianten (KR ⟷ KS) zusammenführen → einheitlicher Code: KS.
+// Alt-Daten mit 'KR' werden so weiterhin als Kreisläufer erkannt und als 'KS' dargestellt.
+const AW_KR_ALIASES=['KR','KS'];
+function _awCanonPos(code){ const c=String(code||'').trim().toUpperCase(); return AW_KR_ALIASES.includes(c)?'KS':c; }
+
+// ── Sortier-Helfer für die Anwesenheitsliste ──
+function _awNummerVal(p){ const n=parseInt(p.nummer,10); return Number.isFinite(n)?n:99999; }
+function _awNachname(name){ const t=String(name||'').trim().split(/\s+/).filter(Boolean); return t.length?t[t.length-1]:''; }
+function _awSortList(list){
+  const arr=list.slice();
+  if(awSortMode==='nummer'){
+    arr.sort((a,b)=>_awNummerVal(a)-_awNummerVal(b) || String(a.name||'').localeCompare(String(b.name||''),'de',{sensitivity:'base'}));
+  } else if(awSortMode==='name'){
+    if(awNameSort==='vorname'){
+      arr.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de',{sensitivity:'base'}));
+    } else {
+      arr.sort((a,b)=>_awNachname(a.name).localeCompare(_awNachname(b.name),'de',{sensitivity:'base'}) || String(a.name||'').localeCompare(String(b.name||''),'de',{sensitivity:'base'}));
+    }
+  }
+  return arr;
+}
+// Anwesenheits-View neu zeichnen (ohne DB-Reload), z. B. nach Sortierwechsel
+function _awRerender(){
+  const team=_resolveAwTeam();
+  if(team && kaderCache[team.id]) renderAnwesenheit(kaderCache[team.id], team.name);
+}
+function setAwSortMode(mode){ if(awSortMode===mode) return; awSortMode=mode; _awRerender(); }
+function setAwNameSort(which){ awSortMode='name'; awNameSort=which; _awRerender(); }
 
 // ── Mannschaft für die Anwesenheit auflösen (tolerante Zuordnung) ──
 function _awNorm(s){return String(s||'').trim().toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();}
@@ -5231,7 +5277,7 @@ function renderAnwesenheit(players, teamName){
   function primKey(p){
     if(_istTH(p)) return 'TW';
     const ang=_awAng(p);
-    return ang.length?ang[0]:'NONE';
+    return ang.length?_awCanonPos(ang[0]):'NONE';
   }
 
   // Teilnehmende = aktive Kaderspielerinnen + für diese Einheit aktivierte Inaktive.
@@ -5252,7 +5298,7 @@ function renderAnwesenheit(players, teamName){
     if(_istTH(p)) return '<span class="aw-tag tw">● TW</span>';
     const ang=_awAng(p), abw=_awAbw(p);
     let t='';
-    ang.forEach((c,i)=>{ t+=`<span class="aw-tag ang ${i===0?'prim':''}" title="Angriff ${i===0?'primär':(i+1)+'.'}">▲ ${_escHtml(c)}</span>`; });
+    ang.forEach((c,i)=>{ t+=`<span class="aw-tag ang ${i===0?'prim':''}" title="Angriff ${i===0?'primär':(i+1)+'.'}">▲ ${_escHtml(_awCanonPos(c))}</span>`; });
     abw.forEach((c,i)=>{ t+=`<span class="aw-tag abw" title="Abwehr ${i===0?'primär':(i+1)+'.'}">● ${_escHtml(c)}</span>`; });
     if(!t) t='<span class="aw-tag none">▲ ohne Position</span>';
     return t;
@@ -5297,30 +5343,57 @@ function renderAnwesenheit(players, teamName){
     </div>`;
   }
 
-  // Aktive Gruppen in DHB-Reihenfolge: Torhüterinnen → Angriffspositionen → ohne Position.
-  const grouped={};
-  teilnehmer.forEach(p=>{ const k=primKey(p); (grouped[k]=grouped[k]||[]).push(p); });
-  let groupsHtml=['TW',...AW_ATTACK_ORDER,'NONE'].map(k=>{
-    const list=grouped[k]; if(!list||!list.length) return '';
-    const sym=k==='TW'?'●':'▲';
-    const name=k==='TW'?AW_POS_LABEL.TW:(k==='NONE'?'Ohne feste Position':`${AW_POS_LABEL[k]||k} (${k})`);
-    return posGroup(`${sym} ${name}`, list);
-  }).join('');
+  // Sortier-Umschalter: Position (gruppiert) · Nummer · Name (Vor-/Nachname)
+  const sortBarHtml=`
+    <div class="aw-sort-bar">
+      <span class="aw-sort-lbl">Sortierung</span>
+      <div class="aw-sort-seg">
+        <button class="aw-sort-btn ${awSortMode==='position'?'active':''}" onclick="setAwSortMode('position')">Position</button>
+        <button class="aw-sort-btn ${awSortMode==='nummer'?'active':''}" onclick="setAwSortMode('nummer')">Nummer</button>
+        <button class="aw-sort-btn ${awSortMode==='name'?'active':''}" onclick="setAwSortMode('name')">Name</button>
+      </div>
+      ${awSortMode==='name'?`<div class="aw-sort-seg aw-sort-sub">
+        <button class="aw-sort-btn ${awNameSort==='vorname'?'active':''}" onclick="setAwNameSort('vorname')">Vorname</button>
+        <button class="aw-sort-btn ${awNameSort==='nachname'?'active':''}" onclick="setAwNameSort('nachname')">Nachname</button>
+      </div>`:''}
+    </div>`;
 
-  // Gäste-Gruppe
+  let groupsHtml='';
+  if(awSortMode==='position'){
+    // Nach primärer Angriffsposition gruppieren (DHB-Reihenfolge: Torhüterinnen → Angriff → ohne Position).
+    // Unbekannte/neue Codes werden ans Ende gehängt, damit niemand still verworfen wird.
+    const grouped={};
+    teilnehmer.forEach(p=>{ const k=primKey(p); (grouped[k]=grouped[k]||[]).push(p); });
+    const known=['TW',...AW_ATTACK_ORDER];
+    const extra=Object.keys(grouped).filter(k=>k!=='NONE' && !known.includes(k)).sort();
+    groupsHtml=[...known,...extra,'NONE'].map(k=>{
+      const list=grouped[k]; if(!list||!list.length) return '';
+      const sym=k==='TW'?'●':'▲';
+      const name=k==='TW'?AW_POS_LABEL.TW:(k==='NONE'?'Ohne feste Position':`${AW_POS_LABEL[k]||k} (${k})`);
+      return posGroup(`${sym} ${name}`, list);
+    }).join('');
+  } else {
+    // Flache, durchsortierte Liste (nach Nummer bzw. Vor-/Nachname) – keine Positionsgruppen.
+    const lbl=awSortMode==='nummer'?'# Nach Nummer':(awNameSort==='vorname'?'🔤 Nach Vorname':'🔤 Nach Nachname');
+    groupsHtml=posGroup(lbl, _awSortList(teilnehmer));
+  }
+
+  // Gäste-Gruppe (in flachen Modi ebenfalls sortiert)
   if(awGuests.length){
-    const anwCnt=awGuests.filter(g=>(anwesenheitDaten[g.id]||'anwesend')==='anwesend').length;
+    const gList=awSortMode==='position'?awGuests:_awSortList(awGuests);
+    const anwCnt=gList.filter(g=>(anwesenheitDaten[g.id]||'anwesend')==='anwesend').length;
     groupsHtml+=`<div class="aw-group">
       <div class="aw-group-header">
         <span class="aw-group-label">👤 Gäste</span>
-        <span class="aw-group-count">${anwCnt}/${awGuests.length}</span>
+        <span class="aw-group-count">${anwCnt}/${gList.length}</span>
       </div>
-      ${awGuests.map(guestRow).join('')}
+      ${gList.map(guestRow).join('')}
     </div>`;
   }
 
   // Inaktive / ehemalige Spielerinnen (eigene Gruppe, nicht in der Statistik gezählt)
   if(inaktive.length){
+    const inList=awSortMode==='position'?inaktive:_awSortList(inaktive);
     const inRow=p=>{
       const nr=p.nummer!=null?String(p.nummer).padStart(2,'0'):'–';
       const st=_awPlayerStatus(p);
@@ -5336,7 +5409,7 @@ function renderAnwesenheit(players, teamName){
         <span class="aw-group-label">⏸️ Inaktiv / Ehemalige</span>
         <span class="aw-group-count">${inaktive.length}</span>
       </div>
-      ${inaktive.map(inRow).join('')}
+      ${inList.map(inRow).join('')}
     </div>`;
   }
 
@@ -5367,6 +5440,7 @@ function renderAnwesenheit(players, teamName){
       </div>
       <div class="aw-stats-right">${rightInfo}</div>
     </div>
+    ${sortBarHtml}
     ${groupsHtml}
   `;
 }
