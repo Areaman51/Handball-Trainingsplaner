@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260606.1358 — Spielerstatistik -->
+<!-- Handball Coaching Tools v1.260612.1045 — Spielerstatistik -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -140,6 +140,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .player-list{display:flex;flex-direction:column;gap:8px;}
 .pl-group-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
   color:var(--xsoft);margin:8px 2px 2px;}
+/* Sortier-Umschalter der Spielerliste (Position · Nummer · Name) */
+.stat-sort-bar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:12px;}
+.stat-sort-bar:empty{display:none;}
+.aw-sort-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);}
+.aw-sort-seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff;}
+.aw-sort-btn{padding:5px 11px;border:none;border-right:1px solid var(--border);background:#fff;cursor:pointer;
+  font-size:11.5px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--soft);transition:all .12s;}
+.aw-sort-btn:last-child{border-right:none;}
+.aw-sort-btn:hover{background:var(--accent-l);color:var(--accent);}
+.aw-sort-btn.active{background:var(--accent);color:#fff;}
+/* Löschbutton für einzelne Zusatzeinheiten */
+.zus-del{background:var(--red-l);border:1px solid var(--red-b);color:var(--red);border-radius:6px;
+  padding:3px 8px;font-size:12px;cursor:pointer;line-height:1;transition:all .15s;}
+.zus-del:hover{background:#fecaca;}
 .player-card{background:white;border:1.5px solid var(--border);border-radius:11px;padding:11px 13px;
   cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:11px;}
 .player-card:hover{border-color:#c7d2fe;box-shadow:var(--shadow);}
@@ -388,7 +402,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260606.1358</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260612.1045</div>
     </div>
   </aside>
 
@@ -430,6 +444,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="split">
         <div class="player-col">
           <div class="status-tabs" id="status-tabs"></div>
+          <div class="stat-sort-bar" id="stat-sort-bar"></div>
           <div class="player-list" id="player-list">
             <div class="loading">⏳ Lade Kader…</div>
           </div>
@@ -500,6 +515,49 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
+<!-- ════ MODAL: Einzelne Zusatzeinheit (eine Spielerin) ════ -->
+<div class="modal-overlay" id="zus1-modal" onclick="if(event.target===this)closeZus1Modal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="mh-title">➕ Zusatzeinheit · <span id="zus1-name"></span></div>
+      <button class="modal-x" onclick="closeZus1Modal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="frm-2col">
+        <div class="frm-row">
+          <label class="frm-lbl">Datum</label>
+          <input type="date" class="frm-input" id="zus1-datum">
+        </div>
+        <div class="frm-row">
+          <label class="frm-lbl">Dauer <span class="frm-opt">(optional)</span></label>
+          <input type="number" min="0" step="5" class="frm-input" id="zus1-dauer" placeholder="z.B. 45 Min">
+        </div>
+      </div>
+      <div class="frm-row">
+        <label class="frm-lbl">Art <span class="frm-opt">(optional)</span></label>
+        <select class="frm-select" id="zus1-typ">
+          <option value="">– keine Angabe –</option>
+          <option value="Kraft">Kraft / Athletik</option>
+          <option value="Wurf">Wurftraining</option>
+          <option value="Lauf">Lauf / Ausdauer</option>
+          <option value="Beweglichkeit">Beweglichkeit / Mobility</option>
+          <option value="Reha">Reha</option>
+          <option value="Technik">Technik / individuell</option>
+          <option value="Sonstiges">Sonstiges</option>
+        </select>
+      </div>
+      <div class="frm-row" style="margin-bottom:0;">
+        <label class="frm-lbl">Notiz <span class="frm-opt">(optional)</span></label>
+        <input type="text" class="frm-input" id="zus1-notiz" placeholder="z.B. Schwerpunkt, Ort …">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeZus1Modal()">Abbrechen</button>
+      <button class="btn btn-primary" id="zus1-save" onclick="saveZus1()">Speichern</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- ════ MODAL: Teamweite Wochen-Abweichungen ════ -->
@@ -559,8 +617,11 @@ let _activeTab='langzeit';
 let toastTm=null;
 let _teamSollWoche=null;     // Team-Standard Zusatz-Soll pro Woche
 let _teamSollWochen={};      // ISO-Woche → abweichender Team-Soll (teamweit), z.B. {"2026-W23":3}
-let _zusatzById={};          // spieler_id → {count, minutes, items:[{datum,typ,dauer_min,notiz}]}
+let _zusatzById={};          // spieler_id → {count, minutes, items:[{id,datum,typ,dauer_min,notiz}]}
 let _activeWeeks=new Set();  // ISO-Wochen mit ≥1 Mannschaftstraining im Zeitraum
+let _statSortMode='position';// Spielerliste-Sortierung: 'position' | 'nummer' | 'name'
+let _statNameSort='nachname';// bei _statSortMode==='name': 'vorname' | 'nachname'
+let _zus1PlayerId=null;      // Ziel-Spielerin für die Einzel-Zusatzeinheit-Erfassung
 
 // ════════════════════════════════════════════════════════════
 // AUTH
@@ -935,7 +996,7 @@ async function loadEinzeleinheiten(){
     if(!_zusatzById[id]) _zusatzById[id]={count:0,minutes:0,items:[]};
     _zusatzById[id].count++;
     if(z.dauer_min) _zusatzById[id].minutes+=Number(z.dauer_min)||0;
-    _zusatzById[id].items.push({datum:z.datum,typ:z.typ||'',dauer_min:z.dauer_min,notiz:z.notiz||''});
+    _zusatzById[id].items.push({id:z.id,datum:z.datum,typ:z.typ||'',dauer_min:z.dauer_min,notiz:z.notiz||''});
   });
 }
 function emptyGame(){ return {spiele:0,spieleAkt:0,s:{},aktionen:[],_altNummern:[],spieleMap:{}}; }
@@ -1042,6 +1103,39 @@ function playerStatus(p){
 }
 function isPlayerAktiv(p){ return playerStatus(p)==='aktiv'; }
 
+// ── Sortierung der Spielerliste (analog Trainingsplaner-Anwesenheit) ──
+function _nummerVal(p){ const n=parseInt(p.nummer,10); return Number.isFinite(n)?n:99999; }
+function _nachname(name){ const t=String(name||'').trim().split(/\s+/).filter(Boolean); return t.length?t[t.length-1]:''; }
+function _sortPlayers(list){
+  const arr=list.slice();
+  if(_statSortMode==='nummer'){
+    arr.sort((a,b)=>_nummerVal(a)-_nummerVal(b) || String(a.name||'').localeCompare(String(b.name||''),'de',{sensitivity:'base'}));
+  } else if(_statSortMode==='name'){
+    if(_statNameSort==='vorname'){
+      arr.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de',{sensitivity:'base'}));
+    } else {
+      arr.sort((a,b)=>_nachname(a.name).localeCompare(_nachname(b.name),'de',{sensitivity:'base'}) || String(a.name||'').localeCompare(String(b.name||''),'de',{sensitivity:'base'}));
+    }
+  }
+  return arr;
+}
+function renderStatSortBar(){
+  const el=document.getElementById('stat-sort-bar'); if(!el) return;
+  if(!_players.length){ el.innerHTML=''; return; }
+  el.innerHTML=`<span class="aw-sort-lbl">Sortierung</span>
+    <div class="aw-sort-seg">
+      <button class="aw-sort-btn ${_statSortMode==='position'?'active':''}" onclick="setStatSortMode('position')">Position</button>
+      <button class="aw-sort-btn ${_statSortMode==='nummer'?'active':''}" onclick="setStatSortMode('nummer')">Nummer</button>
+      <button class="aw-sort-btn ${_statSortMode==='name'?'active':''}" onclick="setStatSortMode('name')">Name</button>
+    </div>
+    ${_statSortMode==='name'?`<div class="aw-sort-seg">
+      <button class="aw-sort-btn ${_statNameSort==='vorname'?'active':''}" onclick="setStatNameSort('vorname')">Vorname</button>
+      <button class="aw-sort-btn ${_statNameSort==='nachname'?'active':''}" onclick="setStatNameSort('nachname')">Nachname</button>
+    </div>`:''}`;
+}
+function setStatSortMode(mode){ if(_statSortMode===mode) return; _statSortMode=mode; renderPlayerList(); }
+function setStatNameSort(which){ _statSortMode='name'; _statNameSort=which; renderPlayerList(); }
+
 function renderStatusTabs(){
   const el=document.getElementById('status-tabs'); if(!el) return;
   const aktivN=_players.filter(isPlayerAktiv).length;
@@ -1057,6 +1151,7 @@ function setStatusFilter(s){
 
 function renderPlayerList(){
   renderStatusTabs();
+  renderStatSortBar();
   const el=document.getElementById('player-list');
   let players=_players.filter(p=> _statusFilter==='inaktiv' ? !isPlayerAktiv(p) : isPlayerAktiv(p));
   if(_posFilter!=='all') players=players.filter(p=> _posFilter==='TH'?p.pos==='TH':p.pos!=='TH');
@@ -1107,11 +1202,16 @@ function renderPlayerList(){
   }
 
   let html='';
-  if(_posFilter==='all'){
-    if(fl.length) html+=`<div class="pl-group-label">▲ Feldspielerinnen (${fl.length})</div>`+fl.map(card).join('');
-    if(th.length) html+=`<div class="pl-group-label">● Torhüterinnen (${th.length})</div>`+th.map(card).join('');
+  if(_statSortMode==='position'){
+    if(_posFilter==='all'){
+      if(fl.length) html+=`<div class="pl-group-label">▲ Feldspielerinnen (${fl.length})</div>`+fl.map(card).join('');
+      if(th.length) html+=`<div class="pl-group-label">● Torhüterinnen (${th.length})</div>`+th.map(card).join('');
+    } else {
+      html=players.map(card).join('');
+    }
   } else {
-    html=players.map(card).join('');
+    const lbl=_statSortMode==='nummer'?'# Nach Nummer':(_statNameSort==='vorname'?'🔤 Nach Vorname':'🔤 Nach Nachname');
+    html=`<div class="pl-group-label">${lbl}</div>`+_sortPlayers(players).map(card).join('');
   }
   el.innerHTML=html;
 }
@@ -1370,16 +1470,20 @@ function renderAttTab(p){
       <td class="lcol">${it.typ?esc(it.typ):'<span style="color:var(--xsoft)">–</span>'}</td>
       <td>${it.dauer_min?esc(it.dauer_min)+' Min':'<span style="color:var(--xsoft)">–</span>'}</td>
       <td class="lcol">${it.notiz?esc(it.notiz):''}</td>
+      ${canEdit?`<td>${it.id?`<button class="zus-del" onclick="deleteEinzeleinheit('${esc(it.id)}','${p.id}')" title="Diese Zusatzeinheit löschen">🗑️</button>`:''}</td>`:''}
     </tr>`).join('');
   const zusList = ist>0
     ? `<div class="sect-label" style="margin-top:14px;">Erfasste Zusatzeinheiten (${ist})</div>
        <div class="tbl-wrap"><table class="stbl"><thead><tr>
-         <th class="lcol">Datum</th><th class="lcol">Art</th><th>Zeit</th><th class="lcol">Notiz</th>
+         <th class="lcol">Datum</th><th class="lcol">Art</th><th>Zeit</th><th class="lcol">Notiz</th>${canEdit?'<th></th>':''}
        </tr></thead><tbody>${zusRows}</tbody></table></div>`
-    : '';
+    : (canEdit?`<div class="att-note" style="margin-top:14px;">Noch keine einzelnen Zusatzeinheiten erfasst. Über <strong style="color:var(--text)">➕ Einheit erfassen</strong> kannst du eine direkt für ${esc(p.name)} hinzufügen.</div>`:'');
 
   const zt=`<div class="att-group" style="margin-bottom:0;">
-    <div class="att-group-head"><div class="att-group-title">➕ Zusatztraining (individuell)</div></div>
+    <div class="att-group-head">
+      <div class="att-group-title">➕ Zusatztraining (individuell)</div>
+      ${canEdit?`<button class="btn btn-primary btn-sm" onclick="openZus1Modal('${p.id}')" title="Einzelne Zusatzeinheit für ${esc(p.name)} erfassen">➕ Einheit erfassen</button>`:''}
+    </div>
     ${zusBar}
     ${sollRow}
     ${wkTable}
@@ -1450,6 +1554,55 @@ async function saveZusatz(){
   if(error){ console.warn('[Zusatz speichern]',error.message); toast('Fehler: '+error.message,'error'); return; }
   closeZusatzModal();
   toast(`${rows.length} Zusatzeinheit(en) gespeichert`,'success');
+  await reloadAll();
+}
+
+// ── Einzelne Zusatzeinheit für GENAU EINE Spielerin erfassen ──
+function openZus1Modal(pid){
+  if(_isSharedTeam){ toast('Nur Lesezugriff für fremde Teams','error'); return; }
+  const p=_players.find(x=>x.id===pid); if(!p){ toast('Spielerin nicht gefunden','error'); return; }
+  _zus1PlayerId=pid;
+  document.getElementById('zus1-name').textContent=p.name||'';
+  const d=new Date();
+  const today=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  document.getElementById('zus1-datum').value=today;
+  document.getElementById('zus1-dauer').value='';
+  document.getElementById('zus1-typ').value='';
+  document.getElementById('zus1-notiz').value='';
+  document.getElementById('zus1-modal').classList.add('open');
+}
+function closeZus1Modal(){ document.getElementById('zus1-modal').classList.remove('open'); _zus1PlayerId=null; }
+async function saveZus1(){
+  if(!_zus1PlayerId){ toast('Keine Spielerin gewählt','error'); return; }
+  const datum=document.getElementById('zus1-datum').value;
+  if(!datum){ toast('Bitte Datum angeben','error'); return; }
+  const typ=document.getElementById('zus1-typ').value||null;
+  const dauerRaw=document.getElementById('zus1-dauer').value;
+  let dauer=null;
+  if(dauerRaw!=='' && dauerRaw!=null){ const n=parseInt(dauerRaw,10); if(!isNaN(n)) dauer=Math.max(0,n); }
+  const notiz=document.getElementById('zus1-notiz').value.trim()||null;
+  const pid=_zus1PlayerId;
+  const btn=document.getElementById('zus1-save'); btn.disabled=true; btn.textContent='Speichert…';
+  const {error}=await supa.from('einzeleinheiten').insert([{
+    user_id:currentUser.id, mannschaft_id:_myTeamId, spieler_id:pid,
+    datum, typ, dauer_min:dauer, notiz
+  }]);
+  btn.disabled=false; btn.textContent='Speichern';
+  if(error){ console.warn('[Zusatz einzeln]',error.message); toast('Fehler: '+error.message,'error'); return; }
+  closeZus1Modal();
+  _selectedPlayerId=pid;
+  toast('Zusatzeinheit gespeichert','success');
+  await reloadAll();
+}
+// ── Einzelne Zusatzeinheit löschen ──
+async function deleteEinzeleinheit(rowId,pid){
+  if(_isSharedTeam){ toast('Nur Lesezugriff für fremde Teams','error'); return; }
+  if(!rowId){ return; }
+  if(!confirm('Diese Zusatzeinheit wirklich löschen?')) return;
+  const {error}=await supa.from('einzeleinheiten').delete().eq('id',rowId);
+  if(error){ console.warn('[Zusatz löschen]',error.message); toast('Fehler: '+error.message,'error'); return; }
+  if(pid) _selectedPlayerId=pid;
+  toast('Zusatzeinheit gelöscht','success');
   await reloadAll();
 }
 
