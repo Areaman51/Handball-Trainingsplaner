@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260612.1006 — Trainingsplaner -->
+<!-- Handball Coaching Tools v1.260612.1609 — Trainingsplaner -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -977,7 +977,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <div class="sidebar-footer hide-mobile">
     <div class="sidebar-user" id="sidebar-user-email">–</div>
-    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260612.1006</div>
+    <div style="padding:6px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260612.1609</div>
   </div>
 
   <!-- Mobile: Mehr Button -->
@@ -2666,13 +2666,7 @@ async function saveDrill(){
   const nameEl=document.getElementById('f-name');
   if(!nameEl.value.trim()){nameEl.classList.add('form-error');nameEl.focus();return;}
   nameEl.classList.remove('form-error');
-  const sn=document.getElementById('f-sname').value.trim();
-  if(sn){sessionMeta.name=sn;document.getElementById('s-title').innerText=sn;}
-  sessionMeta.group=document.getElementById('f-sgroup').value.trim()||sessionMeta.group;
-  sessionMeta.date=document.getElementById('f-date').value||sessionMeta.date;
-  sessionMeta.time=document.getElementById('f-time').value||sessionMeta.time;
-  sessionMeta.ort=document.getElementById('f-ort').value.trim()||sessionMeta.ort;
-  sessionMeta.focus=document.getElementById('f-sfocus').value.trim()||sessionMeta.focus;
+  // Einheitsdaten werden separat über das "Einheit bearbeiten"-Modal (saveSessionEdit) gepflegt.
 
   const drillName=nameEl.value.trim();
   const resolvedImages=[];
