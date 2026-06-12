@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260609.2237 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260612.1019 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -148,7 +148,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .badge-neutral{background:var(--bg);color:var(--soft);border:1px solid var(--border);}
 .pos-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
 .pos-TH{background:#f0f4ff;color:#1d4ed8;}
-.pos-LA,.pos-RA,.pos-RL,.pos-RR,.pos-RM,.pos-KR{background:var(--accent-l);color:var(--accent);}
+.pos-LA,.pos-RA,.pos-RL,.pos-RR,.pos-RM,.pos-KR,.pos-KS{background:var(--accent-l);color:var(--accent);}
 /* Import */
 .import-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:9px;border:1.5px solid var(--border);background:white;margin-bottom:8px;transition:border-color .15s;cursor:pointer;}
 .import-item.checked{border-color:var(--accent);background:#f8faff;}
@@ -346,7 +346,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
     </div>
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260609.2237</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260612.1019</div>
     </div>
   </aside>
 
@@ -820,7 +820,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <option value="RM">▲ RM — Rückraum Mitte</option>
           <option value="RR">▲ RR — Rückraum Rechts</option>
           <option value="RA">▲ RA — Rechtsaußen</option>
-          <option value="KR">▲ KR — Kreisläufer</option>
+          <option value="KS">▲ KS — Kreisläufer</option>
         </select>
       </div>
       <div class="form-group">
@@ -884,8 +884,10 @@ function fmtDate(d){if(!d)return'–';return new Date(d+'T00:00:00').toLocaleDat
 function fmtDateShort(d){if(!d)return null;const dt=new Date(d+'T00:00:00');return{day:dt.toLocaleDateString('de-DE',{day:'2-digit'}),month:dt.toLocaleDateString('de-DE',{month:'short'})};}
 function showToast(msg,type='success'){const el=document.getElementById('toast');el.innerHTML=msg;el.style.background=type==='error'?'#7f1d1d':type==='info'?'#1e3a8a':'#111827';el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3200);}
 
-const POS_L={TH:'● TH',LA:'▲ LA',RL:'▲ RL',RM:'▲ RM',RR:'▲ RR',RA:'▲ RA',KR:'▲ KR'};
-const POS_F={TH:'Torhüter',LA:'Linksaußen',RL:'Rückraum Links',RM:'Rückraum Mitte',RR:'Rückraum Rechts',RA:'Rechtsaußen',KR:'Kreisläufer'};
+const POS_L={TH:'● TH',LA:'▲ LA',RL:'▲ RL',RM:'▲ RM',RR:'▲ RR',RA:'▲ RA',KS:'▲ KS'};
+const POS_F={TH:'Torhüter',LA:'Linksaußen',RL:'Rückraum Links',RM:'Rückraum Mitte',RR:'Rückraum Rechts',RA:'Rechtsaußen',KS:'Kreisläufer'};
+// Einheitlicher Kreisläufer-Code: KS. Alt-Daten mit 'KR' werden bei Anzeige/Speichern auf 'KS' normalisiert.
+const canonPos=c=>{const v=String(c||'').trim().toUpperCase();return v==='KR'?'KS':v;};
 const SPLORTE={heim:'🏠 Heim',auswaerts:'✈️ Auswärts',neutral:'⚖️ Neutral'};
 const FARBEN=['#6b7280','#0057ff','#dc2626','#d97706','#15803d','#7c3aed','#ea580c','#0ea5e9','#111827','#be185d'];
 
@@ -1028,9 +1030,9 @@ function renderSpieler(){
   const grid=document.getElementById('spieler-grid');
   if(!currentSpieler.length){grid.innerHTML=`<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">👥</div><div class="empty-text">Noch keine Schlüsselspieler.</div></div>`;return;}
   grid.innerHTML=currentSpieler.map(s=>{
-    const pc=s.position?`pos-${s.position}`:'';
+    const pc=s.position?`pos-${canonPos(s.position)}`:'';
     return`<div class="spieler-card">
-      <div class="sc-header"><div class="sc-nummer">${s.nummer||'?'}</div><div class="sc-info"><div class="sc-name">${esc(s.name)}</div>${s.position?`<div style="margin-top:2px;"><span class="pos-badge ${pc}">${esc(POS_L[s.position]||s.position)} <small style="font-weight:400;opacity:.7;">${esc(POS_F[s.position]||'')}</small></span></div>`:''}</div></div>
+      <div class="sc-header"><div class="sc-nummer">${s.nummer||'?'}</div><div class="sc-info"><div class="sc-name">${esc(s.name)}</div>${s.position?`<div style="margin-top:2px;"><span class="pos-badge ${pc}">${esc(POS_L[canonPos(s.position)]||canonPos(s.position))} <small style="font-weight:400;opacity:.7;">${esc(POS_F[canonPos(s.position)]||'')}</small></span></div>`:''}</div></div>
       <div class="sc-body">${s.staerken?`<div class="sc-label">Stärken</div><div style="color:var(--green);">${esc(s.staerken)}</div>`:''} ${s.schwaechen?`<div class="sc-label">Schwächen</div><div style="color:var(--red);">${esc(s.schwaechen)}</div>`:''} ${s.notiz?`<div class="sc-label">Notiz</div><div>${esc(s.notiz)}</div>`:''}</div>
       <div class="sc-actions"><button class="btn btn-ghost btn-xs" onclick="openSpielerModal('${s.id}')">✏️ Bearbeiten</button></div>
     </div>`;
@@ -1490,9 +1492,9 @@ async function saveAnalyse(){
 async function deleteAnalyse(){if(!editAnalyseId)return;if(!confirm('Analyse wirklich löschen?'))return;const{error}=await supa.from('gegner_analyse').delete().eq('id',editAnalyseId);if(error){showToast('Fehler: '+error.message,'error');return;}showToast('Analyse gelöscht','success');closeAnalyseModal();await loadAnalysen(currentGegnerId);await loadGegner();}
 
 // ── MODAL SPIELER ──
-function openSpielerModal(id=null){editSpielerId=id||null;const s=id?currentSpieler.find(x=>x.id===id):null;document.getElementById('sm-title').textContent=s?'Spieler bearbeiten':'Spieler hinzufügen';document.getElementById('sm-id').value=id||'';document.getElementById('sm-name').value=s?.name||'';document.getElementById('sm-nummer').value=s?.nummer||'';document.getElementById('sm-position').value=s?.position||'';document.getElementById('sm-staerken').value=s?.staerken||'';document.getElementById('sm-schwaechen').value=s?.schwaechen||'';document.getElementById('sm-notiz').value=s?.notiz||'';document.getElementById('sm-delete-btn').style.display=id?'':'none';document.getElementById('spieler-modal').classList.add('open');setTimeout(()=>document.getElementById('sm-name').focus(),80);}
+function openSpielerModal(id=null){editSpielerId=id||null;const s=id?currentSpieler.find(x=>x.id===id):null;document.getElementById('sm-title').textContent=s?'Spieler bearbeiten':'Spieler hinzufügen';document.getElementById('sm-id').value=id||'';document.getElementById('sm-name').value=s?.name||'';document.getElementById('sm-nummer').value=s?.nummer||'';document.getElementById('sm-position').value=canonPos(s?.position||'');document.getElementById('sm-staerken').value=s?.staerken||'';document.getElementById('sm-schwaechen').value=s?.schwaechen||'';document.getElementById('sm-notiz').value=s?.notiz||'';document.getElementById('sm-delete-btn').style.display=id?'':'none';document.getElementById('spieler-modal').classList.add('open');setTimeout(()=>document.getElementById('sm-name').focus(),80);}
 function closeSpielerModal(){document.getElementById('spieler-modal').classList.remove('open');editSpielerId=null;}
-async function saveSpieler(){if(!currentGegnerId){showToast('Kein Gegner gewählt.','error');return;}const name=document.getElementById('sm-name').value.trim();if(!name){showToast('Name ist Pflichtfeld.','error');document.getElementById('sm-name').focus();return;}const nv=document.getElementById('sm-nummer').value;const payload={gegner_id:currentGegnerId,user_id:currentUser.id,name,nummer:nv!==''?parseInt(nv):null,position:document.getElementById('sm-position').value||null,staerken:document.getElementById('sm-staerken').value.trim()||null,schwaechen:document.getElementById('sm-schwaechen').value.trim()||null,notiz:document.getElementById('sm-notiz').value.trim()||null};let error;if(editSpielerId){({error}=await supa.from('gegner_spieler').update(payload).eq('id',editSpielerId));}else{({error}=await supa.from('gegner_spieler').insert(payload));}if(error){showToast('Fehler: '+error.message,'error');return;}showToast(editSpielerId?'Spieler aktualisiert':'Spieler hinzugefügt','success');closeSpielerModal();await loadSpieler(currentGegnerId);await loadGegner();}
+async function saveSpieler(){if(!currentGegnerId){showToast('Kein Gegner gewählt.','error');return;}const name=document.getElementById('sm-name').value.trim();if(!name){showToast('Name ist Pflichtfeld.','error');document.getElementById('sm-name').focus();return;}const nv=document.getElementById('sm-nummer').value;const payload={gegner_id:currentGegnerId,user_id:currentUser.id,name,nummer:nv!==''?parseInt(nv):null,position:canonPos(document.getElementById('sm-position').value)||null,staerken:document.getElementById('sm-staerken').value.trim()||null,schwaechen:document.getElementById('sm-schwaechen').value.trim()||null,notiz:document.getElementById('sm-notiz').value.trim()||null};let error;if(editSpielerId){({error}=await supa.from('gegner_spieler').update(payload).eq('id',editSpielerId));}else{({error}=await supa.from('gegner_spieler').insert(payload));}if(error){showToast('Fehler: '+error.message,'error');return;}showToast(editSpielerId?'Spieler aktualisiert':'Spieler hinzugefügt','success');closeSpielerModal();await loadSpieler(currentGegnerId);await loadGegner();}
 async function deleteSpieler(){if(!editSpielerId)return;if(!confirm('Spieler wirklich löschen?'))return;const{error}=await supa.from('gegner_spieler').delete().eq('id',editSpielerId);if(error){showToast('Fehler: '+error.message,'error');return;}showToast('Spieler gelöscht','success');closeSpielerModal();await loadSpieler(currentGegnerId);await loadGegner();}
 
 // ══════════════════════════════════════════════════════════════
@@ -2035,10 +2037,10 @@ function mapHbnPos(raw){
     RL:'RL',RUECKRAUMLINKS:'RL',RÜCKRAUMLINKS:'RL',
     RM:'RM',RUECKRAUMMITTE:'RM',RÜCKRAUMMITTE:'RM',MITTE:'RM',
     RR:'RR',RUECKRAUMRECHTS:'RR',RÜCKRAUMRECHTS:'RR',
-    KL:'KR',KM:'KR',KR:'KR',KREIS:'KR',KREISLAEUFER:'KR',KREISLÄUFER:'KR',KREISLAUFER:'KR'
+    KL:'KS',KM:'KS',KR:'KS',KS:'KS',KREIS:'KS',KREISLAEUFER:'KS',KREISLÄUFER:'KS',KREISLAUFER:'KS'
   };
   if(map[p]) return map[p];
-  if(['TH','LA','RL','RM','RR','RA','KR'].includes(p)) return p;
+  if(['TH','LA','RL','RM','RR','RA','KS'].includes(p)) return p;
   return '';
 }
 
@@ -2534,7 +2536,7 @@ function renderHbnRosterDiff(){
   const confirmBtn=document.getElementById('hbn-roster-confirm');
   const countEl=document.getElementById('hbn-roster-count');
 
-  const posLbl=p=>p?(POS_L[p]||p):'<span style="opacity:.5;">– Position offen –</span>';
+  const posLbl=p=>p?(POS_L[canonPos(p)]||canonPos(p)):'<span style="opacity:.5;">– Position offen –</span>';
 
   let html=`<div style="font-size:12px;color:var(--soft);margin-bottom:14px;">Aus <strong>${st.okGames}</strong> Aufstellung(en) zusammengestellt · <strong>${st.newPlayers.length}</strong> neu · <strong>${st.updates.length}</strong> aktualisierbar · ${st.unveraendert} unverändert.</div>`;
 
@@ -2558,7 +2560,7 @@ function renderHbnRosterDiff(){
     st.updates.forEach((p,i)=>{
       const chg=[];
       if(p.nrDiffers) chg.push(`Nr. ${p.oldNummer??'–'} → <strong>${p.nummer}</strong>`);
-      if(p.posMissing) chg.push(`Position → <strong>${POS_L[p.position]||p.position}</strong>`);
+      if(p.posMissing) chg.push(`Position → <strong>${POS_L[canonPos(p.position)]||canonPos(p.position)}</strong>`);
       html+=`<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;cursor:pointer;">
         <input type="checkbox" ${p._checked?'checked':''} onchange="hbnRosterToggleUpd(${i})" style="accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;">
         <span style="flex:1;font-weight:600;font-size:13px;">${esc(p.name)}</span>
