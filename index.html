@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260531.2200 — Dashboard -->
+<!-- Handball Coaching Tools v1.260612.1624 — Dashboard -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -156,14 +156,38 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .tile-desc{display:block;}
 }
 
+/* ── LOADING SCREEN ── */
+.load-screen{position:fixed;inset:0;background:#0e1420;display:flex;align-items:center;justify-content:center;z-index:300;}
+.load-card{display:flex;flex-direction:column;align-items:center;gap:18px;}
+.load-logo{width:52px;height:52px;background:var(--accent);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;color:white;letter-spacing:-.5px;}
+.load-spinner{width:26px;height:26px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);border-radius:50%;animation:load-spin .7s linear infinite;}
+@keyframes load-spin{to{transform:rotate(360deg);}}
+.load-text{color:rgba(255,255,255,.5);font-size:13px;font-weight:500;}
+
+/* ── SAISON-PICKER (synchronisiert via profiles.aktive_saison_id) ── */
+.ms-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.ms-saison-wrap .saison-select{font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:600;color:var(--text);
+  background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:6px 10px;cursor:pointer;outline:none;transition:all .15s;}
+.ms-saison-wrap .saison-select:hover{background:#dbeafe;}
+.ms-saison-wrap .saison-select:focus{border-color:var(--accent);}
+
 /* Hidden until login */
 #dashboard{display:none;}
 </style>
 </head>
 <body>
 
+<!-- LOADING SCREEN (verhindert kurzes Aufblitzen des Login-Screens) -->
+<div class="load-screen" id="load-screen">
+  <div class="load-card">
+    <div class="load-logo">HB</div>
+    <div class="load-spinner"></div>
+    <div class="load-text">Lädt…</div>
+  </div>
+</div>
+
 <!-- AUTH SCREEN -->
-<div class="auth-screen" id="auth-screen">
+<div class="auth-screen" id="auth-screen" style="display:none;">
   <div class="auth-card">
     <div class="auth-logo">
       <div class="auth-logo-icon">HB</div>
@@ -240,7 +264,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div class="ms-team" id="ms-team-name">–</div>
           <div class="ms-team-sub" id="ms-team-sub">Saisonüberblick deiner Mannschaft</div>
         </div>
-        <a class="ms-link" href="mannschaftsstatistik.html">📊 Alle Details →</a>
+        <div class="ms-head-actions">
+          <div id="saison-picker" class="ms-saison-wrap" style="display:none;"></div>
+          <a class="ms-link" href="mannschaftsstatistik.html">📊 Alle Details →</a>
+        </div>
       </div>
       <div id="ms-content"><div class="ms-loading">⏳ Lade Mannschaftsdaten…</div></div>
     </div>
@@ -314,14 +341,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="tile-arrow">→</div>
       </a>
 
-      <div class="tile t-gegner coming-soon">
-        <div class="tile-badge soon">Bald</div>
+      <a class="tile t-gegner" href="gegneranalyse.html">
         <div class="tile-icon">🔍</div>
         <div class="tile-body">
           <div class="tile-name">Gegneranalyse</div>
           <div class="tile-desc">Gegnerische Formationen, Stärken und Schwächen erfassen</div>
         </div>
-      </div>
+        <div class="tile-arrow">→</div>
+      </a>
 
     </div>
 
@@ -495,6 +522,8 @@ async function onAuthSuccess(user){
 
   // Aktivierungs-Check
   if(profile && !profile.aktiv){
+    hideLoadScreen();
+    document.getElementById('auth-screen').style.display = '';
     const isFromEmailConfirm = window.location.hash.includes('access_token');
     if(isFromEmailConfirm){
       history.replaceState(null, '', window.location.pathname);
@@ -512,6 +541,7 @@ async function onAuthSuccess(user){
   // Dashboard zeigen
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
+  hideLoadScreen();
 
   // User-Info
   const displayName = profile?.full_name || profile?.email || user.email;
@@ -532,7 +562,9 @@ async function onAuthSuccess(user){
     checkPending(role);
   }
 
-  // Mannschafts-Kachel laden
+  // Synchronisierte Saisonauswahl laden, dann Mannschafts-Kachel (Statistik nutzt die aktive Saison)
+  await loadSaisons();
+  renderSaisonPicker();
   loadMeineMannschaft();
 }
 
@@ -608,6 +640,80 @@ function renderMannschaftTile(){
   loadMannschaftsstatistik(aktive);
 }
 
+// ── SAISON (synchronisiert via profiles.aktive_saison_id, geräte-/seitenübergreifend) ──
+let saisons   = [];
+let _saisonId = null;   // null = „Alle Saisons" (bewusst lokale Ansicht)
+
+async function loadSaisons(){
+  // Eigene Saisons laden (nach Enddatum sortiert → Reihenfolge für Zeitraum-Ableitung)
+  try {
+    const { data } = await supa.from('saisons').select('*')
+      .eq('user_id', currentUser.id).order('end_date');
+    saisons = data || [];
+  } catch(e){ console.warn('[Saisons] Laden fehlgeschlagen:', e.message); saisons = []; }
+
+  if(_saisonId && !saisons.find(s => s.id === _saisonId)) _saisonId = null;
+
+  // Synchronisierte aktive Saison aus dem Profil lesen (graceful, falls Spalte nicht migriert)
+  let stored = null;
+  try {
+    const { data: prof, error: pe } = await supa.from('profiles')
+      .select('aktive_saison_id').eq('id', currentUser.id).maybeSingle();
+    if(pe) console.warn('[Saison] aktive_saison_id evtl. nicht migriert:', pe.message);
+    else   stored = prof?.aktive_saison_id || null;
+  } catch(e){ console.warn('[Saison] Profil lesen:', e.message); }
+
+  if(stored && saisons.find(s => s.id === stored)){
+    _saisonId = stored;
+  } else if(saisons.length){
+    // Default = Saison, deren Zeitraum heute enthält, sonst neueste
+    const heute = new Date().toISOString().slice(0,10);
+    let def = saisons.find(s => { const r = getSaisonRange(s.id); return r && heute >= r.start && heute <= r.end; });
+    if(!def) def = saisons[saisons.length - 1];
+    _saisonId = def.id;
+    if(!stored) persistSaison(_saisonId);   // einmalig vorbelegen
+  } else {
+    _saisonId = null;
+  }
+}
+
+function getSaisonRange(id){
+  if(!id) return null;
+  const idx = saisons.findIndex(s => s.id === id);
+  if(idx < 0) return null;
+  const endDate = saisons[idx].end_date;
+  const prevEnd = idx > 0 ? saisons[idx-1].end_date : null;
+  const startDate = prevEnd
+    ? new Date(new Date(prevEnd).getTime() + 86400000).toISOString().slice(0,10)
+    : '2000-01-01';
+  return { start: startDate, end: endDate };
+}
+
+async function persistSaison(id){
+  try { await supa.from('profiles').update({ aktive_saison_id: id }).eq('id', currentUser.id); }
+  catch(e){ console.warn('[Saison] speichern fehlgeschlagen:', e.message); }
+}
+
+function renderSaisonPicker(){
+  const el = document.getElementById('saison-picker');
+  if(!el) return;
+  if(!saisons.length){ el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.innerHTML = `<select class="saison-select" onchange="setSaison(this.value)">
+    <option value="">📅 Alle Saisons</option>
+    ${saisons.map(s => `<option value="${s.id}"${_saisonId===s.id?' selected':''}>${_esc(s.name)}</option>`).join('')}
+  </select>`;
+}
+
+function setSaison(value){
+  _saisonId = value || null;
+  // „Alle Saisons" (leer) bleibt bewusst lokal → nicht in profiles schreiben
+  if(value) persistSaison(value);
+  renderSaisonPicker();
+  const aktive = alleMannschaften.find(m => String(m.id) === String(aktiveMannschaftId));
+  loadMannschaftsstatistik(aktive);
+}
+
 // ── MANNSCHAFTSSTATISTIK ──
 async function loadMannschaftsstatistik(team){
   const nameEl = document.getElementById('ms-team-name');
@@ -621,14 +727,19 @@ async function loadMannschaftsstatistik(team){
     return;
   }
   if(nameEl) nameEl.textContent = team.name || '—';
-  if(subEl)  subEl.textContent  = (team.verein ? team.verein + ' · ' : '') + 'Saisonüberblick';
+  const sName = (_saisonId && saisons.find(s => s.id === _saisonId)?.name) || 'Alle Saisons';
+  if(subEl)  subEl.textContent  = (team.verein ? team.verein + ' · ' : '') + 'Saisonüberblick · ' + sName;
   cont.innerHTML = '<div class="ms-loading">⏳ Lade Mannschaftsdaten…</div>';
 
+  const range = getSaisonRange(_saisonId);
+
   try {
-    // Spiele der Mannschaft
-    const { data: spiele } = await supa.from('spiele')
+    // Spiele der Mannschaft (nach aktiver Saison gefiltert)
+    let spielQ = supa.from('spiele')
       .select('spielart,status,score_home,score_away,datum')
       .eq('mannschaft_id', team.id);
+    if(range){ spielQ = spielQ.gte('datum', range.start).lte('datum', range.end); }
+    const { data: spiele } = await spielQ;
 
     let gespielt=0, siege=0, remis=0, niederlagen=0, torFor=0, torGegen=0;
     (spiele || []).forEach(sp => {
@@ -648,9 +759,11 @@ async function loadMannschaftsstatistik(team){
     // Trainings-Anwesenheit (Team-Quote)
     let trainings=0, awAnw=0, awGesamt=0;
     try {
-      const { data: einheiten } = await supa.from('einheiten')
-        .select('anwesenheit')
+      let einhQ = supa.from('einheiten')
+        .select('anwesenheit,date')
         .eq('group_name', team.name || '');
+      if(range){ einhQ = einhQ.gte('date', range.start).lte('date', range.end); }
+      const { data: einheiten } = await einhQ;
       (einheiten || []).forEach(e => {
         const sp = e.anwesenheit?.spieler;
         if(!Array.isArray(sp) || !sp.length) return;
@@ -722,19 +835,43 @@ function showToast(msg, type='info'){
   clearTimeout(t._t); t._t = setTimeout(() => { t.className = 'toast ' + type; }, 3500);
 }
 
+// ── LADE-SCREEN ──
+function showLoadScreen(){ const el=document.getElementById('load-screen'); if(el) el.style.display='flex'; }
+function hideLoadScreen(){ const el=document.getElementById('load-screen'); if(el) el.style.display='none'; }
+function showAuthScreen(){ hideLoadScreen(); const el=document.getElementById('auth-screen'); if(el) el.style.display=''; }
+
 // ── INIT ──
+// Sicherheitsnetz: hängt die Session-Abfrage, niemals dauerhaft im Lade-Screen bleiben.
+setTimeout(() => {
+  if(!currentUser){
+    const ld = document.getElementById('load-screen');
+    if(ld && ld.style.display !== 'none') showAuthScreen();
+  }
+}, 12000);
+
 supa.auth.getSession().then(({ data:{ session }, error }) => {
-  if(error){ console.warn('[Auth] Session-Fehler:', error.message); return; }
-  if(session) onAuthSuccess(session.user);
+  if(error){ console.warn('[Auth] Session-Fehler:', error.message); showAuthScreen(); return; }
+  if(session){
+    onAuthSuccess(session.user).catch(e => {
+      console.warn('[Auth] Anmeldung konnte nicht abgeschlossen werden:', e.message);
+      showAuthScreen();
+    });
+  } else {
+    showAuthScreen();
+  }
 }).catch(e => {
   // Tritt auf wenn das Supabase-Projekt pausiert ist oder CORS-Probleme bestehen.
-  // Sicher ignorieren → Nutzer sieht Login-Screen.
+  // Sicher behandeln → Lade-Screen weg, Login-Screen zeigen.
   console.warn('[Auth] Session konnte nicht geladen werden (Projekt pausiert oder kein Netz?):', e.message);
+  showAuthScreen();
 });
 
 supa.auth.onAuthStateChange((event, session) => {
   if(event === 'SIGNED_IN' && session && !currentUser){
-    onAuthSuccess(session.user);
+    onAuthSuccess(session.user).catch(e => {
+      console.warn('[Auth] Anmeldung konnte nicht abgeschlossen werden:', e.message);
+      showAuthScreen();
+    });
   }
   if(event === 'TOKEN_REFRESH_FAILED'){
     // Token abgelaufen und Refresh nicht möglich → sauber abmelden
@@ -742,7 +879,7 @@ supa.auth.onAuthStateChange((event, session) => {
     currentUser = null;
     supa.auth.signOut().catch(() => {});
     document.getElementById('dashboard').style.display = 'none';
-    document.getElementById('auth-screen').style.display = '';
+    showAuthScreen();
   }
 });
 </script>
