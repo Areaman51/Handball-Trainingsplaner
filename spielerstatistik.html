@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260612.1045 — Spielerstatistik -->
+<!-- Handball Coaching Tools v1.260621.1333 — Spielerstatistik -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -265,7 +265,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .team-soll-box .ts-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;
   padding:0 4px;border-radius:8px;background:var(--accent);color:white;font-size:9.5px;font-weight:700;line-height:1;}
 /* Wochen-Modal */
-.tw-add{display:flex;gap:10px;align-items:flex-end;margin-top:14px;}
+.tw-add{display:flex;gap:10px;align-items:flex-end;margin-top:14px;flex-wrap:wrap;}
 .tw-add .frm-lbl{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
   color:var(--xsoft);margin-bottom:5px;}
 .tw-add .frm-opt{font-weight:400;text-transform:none;letter-spacing:0;color:var(--xsoft);}
@@ -402,7 +402,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260612.1045</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v1.260621.1333</div>
     </div>
   </aside>
 
@@ -568,19 +568,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="modal-x" onclick="closeTeamWeeksModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="att-note" style="margin-top:0;">Hier legst du <strong style="color:var(--text)">teamweit</strong> fest, dass in einer bestimmten Woche ein abweichender Zusatz-Soll gilt – z.&nbsp;B. mehr im Trainingslager oder 0 in der Ferienwoche. Gilt für alle Spielerinnen ohne eigene Wochen-Ausnahme.</div>
+      <div class="att-note" style="margin-top:0;">Hier legst du <strong style="color:var(--text)">teamweit</strong> fest, dass in einer bestimmten Woche ein abweichender Zusatz-Soll gilt – z.&nbsp;B. mehr im Trainingslager oder 0 in der Ferienwoche. Gilt für alle Spielerinnen <strong style="color:var(--text)">ohne eigene Ausnahme</strong> – eine generelle oder wochenspezifische Ausnahme der Spielerin hat Vorrang. Für einen <strong style="color:var(--text)">Zeitraum</strong> wählst du zusätzlich ein <strong style="color:var(--text)">Bis</strong>-Datum; der Wert wird dann auf alle Wochen dazwischen gesetzt.</div>
       <div class="tw-add">
-        <div style="flex:1;min-width:0;">
-          <label class="frm-lbl">Woche <span class="frm-opt">(Datum daraus)</span></label>
-          <input type="date" class="frm-input" id="tw-date" oninput="twDateHint(this.value)">
-          <div class="tw-hint" id="tw-date-hint"></div>
+        <div style="flex:1 1 130px;min-width:0;">
+          <label class="frm-lbl">Von <span class="frm-opt">(Woche aus Datum)</span></label>
+          <input type="date" class="frm-input" id="tw-date" oninput="twRangeHint()">
         </div>
-        <div style="width:84px;">
+        <div style="flex:1 1 130px;min-width:0;">
+          <label class="frm-lbl">Bis <span class="frm-opt">(optional)</span></label>
+          <input type="date" class="frm-input" id="tw-date-bis" oninput="twRangeHint()">
+        </div>
+        <div style="flex:0 0 84px;">
           <label class="frm-lbl">Soll</label>
           <input type="number" min="0" class="frm-input" id="tw-val" placeholder="z.B. 3">
         </div>
         <button class="btn btn-primary" onclick="addTeamWeekSoll()">Setzen</button>
       </div>
+      <div class="tw-hint" id="tw-date-hint"></div>
       <div class="sect-label" style="margin-top:18px;">Festgelegte Wochen</div>
       <div id="tw-list"></div>
     </div>
@@ -1041,14 +1045,14 @@ function _weekTeamSoll(w){
   return _teamSollWoche!=null?_teamSollWoche:0;
 }
 // Soll OHNE spieler-individuellen Wochen-Override (= Fallback, wenn das Wochenfeld leer bleibt)
-// Team-Wochen-Override > generelle Spieler-Ausnahme > Team-Standard
+// Priorität: generelle Spieler-Ausnahme > Team-Wochen-Override > Team-Standard
 function _weekSollBase(p,w){
-  if(_teamSollWochen && _teamSollWochen[w]!=null) return _teamSollWochen[w];
   if(p.zusatz_soll_woche!=null) return p.zusatz_soll_woche;
+  if(_teamSollWochen && _teamSollWochen[w]!=null) return _teamSollWochen[w];
   return _teamSollWoche!=null?_teamSollWoche:0;
 }
 // Effektiver Soll für eine Spielerin in Woche w.
-// Priorität: Spieler-Wochen-Ausnahme > Team-Wochen-Override > generelle Spieler-Ausnahme > Team-Standard
+// Priorität: Spieler-Wochen-Ausnahme > generelle Spieler-Ausnahme > Team-Wochen-Override > Team-Standard
 function _weekSoll(p,w){
   const pw=p.zusatz_soll_wochen;
   if(pw && pw[w]!=null) return pw[w];
@@ -1443,9 +1447,13 @@ function renderAttTab(p){
     const sollCell = canEdit
       ? `<input type="number" min="0" class="wk-input" value="${ovr}" placeholder="${r.base}" onchange="savePlayerWeekSoll('${p.id}','${r.w}',this.value)" title="Wochen-Ausnahme für diese Spielerin (leer = Standard ${r.base})">`
       : (r.soll||0);
+    const teamStd = _teamSollWoche!=null?_teamSollWoche:0;
     const src = r.pOvr!=null
-      ? `<div class="wk-indiv">eigene Ausnahme</div>`
-      : ((!r.injured && r.base!==(_teamSollWoche!=null?_teamSollWoche:0)) ? `<div class="wk-indiv">Standard: ${r.base}</div>` : '');
+      ? `<div class="wk-indiv">eigene Wochen-Ausnahme</div>`
+      : (r.injured ? ''
+         : (p.zusatz_soll_woche!=null
+            ? `<div class="wk-indiv">genereller Wert: ${r.base}</div>`
+            : (r.base!==teamStd ? `<div class="wk-indiv">Team-Woche: ${r.base}</div>` : '')));
     const status = r.injured ? '<span class="att-badge verletzt">🤕 verletzt</span>'
       : (r.soll>0 ? (r.ist>=r.soll?'<span class="vp">✓ erfüllt</span>':'<span class="vn">✗ offen</span>')
                   : '<span style="color:var(--xsoft)">–</span>');
@@ -1657,7 +1665,22 @@ async function saveWeekSoll(w,val){
   renderTeamSollBox(); renderTeamWeeksList();
   renderPlayerList(); if(_selectedPlayerId) renderDetail(_selectedPlayerId);
 }
-// Team-Soll-Feld in der Kopfzeile
+// Team-Soll für mehrere ISO-Wochen (teamweit) in EINEM Schreibvorgang setzen/entfernen
+async function saveWeekSollMulti(weeks,val){
+  if(_isSharedTeam){ toast('Nur Lesezugriff für fremde Teams','error'); return false; }
+  if(!Array.isArray(weeks) || !weeks.length) return false;
+  const obj=Object.assign({},_teamSollWochen);
+  const clear=(val===''||val==null);
+  const num=clear?null:Math.max(0,parseInt(val,10)||0);
+  weeks.forEach(w=>{ if(clear) delete obj[w]; else obj[w]=num; });
+  const {error}=await supa.from('mannschaften').update({zusatz_soll_wochen:obj}).eq('id',_myTeamId);
+  if(error){ toast('Fehler: '+error.message,'error'); return false; }
+  _teamSollWochen=obj;
+  const m=_availableTeams.find(t=>String(t.id)===String(_myTeamId)); if(m) m.zusatz_soll_wochen=obj;
+  renderTeamSollBox(); renderTeamWeeksList();
+  renderPlayerList(); if(_selectedPlayerId) renderDetail(_selectedPlayerId);
+  return true;
+}
 function renderTeamSollBox(){
   const el=document.getElementById('team-soll-box'); if(!el) return;
   if(!_myTeamId){ el.innerHTML=''; return; }
@@ -1677,16 +1700,41 @@ function openTeamWeeksModal(){
   const d=new Date();
   const today=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   document.getElementById('tw-date').value=today;
+  document.getElementById('tw-date-bis').value='';
   document.getElementById('tw-val').value='';
-  twDateHint(today);
+  twRangeHint();
   renderTeamWeeksList();
   document.getElementById('tw-modal').classList.add('open');
 }
 function closeTeamWeeksModal(){ document.getElementById('tw-modal').classList.remove('open'); }
-function twDateHint(d){
+// Alle ISO-Wochen-Schlüssel zwischen zwei Daten (inkl.) – aufsteigend, dedupliziert
+function isoWeeksBetween(d1,d2){
+  let a=isoWeekKey(d1); if(!a) return [];
+  let b=d2?isoWeekKey(d2):a; if(!b) b=a;
+  if(a>b){ const t=a; a=b; b=t; }            // ISO-Keys 'YYYY-Www' sind lexikografisch sortierbar
+  if(a===b) return [a];
+  const out=[], seen=new Set();
+  let mon=isoWeekMonday(a); if(!mon) return [a];
+  for(let i=0;i<530 && mon;i++){
+    const k=isoWeekKey(mon.toISOString().slice(0,10));
+    if(!k || k>b) break;
+    if(!seen.has(k)){ seen.add(k); out.push(k); }
+    if(k===b) break;
+    mon=new Date(mon); mon.setUTCDate(mon.getUTCDate()+7);
+  }
+  return out;
+}
+// Hinweis unter den Datumsfeldern (einzelne Woche oder Zeitraum)
+function twRangeHint(){
   const el=document.getElementById('tw-date-hint'); if(!el) return;
-  const w=d?isoWeekKey(d):null;
-  el.innerHTML=w?`→ ${weekLabel(w)}`:'';
+  const d1=document.getElementById('tw-date').value;
+  const d2=document.getElementById('tw-date-bis') ? document.getElementById('tw-date-bis').value : '';
+  if(!d1){ el.innerHTML=''; return; }
+  const weeks=isoWeeksBetween(d1,d2);
+  if(!weeks.length){ el.innerHTML=''; return; }
+  el.innerHTML = weeks.length===1
+    ? `→ ${weekLabel(weeks[0])}`
+    : `→ ${weekLabel(weeks[0])} bis ${weekLabel(weeks[weeks.length-1])} <strong>(${weeks.length} Wochen)</strong>`;
 }
 function renderTeamWeeksList(){
   const el=document.getElementById('tw-list'); if(!el) return;
@@ -1703,15 +1751,19 @@ function renderTeamWeeksList(){
   </div>`).join('');
 }
 async function addTeamWeekSoll(){
-  const d=document.getElementById('tw-date').value;
+  const d1=document.getElementById('tw-date').value;
+  const d2=document.getElementById('tw-date-bis').value;
   const v=document.getElementById('tw-val').value;
-  if(!d){ toast('Bitte ein Datum der Woche wählen','error'); return; }
+  if(!d1){ toast('Bitte ein Start-Datum (Von) wählen','error'); return; }
   if(v===''){ toast('Bitte einen Soll-Wert angeben','error'); return; }
-  const w=isoWeekKey(d);
-  if(!w){ toast('Ungültiges Datum','error'); return; }
-  await saveWeekSoll(w,v);
+  const weeks=isoWeeksBetween(d1,d2);
+  if(!weeks.length){ toast('Ungültiges Datum','error'); return; }
+  const ok=await saveWeekSollMulti(weeks,v);
+  if(!ok) return;
   document.getElementById('tw-val').value='';
-  toast(`${weekLabel(w)} gesetzt`,'success');
+  document.getElementById('tw-date-bis').value='';
+  twRangeHint();
+  toast(weeks.length===1 ? `${weekLabel(weeks[0])} gesetzt` : `${weeks.length} Wochen gesetzt`,'success');
 }
 async function deleteTeamWeekSoll(w){
   await saveWeekSoll(w,'');
