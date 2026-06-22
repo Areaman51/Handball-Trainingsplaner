@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260622.0940 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260622.1004 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -356,7 +356,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
     </div>
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260622.0940</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260622.1004</div>
     </div>
   </aside>
 
@@ -625,8 +625,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <input class="form-input" id="gm-liga" placeholder="z.B. Handball-Bundesliga">
         </div>
         <div class="form-group">
-          <label class="form-label">Trainer</label>
+          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <span>Trainer</span>
+            <button type="button" class="btn btn-ghost btn-xs" id="gm-trainer-hbn-btn" onclick="openTrainerImport()" style="display:none;font-weight:600;">🌐 aus handball.net</button>
+          </label>
           <input class="form-input" id="gm-trainer" placeholder="z.B. Christian Prokop">
+          <div id="gm-trainer-hbn-list" style="display:none;margin-top:8px;"></div>
         </div>
       </div>
       <div class="form-group">
@@ -1365,6 +1369,11 @@ function openGegnerModal(id=null){
   document.getElementById('gm-trikot-heim-prev').style.background=isHex(th)?th:'#fff';
   document.getElementById('gm-trikot-auswaerts-prev').style.background=isHex(ta)?ta:'#ccc';
   document.getElementById('gm-delete-btn').style.display=id?'':'none';
+  // Trainer-aus-handball.net nur bei verknüpftem Gegner anbieten
+  const trBtn=document.getElementById('gm-trainer-hbn-btn');
+  const trList=document.getElementById('gm-trainer-hbn-list');
+  if(trList){trList.style.display='none';trList.innerHTML='';}
+  if(trBtn){trBtn.style.display=(g&&g.hbn_ical_url)?'':'none';trBtn.disabled=false;trBtn.textContent='🌐 aus handball.net';}
   document.getElementById('gegner-modal').classList.add('open');
   setTimeout(()=>document.getElementById('gm-name').focus(),80);
 }
@@ -2056,6 +2065,71 @@ function injectHeroTabelle(g){
   }else{
     el.style.display='none';
   }
+}
+
+// ── Trainer aus handball.net-Mannschaftsoffiziellen übernehmen ──
+// Offizielle werden als „Offizieller A–E\" geführt (DHB-Mannschaftsverantwortliche),
+// nicht als „Trainer\". Daher: alle Offiziellen der Gegnerseite aus den letzten
+// Spielen sammeln und zur Auswahl anbieten (A meist Cheftrainer → als Vorschlag).
+async function openTrainerImport(){
+  const g=allGegner.find(x=>x.id===editGegnerId);
+  const list=document.getElementById('gm-trainer-hbn-list');
+  const btn=document.getElementById('gm-trainer-hbn-btn');
+  if(!g||!g.hbn_ical_url){showToast('Gegner ist nicht mit handball.net verknüpft.','info');return;}
+  const feed=resolveHbnTeamUrl(g.hbn_ical_url)||parseHbnGameFeed(g.hbn_ical_url);
+  if(!feed||!feed.slug){showToast('Verknüpfung konnte nicht aufgelöst werden.','error');return;}
+  if(btn){btn.disabled=true;btn.textContent='⏳ Lädt…';}
+  list.style.display='';
+  list.innerHTML='<div style="font-size:12.5px;color:var(--soft);padding:6px 2px;">⏳ Offizielle werden geladen…</div>';
+  try{
+    const path=`teams/${encodeURIComponent(feed.slug)}/schedule`
+      +(feed.tournamentSeason?`?tournamentSeason=${encodeURIComponent(feed.tournamentSeason)}`:'');
+    const data=await hbnFetch(`${HBN_API_BASE}/${path}`,'schedule');
+    const games=((data&&data.spiele)||[]).map(mapScheduleGame).filter(x=>x.datum&&x.uid);
+    const played=games.filter(x=>x.score_home!=null&&x.score_away!=null).sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));
+    const sample=(played.length?played:[...games].sort((a,b)=>(b.datum||'').localeCompare(a.datum||''))).slice(0,4);
+    if(!sample.length){list.innerHTML='<div style="font-size:12.5px;color:var(--xsoft);padding:6px 2px;">Keine Spiele gefunden.</div>';return;}
+    const agg=new Map(); // normName → {name, rolle, count}
+    let lastErr='';
+    for(const game of sample){
+      const side=_opponentSide(game,feed.slug,g.name);
+      if(side!=='heim'&&side!=='gast') continue; // ohne Seitenbezug nicht zuordenbar
+      let ld;
+      try{ ld=await hbnFetch(`${HBN_API_BASE}/games/${encodeURIComponent(game.uid)}/lineup`,'lineup'); }
+      catch(e){ lastErr=e.message; continue; }
+      const offs=(side==='heim'?ld.heim_offizielle:ld.gast_offizielle)||[];
+      offs.forEach(o=>{
+        const nm=(o.name||'').trim(); if(!nm) return;
+        const key=nm.toLowerCase().replace(/\s+/g,' ');
+        if(!agg.has(key)) agg.set(key,{name:nm,rolle:(o.rolle||'').trim(),count:1});
+        else{ const e=agg.get(key); e.count++; if(!e.rolle&&o.rolle) e.rolle=String(o.rolle).trim(); }
+      });
+    }
+    if(!agg.size){
+      list.innerHTML=`<div style="font-size:12.5px;color:var(--xsoft);padding:6px 2px;">Keine Offiziellen in den letzten Spielen gefunden${lastErr?` (${esc(lastErr)})`:''}.</div>`;
+      return;
+    }
+    // Sortierung: nach Rolle (A, B, C … alphabetisch), dann Häufigkeit
+    const offs=[...agg.values()].sort((a,b)=>((a.rolle||'zzz').localeCompare(b.rolle||'zzz'))||(b.count-a.count));
+    list.innerHTML=`<div style="font-size:11.5px;color:var(--xsoft);margin-bottom:6px;line-height:1.5;">„Offizieller A\" ist meist der Cheftrainer. Tippe auf eine Person, um sie als Trainer zu übernehmen.</div>`
+      +offs.map((o,i)=>`<div class="spiel-link-item" data-name="${esc(o.name)}" onclick="selectTrainerFromHbn(this.dataset.name)">
+        <span class="hbn-pick-logo placeholder" style="width:24px;height:24px;font-size:11px;">${i===0?'📋':'👤'}</span>
+        <div class="sli-body"><strong>${esc(o.name)}</strong>${o.rolle?` <span style="color:var(--soft);">· ${esc(o.rolle)}</span>`:''}${i===0?' <span class="gc-hbn" style="margin:0;padding:1px 6px;">Vorschlag</span>':''}</div>
+        <span style="font-size:11px;color:var(--xsoft);flex-shrink:0;">${o.count}×</span>
+      </div>`).join('');
+  }catch(e){
+    list.innerHTML=`<div style="font-size:12.5px;color:var(--red);padding:6px 2px;">❌ ${esc(e.message||'Fehler beim Laden')}</div>`;
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='🌐 aus handball.net';}
+  }
+}
+
+function selectTrainerFromHbn(name){
+  if(!name) return;
+  document.getElementById('gm-trainer').value=name;
+  const list=document.getElementById('gm-trainer-hbn-list');
+  if(list){list.style.display='none';list.innerHTML='';}
+  showToast('Trainer übernommen: '+name,'success');
 }
 
 // Spiegelt den Verknüpfungs-Status im Schlüsselspieler-Tab
