@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260612.1019 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260622.0930 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -91,6 +91,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .gc-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
 .gc-name{font-size:16px;font-weight:700;letter-spacing:-.3px;margin-bottom:3px;}
 .gc-liga{font-size:11.5px;color:var(--soft);}
+.gc-hbn{display:inline-flex;align-items:center;gap:4px;margin-top:7px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green-b);line-height:1.4;}
+.gc-head-main{display:flex;gap:10px;align-items:flex-start;min-width:0;flex:1;}
+.gc-logo{width:30px;height:30px;border-radius:7px;object-fit:contain;background:white;border:1px solid var(--border);flex-shrink:0;}
 .gc-trikots{display:flex;gap:4px;align-items:center;flex-shrink:0;}
 .trikot-dot{width:22px;height:22px;border-radius:4px;border:1.5px solid rgba(0,0,0,.12);position:relative;flex-shrink:0;}
 .trikot-dot-label{position:absolute;bottom:1px;right:2px;font-size:7px;font-weight:800;color:rgba(0,0,0,.45);line-height:1;}
@@ -104,6 +107,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* Detail */
 .detail-hero{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:22px 24px;margin-bottom:20px;display:flex;align-items:flex-start;gap:16px;}
 .detail-color-bar{width:6px;border-radius:6px;flex-shrink:0;min-height:60px;align-self:stretch;}
+.detail-logo{width:56px;height:56px;border-radius:10px;object-fit:contain;background:white;border:1px solid var(--border);flex-shrink:0;}
 .detail-info{flex:1;min-width:0;}
 .detail-name{font-size:22px;font-weight:700;letter-spacing:-.4px;margin-bottom:6px;}
 .detail-meta{display:flex;flex-wrap:wrap;gap:10px;}
@@ -165,6 +169,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sli-date{font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:var(--soft);min-width:78px;flex-shrink:0;}
 .sli-body{flex:1;font-size:12.5px;}
 .sli-score{font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--text);flex-shrink:0;}
+.sli-ext{flex-shrink:0;color:var(--soft);text-decoration:none;font-size:14px;padding:2px 6px;border-radius:6px;border:1px solid var(--border);background:white;}
+.sli-ext:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-l);}
+.amg-cap{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--xsoft);margin:10px 0 6px;}
+.am-hbn-chip{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--green-b);background:var(--green-l);margin-bottom:8px;font-size:12.5px;}
+.am-hbn-chip .x{margin-left:auto;cursor:pointer;color:var(--soft);font-weight:700;flex-shrink:0;}
+.am-hbn-chip .x:hover{color:var(--red);}
 /* Form */
 .form-group{margin-bottom:16px;}
 .form-group:last-child{margin-bottom:0;}
@@ -346,7 +356,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
     </div>
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260612.1019</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260622.0930</div>
     </div>
   </aside>
 
@@ -692,6 +702,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="modal-body">
       <input type="hidden" id="am-id">
       <input type="hidden" id="am-spiel-id">
+      <input type="hidden" id="am-hbn-spiel">
 
       <div class="section-divider" style="margin-top:0;">🔗 Spiel aus Kalender verknüpfen</div>
       <div id="am-spiele-wrap" style="margin-bottom:8px;"></div>
@@ -699,6 +710,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <input type="radio" name="am-spiel-radio" value="manuell" id="am-spiel-manuell" onchange="selectSpielForAnalyse(null)" style="accent-color:var(--accent);" checked>
         <span>Kein Spiel verknüpfen — Felder manuell ausfüllen</span>
       </label>
+
+      <div id="am-hbn-section" style="display:none;margin-top:14px;">
+        <div class="section-divider" style="margin-top:0;">📺 Spiele der Mannschaft (handball.net)</div>
+        <div id="am-hbn-chip-wrap"></div>
+        <button type="button" class="btn btn-secondary btn-sm" id="am-hbn-load-btn" onclick="loadHbnGamesForAnalyse()">🌐 Spiele aus handball.net laden</button>
+        <div style="font-size:11.5px;color:var(--xsoft);margin-top:6px;line-height:1.5;">Alle Spiele der Mannschaft – ideal zur Videoanalyse vor dem Spiel. Jede Zeile öffnet die handball.net-Spielseite (↗) und lässt sich mit dieser Analyse verknüpfen.</div>
+        <div id="am-hbn-games-wrap" style="margin-top:8px;"></div>
+      </div>
 
       <div class="section-divider">📋 Spieldaten</div>
       <div class="form-row">
@@ -873,7 +892,7 @@ const supa=supabase.createClient(SUPA_URL,SUPA_KEY);
 
 let currentUser=null, allGegner=[], allMannschaften=[], alleSpiele=[];
 let _statistikSpieleCache=[]; // Wird von loadStatistikTab befüllt für iCal-Score-Abgleich
-let currentGegnerId=null, currentAnalysen=[], currentSpieler=[], spieleFuerGegner=[];
+let currentGegnerId=null, currentAnalysen=[], currentSpieler=[], spieleFuerGegner=[], _hbnAnalyseGames=[];
 let editGegnerId=null, editAnalyseId=null, editSpielerId=null, activeTab='analysen';
 let toastTimer=null;
 
@@ -952,8 +971,11 @@ function renderGegnerGrid(cm={},sm={}){
     const f=g.farbe||'#6b7280';
     const hd=g.trikot_heim&&isHex(g.trikot_heim)?`<div class="trikot-dot" style="background:${esc(g.trikot_heim)};"><div class="trikot-dot-label">H</div></div>`:'';
     const ad=g.trikot_auswaerts&&isHex(g.trikot_auswaerts)?`<div class="trikot-dot" style="background:${esc(g.trikot_auswaerts)};"><div class="trikot-dot-label">A</div></div>`:'';
+    const hbn=g.hbn_ical_url?`<span class="gc-hbn" title="Mit handball.net verknüpft">🌐 handball.net</span>`:'';
+    const logoUrl=fixHbnLogo(g.hbn_logo_url);
+    const logo=logoUrl?`<img src="${esc(logoUrl)}" class="gc-logo" alt="" loading="lazy" onerror="this.style.display='none'">`:'';
     return`<div class="gegner-card" style="--card-color:${esc(f)};" onclick="showGegnerDetail('${g.id}')">
-      <div class="gc-header"><div><div class="gc-name">${esc(g.name)}</div><div class="gc-liga">${esc(g.liga||'–')}</div></div><div class="gc-trikots">${hd}${ad}</div></div>
+      <div class="gc-header"><div class="gc-head-main">${logo}<div style="min-width:0;"><div class="gc-name">${esc(g.name)}</div><div class="gc-liga">${esc(g.liga||'–')}</div>${hbn}</div></div><div class="gc-trikots">${hd}${ad}</div></div>
       <div class="gc-stats"><div class="gc-stat"><div class="gc-stat-num">${cm[g.id]||0}</div><div class="gc-stat-label">Analysen</div></div><div class="gc-stat"><div class="gc-stat-num">${sm[g.id]||0}</div><div class="gc-stat-label">Spieler</div></div></div>
       <div class="gc-footer"><span class="gc-date">${g.trainer?'Trainer: '+esc(g.trainer):g.liga?esc(g.liga):''}</span><span class="gc-arrow">→</span></div>
     </div>`;
@@ -970,8 +992,11 @@ async function showGegnerDetail(id){
   const g=allGegner.find(x=>x.id===id);if(!g)return;
   const f=g.farbe||'#6b7280';
   const trikots=(g.trikot_heim||g.trikot_auswaerts)?`<div class="detail-trikots">${trikotPrevHtml(g.trikot_heim,'🏠 Heim')}${trikotPrevHtml(g.trikot_auswaerts,'✈️ Auswärts')}</div>`:'';
+  const heroLogoUrl=fixHbnLogo(g.hbn_logo_url);
+  const heroLogo=heroLogoUrl?`<img src="${esc(heroLogoUrl)}" class="detail-logo" alt="" onerror="this.style.display='none'">`:'';
   document.getElementById('detail-hero').innerHTML=`
     <div class="detail-color-bar" style="background:${esc(f)};"></div>
+    ${heroLogo}
     <div class="detail-info">
       <div class="detail-name">${esc(g.name)}</div>
       <div class="detail-meta">
@@ -986,6 +1011,7 @@ async function showGegnerDetail(id){
       <button class="btn btn-ghost btn-sm" onclick="showOverview()">← Übersicht</button>
       <button class="btn btn-ghost btn-sm" onclick="openGegnerModal('${g.id}')">✏️ Bearbeiten</button>
     </div>`;
+  backfillGegnerLogo(g);
   switchTab('analysen');
   await Promise.all([loadAnalysen(id),loadSpieler(id),loadSpielsysteme(id)]);
   renderProfilTab(g);
@@ -1014,10 +1040,12 @@ function renderAnalysen(){
     const ang=a.angriff_system?`<span class="ai-chip">▲ ${esc(a.angriff_system)}</span>`:'';
     const abw=a.abwehr_system?`<span class="ai-chip">● ${esc(a.abwehr_system)}</span>`:'';
     const lnk=a.spiel_id?'<span title="Kalender-Spiel verknüpft" style="font-size:12px;">🔗</span>':'';
+    let hbnG=a.hbn_spiel; if(hbnG&&typeof hbnG==='string'){try{hbnG=JSON.parse(hbnG);}catch{hbnG=null;}}
+    const hbnLnk=(hbnG&&(hbnG.heim||hbnG.gast))?`<span class="ai-chip" title="handball.net-Spiel verknüpft">📺 ${esc(hbnG.heim||'')} – ${esc(hbnG.gast||'')}</span>`:'';
     const notiz=a.tendenzen||a.notizen||'';
     return`<div class="analyse-item" onclick="openAnalyseModal('${a.id}')">
       <div style="text-align:center;min-width:52px;">${d?`<div class="ai-day">${d.day}</div><div class="ai-month">${d.month}</div>`:'<div style="font-size:22px;opacity:.3;">?</div>'}</div>
-      <div><div class="ai-top">${spo}${erg}${ang}${abw}${lnk}</div>${notiz?`<div class="ai-notiz">${esc(notiz)}</div>`:''}</div>
+      <div><div class="ai-top">${spo}${erg}${ang}${abw}${lnk}${hbnLnk}</div>${notiz?`<div class="ai-notiz">${esc(notiz)}</div>`:''}</div>
       <div class="ai-arrow">→</div>
     </div>`;
   }).join('');
@@ -1433,7 +1461,142 @@ async function openAnalyseModal(id=null){
   document.getElementById('am-notizen').value=a?.notizen||'';
   document.getElementById('am-delete-btn').style.display=id?'':'none';
   await loadSpieleFuerAnalyseModal(a?.spiel_id||null);
+  // handball.net-Spielverknüpfung vorbereiten
+  initHbnAnalyseSection(a);
   document.getElementById('analyse-modal').classList.add('open');
+}
+
+// ── handball.net-Spiele im Analyse-Modal ──────────────────────
+function hbnGameLink(g){
+  if(!g) return '';
+  if(g.url) return g.url;
+  if(g.uid) return `https://www.handball.net/spiele/${encodeURIComponent(g.uid)}`;
+  return '';
+}
+
+// Sektion vorbereiten: nur bei verknüpftem Gegner sichtbar; bestehende
+// hbn-Verknüpfung der Analyse als Chip anzeigen; Liste leeren (Lazy-Load).
+function initHbnAnalyseSection(a){
+  _hbnAnalyseGames=[];
+  const sec=document.getElementById('am-hbn-section');
+  const wrap=document.getElementById('am-hbn-games-wrap');
+  const loadBtn=document.getElementById('am-hbn-load-btn');
+  if(wrap) wrap.innerHTML='';
+  if(loadBtn){loadBtn.disabled=false;loadBtn.textContent='🌐 Spiele aus handball.net laden';}
+  const g=allGegner.find(x=>x.id===currentGegnerId);
+  const linked=!!(g&&g.hbn_ical_url);
+  if(sec) sec.style.display=linked?'':'none';
+  // Bestehende hbn-Verknüpfung übernehmen (JSONB-Objekt von Supabase)
+  let hbn=a?a.hbn_spiel:null;
+  if(hbn&&typeof hbn==='string'){try{hbn=JSON.parse(hbn);}catch{hbn=null;}}
+  document.getElementById('am-hbn-spiel').value=hbn?JSON.stringify(hbn):'';
+  renderHbnAnalyseChip(hbn);
+}
+
+function renderHbnAnalyseChip(g){
+  const wrap=document.getElementById('am-hbn-chip-wrap');
+  if(!wrap) return;
+  if(!g){wrap.innerHTML='';return;}
+  const link=hbnGameLink(g);
+  const score=(g.score_home!=null&&g.score_away!=null)?` · ${g.score_home}:${g.score_away}`:'';
+  const dat=g.datum?fmtDate(g.datum)+' · ':'';
+  wrap.innerHTML=`<div class="am-hbn-chip">
+    <span>📺 Verknüpft: ${dat}${esc(g.heim||'')} – ${esc(g.gast||'')}${score}</span>
+    ${link?`<a class="sli-ext" href="${esc(link)}" target="_blank" rel="noopener" title="Auf handball.net öffnen" onclick="event.stopPropagation()">↗</a>`:''}
+    <span class="x" title="Verknüpfung lösen" onclick="clearHbnAnalyseLink(true)">✕</span>
+  </div>`;
+}
+
+async function loadHbnGamesForAnalyse(){
+  const g=allGegner.find(x=>x.id===currentGegnerId);
+  if(!g||!g.hbn_ical_url){showToast('Gegner ist nicht mit handball.net verknüpft.','info');return;}
+  const feed=resolveHbnTeamUrl(g.hbn_ical_url)||parseHbnGameFeed(g.hbn_ical_url);
+  if(!feed||!feed.slug){showToast('Verknüpfung konnte nicht aufgelöst werden.','error');return;}
+  const btn=document.getElementById('am-hbn-load-btn');
+  const wrap=document.getElementById('am-hbn-games-wrap');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Lädt…';}
+  try{
+    const path=`teams/${encodeURIComponent(feed.slug)}/schedule`
+      +(feed.tournamentSeason?`?tournamentSeason=${encodeURIComponent(feed.tournamentSeason)}`:'');
+    const data=await hbnFetch(`${HBN_API_BASE}/${path}`,'schedule');
+    _hbnAnalyseGames=((data&&data.spiele)||[]).map(mapScheduleGame).filter(x=>x.datum)
+      .map(x=>({...x,_oppSide:_opponentSide(x,feed.slug,g.name)}));
+    renderHbnAnalyseGames();
+    if(btn){btn.disabled=false;btn.textContent='🔄 Spiele neu laden';}
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='🌐 Spiele aus handball.net laden';}
+    if(wrap) wrap.innerHTML=`<div style="font-size:12.5px;color:var(--red);padding:6px 2px;">❌ ${esc(e.message||'Fehler beim Laden')}</div>`;
+  }
+}
+
+function renderHbnAnalyseGames(){
+  const wrap=document.getElementById('am-hbn-games-wrap');
+  if(!wrap) return;
+  if(!_hbnAnalyseGames.length){wrap.innerHTML='<div style="font-size:12.5px;color:var(--xsoft);padding:6px 2px;">Keine Spiele gefunden.</div>';return;}
+  const linkedUid=(()=>{try{return (JSON.parse(document.getElementById('am-hbn-spiel').value||'null')||{}).uid||'';}catch{return '';}})();
+  const played=_hbnAnalyseGames.filter(x=>x.score_home!=null&&x.score_away!=null).sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));
+  const upcoming=_hbnAnalyseGames.filter(x=>!(x.score_home!=null&&x.score_away!=null)).sort((a,b)=>(a.datum||'').localeCompare(b.datum||''));
+  const row=g=>{
+    const sel=g.uid&&g.uid===linkedUid;
+    const link=hbnGameLink(g);
+    let badge='';
+    if(g.score_home!=null&&g.score_away!=null){
+      // Ergebnis aus Gegner-Sicht: grün = Sieg des Gegners; neutral, wenn Seite unklar
+      let cls='';
+      if(g._oppSide==='heim'||g._oppSide==='gast'){
+        const opp=g._oppSide==='gast'?g.score_away:g.score_home;
+        const oth=g._oppSide==='gast'?g.score_home:g.score_away;
+        cls=opp>oth?' win':(opp<oth?' loss':' draw');
+      }
+      badge=`<span class="hbn-score-badge${cls}">${g.score_home}:${g.score_away}</span>`;
+    }
+    return `<label class="spiel-link-item${sel?' selected':''}" onclick="selectHbnSpielForAnalyse('${esc(g.uid||'')}')">
+      <input type="radio" name="am-spiel-radio" value="hbn:${esc(g.uid||'')}" ${sel?'checked':''} style="accent-color:var(--accent);">
+      <div class="sli-date">${fmtDate(g.datum)}</div>
+      <div class="sli-body">${esc(g.heim||'')} – ${esc(g.gast||'')}</div>
+      ${badge}
+      ${link?`<a class="sli-ext" href="${esc(link)}" target="_blank" rel="noopener" title="Auf handball.net öffnen (Videoanalyse)" onclick="event.stopPropagation()">↗</a>`:''}
+    </label>`;
+  };
+  wrap.innerHTML=
+    (played.length?`<div class="amg-cap">Gespielt (${played.length})</div>`+played.map(row).join(''):'')
+    +(upcoming.length?`<div class="amg-cap">Anstehend (${upcoming.length})</div>`+upcoming.map(row).join(''):'');
+}
+
+function selectHbnSpielForAnalyse(uid){
+  const g=_hbnAnalyseGames.find(x=>x.uid===uid);
+  if(!g) return;
+  // Kalender-Verknüpfung lösen (exklusiv)
+  document.getElementById('am-spiel-id').value='';
+  document.querySelectorAll('#am-spiele-wrap .spiel-link-item').forEach(el=>el.classList.remove('selected'));
+  // hbn-Spiel als Verknüpfung setzen
+  const obj={uid:g.uid||null,url:g.url||null,datum:g.datum||null,heim:g.heim||null,gast:g.gast||null,
+    score_home:g.score_home??null,score_away:g.score_away??null,status:g.status||null};
+  document.getElementById('am-hbn-spiel').value=JSON.stringify(obj);
+  // Visuelle Auswahl in der hbn-Liste
+  document.querySelectorAll('#am-hbn-games-wrap .spiel-link-item').forEach(el=>{
+    const i=el.querySelector('input[type=radio]');el.classList.toggle('selected',!!i&&i.value==='hbn:'+uid);
+  });
+  renderHbnAnalyseChip(obj);
+  // Datum vorbelegen
+  if(g.datum) document.getElementById('am-datum').value=g.datum;
+  // Ergebnis/Spielort nur sinnvoll, wenn der Gegner gegen die EIGENE Mannschaft gespielt hat
+  const myNames=new Set([...allMannschaften.map(t=>t.name.toLowerCase()),(localStorage.getItem('hbs_my_team')||'').toLowerCase()].filter(Boolean));
+  const heimIsUs=myNames.has((g.heim||'').toLowerCase()), gastIsUs=myNames.has((g.gast||'').toLowerCase());
+  if((heimIsUs||gastIsUs)&&g.score_home!=null&&g.score_away!=null){
+    document.getElementById('am-spielort').value=heimIsUs?'heim':'auswaerts';
+    document.getElementById('am-tore-uns').value=heimIsUs?g.score_home:g.score_away;
+    document.getElementById('am-tore-gegner').value=heimIsUs?g.score_away:g.score_home;
+  }
+}
+
+function clearHbnAnalyseLink(backToManuell){
+  document.getElementById('am-hbn-spiel').value='';
+  renderHbnAnalyseChip(null);
+  document.querySelectorAll('#am-hbn-games-wrap .spiel-link-item').forEach(el=>{
+    el.classList.remove('selected');const i=el.querySelector('input[type=radio]');if(i)i.checked=false;
+  });
+  if(backToManuell){const r=document.getElementById('am-spiel-manuell');if(r)r.checked=true;}
 }
 
 async function loadSpieleFuerAnalyseModal(linkedSpielId){
@@ -1463,6 +1626,7 @@ async function loadSpieleFuerAnalyseModal(linkedSpielId){
 }
 
 function selectSpielForAnalyse(spielId){
+  clearHbnAnalyseLink(false); // handball.net-Verknüpfung lösen (exklusiv zur Kalender-/Manuell-Auswahl)
   document.querySelectorAll('.spiel-link-item').forEach(el=>{const i=el.querySelector('input[type=radio]');el.classList.toggle('selected',i&&i.value===spielId);});
   if(!spielId){document.getElementById('am-spiel-id').value='';return;}
   const s=spieleFuerGegner.find(x=>x.id===spielId);if(!s)return;
@@ -1483,11 +1647,31 @@ async function saveAnalyse(){
   const tu=document.getElementById('am-tore-uns').value,tg=document.getElementById('am-tore-gegner').value;
   const payload={gegner_id:currentGegnerId,user_id:currentUser.id,datum:document.getElementById('am-datum').value||null,spielort_typ:document.getElementById('am-spielort').value||null,ergebnis_uns:tu!==''?parseInt(tu):null,ergebnis_gegner:tg!==''?parseInt(tg):null,angriff_system:document.getElementById('am-angriff-system').value||null,angriff_notiz:document.getElementById('am-angriff-notiz').value.trim()||null,abwehr_system:document.getElementById('am-abwehr-system').value||null,abwehr_notiz:document.getElementById('am-abwehr-notiz').value.trim()||null,tendenzen:document.getElementById('am-tendenzen').value.trim()||null,notizen:document.getElementById('am-notizen').value.trim()||null,spiel_id:document.getElementById('am-spiel-id').value||null};
   let error;
+  let targetId=editAnalyseId;
   if(editAnalyseId){({error}=await supa.from('gegner_analyse').update(payload).eq('id',editAnalyseId));}
-  else{({error}=await supa.from('gegner_analyse').insert(payload));}
+  else{
+    const{data,error:insErr}=await supa.from('gegner_analyse').insert(payload).select('id').single();
+    error=insErr; targetId=data?.id||null;
+  }
   if(error){showToast('Fehler: '+error.message,'error');return;}
+  // handball.net-Spielverknüpfung best effort speichern (separate Spalte, graceful degradation)
+  const hbnRaw=document.getElementById('am-hbn-spiel').value;
+  let hbnObj=null; if(hbnRaw){try{hbnObj=JSON.parse(hbnRaw);}catch{hbnObj=null;}}
+  if(targetId){
+    const ok=await persistAnalyseHbnSpiel(targetId,hbnObj);
+    if(!ok&&hbnObj) showToast('Analyse gespeichert – die handball.net-Spielverknüpfung braucht die Spalte gegner_analyse.hbn_spiel (Migration).','info');
+  }
   showToast(editAnalyseId?'Analyse aktualisiert':'Analyse gespeichert','success');
   closeAnalyseModal();await loadAnalysen(currentGegnerId);await loadGegner();
+}
+
+// hbn_spiel am Analyse-Datensatz speichern – tolerant gegenüber fehlender Spalte.
+async function persistAnalyseHbnSpiel(id,val){
+  try{
+    const{error}=await supa.from('gegner_analyse').update({hbn_spiel:val}).eq('id',id);
+    if(error){console.warn('hbn_spiel nicht persistiert (Spalte evtl. nicht migriert):',error.message);return false;}
+    return true;
+  }catch(e){console.warn('hbn_spiel-Update fehlgeschlagen:',e.message);return false;}
 }
 async function deleteAnalyse(){if(!editAnalyseId)return;if(!confirm('Analyse wirklich löschen?'))return;const{error}=await supa.from('gegner_analyse').delete().eq('id',editAnalyseId);if(error){showToast('Fehler: '+error.message,'error');return;}showToast('Analyse gelöscht','success');closeAnalyseModal();await loadAnalysen(currentGegnerId);await loadGegner();}
 
@@ -1778,9 +1962,52 @@ async function hbnLinkGegner(){
   if(btn){btn.textContent='🔗 Mit handball.net verknüpfen';btn.disabled=false;}
   if(error){showToast('Fehler: '+error.message,'error');return;}
   if(g){g.hbn_ical_url=ical;if(upd.liga)g.liga=upd.liga;}
+  // Logo best-effort am Gegner sichern (separat, damit fehlende Spalte die Verknüpfung nicht bricht)
+  if(_gnPicked.logo) await persistGegnerLogo(g,fixHbnLogo(_gnPicked.logo));
   renderHbnLinkUI(g);
   updateKaderHbnButton(g);
   showToast('✅ „'+_gnPicked.name+'" mit handball.net verknüpft','success');
+}
+
+// Logo am Gegner speichern – tolerant gegenüber fehlender Spalte hbn_logo_url.
+// Setzt den Wert immer im Speicher (Session-Anzeige) und versucht zusätzlich,
+// ihn in der DB zu persistieren. Fehlt die Spalte, bleibt nur die Session-Anzeige.
+async function persistGegnerLogo(g,logoUrl){
+  if(!g||!logoUrl) return false;
+  g.hbn_logo_url=logoUrl; // sofort im Speicher → Karte/Hero zeigen es in dieser Session
+  try{
+    const{error}=await supa.from('gegner').update({hbn_logo_url:logoUrl}).eq('id',g.id);
+    if(error){console.warn('hbn_logo_url nicht persistiert (Spalte evtl. nicht migriert):',error.message);return false;}
+    return true;
+  }catch(e){console.warn('hbn_logo_url-Update fehlgeschlagen:',e.message);return false;}
+}
+
+// Für bereits verknüpfte Gegner ohne gespeichertes Logo: Logo aus handball.net
+// nachladen (team-Endpoint) und – falls möglich – persistieren. Aktualisiert
+// Hero & Übersichtskarte, sobald das Logo vorliegt.
+async function backfillGegnerLogo(g){
+  if(!g||!g.hbn_ical_url||g.hbn_logo_url) return;
+  const feed=resolveHbnTeamUrl(g.hbn_ical_url)||parseHbnGameFeed(g.hbn_ical_url);
+  if(!feed||!feed.slug) return;
+  try{
+    const info=await hbnApi('teams/'+encodeURIComponent(feed.slug),'team').catch(()=>null);
+    const logoUrl=fixHbnLogo(info&&info.logo);
+    if(!logoUrl) return;
+    await persistGegnerLogo(g,logoUrl);
+    // Hero aktualisieren, falls noch derselbe Gegner offen ist
+    if(currentGegnerId===g.id){
+      const heroLogoEl=document.querySelector('#detail-hero .detail-logo');
+      if(!heroLogoEl){
+        const bar=document.querySelector('#detail-hero .detail-color-bar');
+        if(bar){
+          const img=document.createElement('img');
+          img.className='detail-logo';img.alt='';img.src=logoUrl;
+          img.onerror=function(){this.style.display='none';};
+          bar.insertAdjacentElement('afterend',img);
+        }
+      }
+    }
+  }catch(e){console.warn('Logo-Nachladen fehlgeschlagen:',e.message);}
 }
 
 // Spiegelt den Verknüpfungs-Status im Schlüsselspieler-Tab
