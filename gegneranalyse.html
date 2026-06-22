@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260622.0930 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260622.0940 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -356,7 +356,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
     </div>
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260622.0930</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260622.0940</div>
     </div>
   </aside>
 
@@ -976,7 +976,7 @@ function renderGegnerGrid(cm={},sm={}){
     const logo=logoUrl?`<img src="${esc(logoUrl)}" class="gc-logo" alt="" loading="lazy" onerror="this.style.display='none'">`:'';
     return`<div class="gegner-card" style="--card-color:${esc(f)};" onclick="showGegnerDetail('${g.id}')">
       <div class="gc-header"><div class="gc-head-main">${logo}<div style="min-width:0;"><div class="gc-name">${esc(g.name)}</div><div class="gc-liga">${esc(g.liga||'–')}</div>${hbn}</div></div><div class="gc-trikots">${hd}${ad}</div></div>
-      <div class="gc-stats"><div class="gc-stat"><div class="gc-stat-num">${cm[g.id]||0}</div><div class="gc-stat-label">Analysen</div></div><div class="gc-stat"><div class="gc-stat-num">${sm[g.id]||0}</div><div class="gc-stat-label">Spieler</div></div></div>
+      <div class="gc-stats"><div class="gc-stat"><div class="gc-stat-num">${cm[g.id]||0}</div><div class="gc-stat-label">Analysen</div></div><div class="gc-stat"><div class="gc-stat-num">${sm[g.id]||0}</div><div class="gc-stat-label">Spieler</div></div>${g.hbn_tabellenplatz?`<div class="gc-stat"><div class="gc-stat-num">${g.hbn_tabellenplatz}</div><div class="gc-stat-label">Platz</div></div>`:''}</div>
       <div class="gc-footer"><span class="gc-date">${g.trainer?'Trainer: '+esc(g.trainer):g.liga?esc(g.liga):''}</span><span class="gc-arrow">→</span></div>
     </div>`;
   }).join('');
@@ -1001,6 +1001,7 @@ async function showGegnerDetail(id){
       <div class="detail-name">${esc(g.name)}</div>
       <div class="detail-meta">
         ${g.liga?`<div class="detail-meta-item"><span>🏆</span>${esc(g.liga)}</div>`:''}
+        <div class="detail-meta-item" id="detail-tabelle-item" style="color:var(--accent);${g.hbn_tabellenplatz?'':'display:none;'}">${g.hbn_tabellenplatz?`<span>📊</span>Tabelle: Platz ${g.hbn_tabellenplatz}${g.hbn_tabelle_total?' / '+g.hbn_tabelle_total:''}`:''}</div>
         ${g.trainer?`<div class="detail-meta-item"><span>👤</span>Trainer: ${esc(g.trainer)}</div>`:''}
         ${g.spielort?`<div class="detail-meta-item"><span>📍</span>${esc(g.spielort)}</div>`:''}
         ${g.hbn_ical_url?`<div class="detail-meta-item" style="color:var(--green);"><span>🌐</span>handball.net verknüpft</div>`:''}
@@ -1012,6 +1013,7 @@ async function showGegnerDetail(id){
       <button class="btn btn-ghost btn-sm" onclick="openGegnerModal('${g.id}')">✏️ Bearbeiten</button>
     </div>`;
   backfillGegnerLogo(g);
+  refreshGegnerTabelle(g);
   switchTab('analysen');
   await Promise.all([loadAnalysen(id),loadSpieler(id),loadSpielsysteme(id)]);
   renderProfilTab(g);
@@ -2008,6 +2010,52 @@ async function backfillGegnerLogo(g){
       }
     }
   }catch(e){console.warn('Logo-Nachladen fehlgeschlagen:',e.message);}
+}
+
+// Tabellenplatz aus handball.net laden (table-Endpoint), am Gegner sichern
+// (best effort) und in Hero + Übersicht (in-memory) übernehmen. Wird bei jedem
+// Öffnen eines verknüpften Gegners aufgerufen → stets aktueller Stand.
+async function refreshGegnerTabelle(g){
+  if(!g||!g.hbn_ical_url) return;
+  const feed=resolveHbnTeamUrl(g.hbn_ical_url)||parseHbnGameFeed(g.hbn_ical_url);
+  if(!feed||!feed.slug) return;
+  try{
+    const path='teams/'+encodeURIComponent(feed.slug)+'/table'
+      +(feed.tournamentSeason?'?tournamentSeason='+encodeURIComponent(feed.tournamentSeason):'');
+    const tbl=await hbnApi(path,'table').catch(()=>null);
+    if(!tbl||!Array.isArray(tbl.zeilen)||!tbl.zeilen.length) return;
+    const total=tbl.zeilen.length;
+    // Zeile des Gegners finden: bevorzugt per slug, sonst per Namensabgleich
+    const fs=String(feed.slug).toLowerCase();
+    let row=tbl.zeilen.find(z=>z.slug&&String(z.slug).toLowerCase()===fs);
+    if(!row){
+      const gn=normStr(g.name).slice(0,8);
+      if(gn) row=tbl.zeilen.find(z=>{const t=normStr(z.team||'');return t&&(t.includes(gn)||gn.includes(t.slice(0,8)));});
+    }
+    if(!row||row.rang==null) return;
+    const rang=Number(row.rang);
+    const changed=(g.hbn_tabellenplatz!==rang||g.hbn_tabelle_total!==total);
+    g.hbn_tabellenplatz=rang; g.hbn_tabelle_total=total;
+    if(changed){
+      try{
+        const{error}=await supa.from('gegner').update({hbn_tabellenplatz:rang,hbn_tabelle_total:total}).eq('id',g.id);
+        if(error) console.warn('Tabellenplatz nicht persistiert (Spalte evtl. nicht migriert):',error.message);
+      }catch(e){console.warn('Tabellenplatz-Update fehlgeschlagen:',e.message);}
+    }
+    if(currentGegnerId===g.id) injectHeroTabelle(g);
+  }catch(e){console.warn('Tabelle laden fehlgeschlagen:',e.message);}
+}
+
+function injectHeroTabelle(g){
+  const el=document.getElementById('detail-tabelle-item');
+  if(!el) return;
+  if(g&&g.hbn_tabellenplatz){
+    el.innerHTML=`<span>📊</span>Tabelle: Platz ${g.hbn_tabellenplatz}${g.hbn_tabelle_total?' / '+g.hbn_tabelle_total:''}`;
+    el.style.color='var(--accent)';
+    el.style.display='';
+  }else{
+    el.style.display='none';
+  }
 }
 
 // Spiegelt den Verknüpfungs-Status im Schlüsselspieler-Tab
