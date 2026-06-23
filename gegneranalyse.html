@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260622.1004 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260623.0903 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -356,7 +356,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
     </div>
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260622.1004</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260623.0903</div>
     </div>
   </aside>
 
@@ -978,12 +978,51 @@ function renderGegnerGrid(cm={},sm={}){
     const hbn=g.hbn_ical_url?`<span class="gc-hbn" title="Mit handball.net verknüpft">🌐 handball.net</span>`:'';
     const logoUrl=fixHbnLogo(g.hbn_logo_url);
     const logo=logoUrl?`<img src="${esc(logoUrl)}" class="gc-logo" alt="" loading="lazy" onerror="this.style.display='none'">`:'';
-    return`<div class="gegner-card" style="--card-color:${esc(f)};" onclick="showGegnerDetail('${g.id}')">
+    return`<div class="gegner-card" data-gid="${g.id}" style="--card-color:${esc(f)};" onclick="showGegnerDetail('${g.id}')">
       <div class="gc-header"><div class="gc-head-main">${logo}<div style="min-width:0;"><div class="gc-name">${esc(g.name)}</div><div class="gc-liga">${esc(g.liga||'–')}</div>${hbn}</div></div><div class="gc-trikots">${hd}${ad}</div></div>
       <div class="gc-stats"><div class="gc-stat"><div class="gc-stat-num">${cm[g.id]||0}</div><div class="gc-stat-label">Analysen</div></div><div class="gc-stat"><div class="gc-stat-num">${sm[g.id]||0}</div><div class="gc-stat-label">Spieler</div></div>${g.hbn_tabellenplatz?`<div class="gc-stat"><div class="gc-stat-num">${g.hbn_tabellenplatz}</div><div class="gc-stat-label">Platz</div></div>`:''}</div>
       <div class="gc-footer"><span class="gc-date">${g.trainer?'Trainer: '+esc(g.trainer):g.liga?esc(g.liga):''}</span><span class="gc-arrow">→</span></div>
     </div>`;
   }).join('');
+  backfillOverviewLogos();
+}
+
+// Logos proaktiv für alle verknüpften Gegner der Kachelübersicht nachladen,
+// die noch keins gespeichert haben (team-Endpoint), persistieren und die
+// jeweilige Kachel sofort aktualisieren. Sequentiell + Guard gegen Parallelläufe.
+let _overviewLogosRunning=false;
+async function backfillOverviewLogos(){
+  if(_overviewLogosRunning) return;
+  const targets=allGegner.filter(g=>g.hbn_ical_url&&!g.hbn_logo_url);
+  if(!targets.length) return;
+  _overviewLogosRunning=true;
+  try{
+    for(const g of targets){
+      const feed=resolveHbnTeamUrl(g.hbn_ical_url)||parseHbnGameFeed(g.hbn_ical_url);
+      if(!feed||!feed.slug) continue;
+      try{
+        const info=await hbnApi('teams/'+encodeURIComponent(feed.slug),'team').catch(()=>null);
+        const logoUrl=fixHbnLogo(info&&info.logo);
+        if(!logoUrl) continue;
+        await persistGegnerLogo(g,logoUrl);
+        setOverviewCardLogo(g.id,logoUrl);
+      }catch(e){console.warn('Übersichts-Logo fehlgeschlagen:',e.message);}
+    }
+  }finally{_overviewLogosRunning=false;}
+}
+
+// Logo in eine bereits gerenderte Kachel einsetzen/aktualisieren.
+function setOverviewCardLogo(gid,url){
+  const head=document.querySelector('.gegner-card[data-gid="'+gid+'"] .gc-head-main');
+  if(!head||!url) return;
+  let img=head.querySelector('img.gc-logo');
+  if(!img){
+    img=document.createElement('img');
+    img.className='gc-logo';img.alt='';img.loading='lazy';
+    img.onerror=function(){this.style.display='none';};
+    head.insertBefore(img,head.firstChild);
+  }
+  img.src=url;
 }
 
 // ── VIEWS ──
@@ -2005,6 +2044,7 @@ async function backfillGegnerLogo(g){
     const logoUrl=fixHbnLogo(info&&info.logo);
     if(!logoUrl) return;
     await persistGegnerLogo(g,logoUrl);
+    setOverviewCardLogo(g.id,logoUrl);
     // Hero aktualisieren, falls noch derselbe Gegner offen ist
     if(currentGegnerId===g.id){
       const heroLogoEl=document.querySelector('#detail-hero .detail-logo');
