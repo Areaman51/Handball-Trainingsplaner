@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Handball Coaching Tools v1.260623.0903 — Gegneranalyse -->
+<!-- Handball Coaching Tools v1.260623.0941 — Gegneranalyse -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -64,6 +64,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .page-title{font-size:20px;font-weight:700;letter-spacing:-.4px;}
 .page-subtitle{font-size:13px;color:var(--soft);margin-top:2px;}
 .page-header-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.saison-wrap{display:flex;align-items:center;}
+.saison-select{font-family:inherit;font-size:13px;font-weight:600;color:var(--text);background:white;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:border-color .15s;}
+.saison-select:hover{border-color:var(--accent);}
+.saison-select:focus{outline:none;border-color:var(--accent);}
 .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:22px;}
 .stat-card{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:16px 20px;}
 .stat-num{font-size:26px;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:-.5px;}
@@ -356,7 +360,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <a class="sidebar-item" href="mannschaftsverwaltung.html"><span>🏃</span> Mannschaften</a>
     </div>
     <div class="sidebar-bottom">
-      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260623.0903</div>
+      <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);font-family:'DM Mono',monospace;">v1.260623.0941</div>
     </div>
   </aside>
 
@@ -382,6 +386,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <div class="page-subtitle">Scouting-Profile und Spielanalysen</div>
           </div>
           <div class="page-header-actions">
+            <div id="saison-picker" class="saison-wrap" style="display:none;"></div>
             <button class="btn btn-secondary" onclick="openKalenderImportModal()">📅 Aus Kalender importieren</button>
             <button class="btn btn-primary" onclick="openGegnerModal()">+ Neuer Gegner</button>
           </div>
@@ -926,6 +931,8 @@ async function onAuth(user){
   initColorPicker();
   const{data:teams}=await supa.from('mannschaften').select('id,name').order('name');
   allMannschaften=teams||[];
+  await loadSaisons();
+  renderSaisonPicker();
   await loadGegner();
   showOverview();
 }
@@ -954,12 +961,93 @@ function updateTrikotPreview(w){const v=document.getElementById(`gm-trikot-${w}`
 function trikotPrevHtml(val,label){if(!val)return'';const bg=isHex(val)?`background:${val}`:'background:#ddd';return`<div class="trikot-preview"><div class="trikot-swatch" style="${bg}"></div><span class="trikot-label">${label}: ${esc(val)}</span></div>`;}
 
 // ── DATA: GEGNER ──
+// ── SAISON (synchronisiert via profiles.aktive_saison_id, geräte-/seitenübergreifend) ──
+let saisons=[];
+let _saisonId=null;   // null = „Alle Saisons" (bewusst lokale Ansicht)
+
+async function loadSaisons(){
+  // Eigene Saisons laden (nach Enddatum sortiert → Reihenfolge für Zeitraum-Ableitung)
+  try{
+    const{data}=await supa.from('saisons').select('*').eq('user_id',currentUser.id).order('end_date');
+    saisons=data||[];
+  }catch(e){console.warn('[Saisons] Laden fehlgeschlagen:',e.message);saisons=[];}
+
+  if(_saisonId&&!saisons.find(s=>s.id===_saisonId)) _saisonId=null;
+
+  // Synchronisierte aktive Saison aus dem Profil lesen (graceful, falls Spalte nicht migriert)
+  let stored=null;
+  try{
+    const{data:prof,error:pe}=await supa.from('profiles').select('aktive_saison_id').eq('id',currentUser.id).maybeSingle();
+    if(pe) console.warn('[Saison] aktive_saison_id evtl. nicht migriert:',pe.message);
+    else   stored=prof?.aktive_saison_id||null;
+  }catch(e){console.warn('[Saison] Profil lesen:',e.message);}
+
+  if(stored&&saisons.find(s=>s.id===stored)){
+    _saisonId=stored;
+  }else if(saisons.length){
+    // Default = Saison, deren Zeitraum heute enthält, sonst neueste
+    const heute=new Date().toISOString().slice(0,10);
+    let def=saisons.find(s=>{const r=getSaisonRange(s.id);return r&&heute>=r.start&&heute<=r.end;});
+    if(!def) def=saisons[saisons.length-1];
+    _saisonId=def.id;
+    if(!stored) persistSaison(_saisonId);   // einmalig vorbelegen
+  }else{
+    _saisonId=null;
+  }
+}
+
+function getSaisonRange(id){
+  if(!id) return null;
+  const idx=saisons.findIndex(s=>s.id===id);
+  if(idx<0) return null;
+  const endDate=saisons[idx].end_date;
+  const prevEnd=idx>0?saisons[idx-1].end_date:null;
+  const startDate=prevEnd
+    ? new Date(new Date(prevEnd).getTime()+86400000).toISOString().slice(0,10)
+    : '2000-01-01';
+  return{start:startDate,end:endDate};
+}
+
+async function persistSaison(id){
+  try{ await supa.from('profiles').update({aktive_saison_id:id}).eq('id',currentUser.id); }
+  catch(e){ console.warn('[Saison] speichern fehlgeschlagen:',e.message); }
+}
+
+function renderSaisonPicker(){
+  const el=document.getElementById('saison-picker');
+  if(!el) return;
+  if(!saisons.length){ el.innerHTML=''; el.style.display='none'; return; }
+  el.style.display='';
+  el.innerHTML=`<select class="saison-select" onchange="setSaison(this.value)">
+    <option value="">📅 Alle Saisons</option>
+    ${saisons.map(s=>`<option value="${s.id}"${_saisonId===s.id?' selected':''}>${esc(s.name)}</option>`).join('')}
+  </select>`;
+}
+
+async function setSaison(value){
+  _saisonId=value||null;
+  // „Alle Saisons" (leer) bleibt bewusst lokal → nicht in profiles schreiben
+  if(value) persistSaison(value);
+  renderSaisonPicker();
+  await loadGegner();                                   // Übersicht/Analysen-Zähler neu berechnen
+  if(currentGegnerId) await loadAnalysen(currentGegnerId); // offene Detailansicht aktualisieren
+}
+
+// Analyse liegt in der aktiven Saison? Undatierte Analysen bleiben immer sichtbar.
+function _analyseInSaison(datum){
+  if(!_saisonId) return true;            // Alle Saisons
+  if(!datum) return true;               // undatierte Analyse → saisonübergreifend
+  const r=getSaisonRange(_saisonId);
+  if(!r) return true;
+  return datum>=r.start&&datum<=r.end;
+}
+
 async function loadGegner(){
   const{data,error}=await supa.from('gegner').select('*').order('name');
   if(error){showToast('Fehler: '+error.message,'error');return;}
   allGegner=data||[];
-  const{data:ac}=await supa.from('gegner_analyse').select('gegner_id').eq('user_id',currentUser.id);
-  const cm={};(ac||[]).forEach(r=>{cm[r.gegner_id]=(cm[r.gegner_id]||0)+1;});
+  const{data:ac}=await supa.from('gegner_analyse').select('gegner_id,datum').eq('user_id',currentUser.id);
+  const cm={};(ac||[]).filter(r=>_analyseInSaison(r.datum)).forEach(r=>{cm[r.gegner_id]=(cm[r.gegner_id]||0)+1;});
   const{data:sc}=await supa.from('gegner_spieler').select('gegner_id').eq('user_id',currentUser.id);
   const sm={};(sc||[]).forEach(r=>{sm[r.gegner_id]=(sm[r.gegner_id]||0)+1;});
   document.getElementById('stat-gegner').textContent=allGegner.length;
@@ -1006,6 +1094,14 @@ async function backfillOverviewLogos(){
         if(!logoUrl) continue;
         await persistGegnerLogo(g,logoUrl);
         setOverviewCardLogo(g.id,logoUrl);
+        // Liga gleich mitnehmen (gleicher Abruf), nur wenn leer
+        const liga=(info&&info.wettbewerb||'').trim();
+        if(!g.liga&&liga){
+          g.liga=liga;
+          const ligaEl=document.querySelector('.gegner-card[data-gid="'+g.id+'"] .gc-liga');
+          if(ligaEl) ligaEl.textContent=liga;
+          try{await supa.from('gegner').update({liga}).eq('id',g.id);}catch(e){console.warn('Liga (Übersicht) nicht persistiert:',e.message);}
+        }
       }catch(e){console.warn('Übersichts-Logo fehlgeschlagen:',e.message);}
     }
   }finally{_overviewLogosRunning=false;}
@@ -1043,10 +1139,10 @@ async function showGegnerDetail(id){
     <div class="detail-info">
       <div class="detail-name">${esc(g.name)}</div>
       <div class="detail-meta">
-        ${g.liga?`<div class="detail-meta-item"><span>🏆</span>${esc(g.liga)}</div>`:''}
+        <div class="detail-meta-item" id="detail-liga-item" style="${g.liga?'':'display:none;'}">${g.liga?`<span>🏆</span>${esc(g.liga)}`:''}</div>
         <div class="detail-meta-item" id="detail-tabelle-item" style="color:var(--accent);${g.hbn_tabellenplatz?'':'display:none;'}">${g.hbn_tabellenplatz?`<span>📊</span>Tabelle: Platz ${g.hbn_tabellenplatz}${g.hbn_tabelle_total?' / '+g.hbn_tabelle_total:''}`:''}</div>
         ${g.trainer?`<div class="detail-meta-item"><span>👤</span>Trainer: ${esc(g.trainer)}</div>`:''}
-        ${g.spielort?`<div class="detail-meta-item"><span>📍</span>${esc(g.spielort)}</div>`:''}
+        <div class="detail-meta-item" id="detail-spielort-item" style="${g.spielort?'':'display:none;'}">${g.spielort?`<span>📍</span>${esc(g.spielort)}`:''}</div>
         ${g.hbn_ical_url?`<div class="detail-meta-item" style="color:var(--green);"><span>🌐</span>handball.net verknüpft</div>`:''}
       </div>
       ${trikots}
@@ -1055,7 +1151,8 @@ async function showGegnerDetail(id){
       <button class="btn btn-ghost btn-sm" onclick="showOverview()">← Übersicht</button>
       <button class="btn btn-ghost btn-sm" onclick="openGegnerModal('${g.id}')">✏️ Bearbeiten</button>
     </div>`;
-  backfillGegnerLogo(g);
+  backfillGegnerTeamInfo(g);
+  backfillGegnerSpielort(g);
   refreshGegnerTabelle(g);
   switchTab('analysen');
   await Promise.all([loadAnalysen(id),loadSpieler(id),loadSpielsysteme(id)]);
@@ -1073,7 +1170,7 @@ function switchTab(t){
 }
 
 // ── ANALYSEN ──
-async function loadAnalysen(gid){const{data,error}=await supa.from('gegner_analyse').select('*').eq('gegner_id',gid).order('datum',{ascending:false}).order('created_at',{ascending:false});if(error){showToast('Fehler: '+error.message,'error');return;}currentAnalysen=data||[];renderAnalysen();}
+async function loadAnalysen(gid){const{data,error}=await supa.from('gegner_analyse').select('*').eq('gegner_id',gid).order('datum',{ascending:false}).order('created_at',{ascending:false});if(error){showToast('Fehler: '+error.message,'error');return;}currentAnalysen=(data||[]).filter(a=>_analyseInSaison(a.datum));renderAnalysen();}
 
 function renderAnalysen(){
   const list=document.getElementById('analyse-list');
@@ -2032,33 +2129,76 @@ async function persistGegnerLogo(g,logoUrl){
   }catch(e){console.warn('hbn_logo_url-Update fehlgeschlagen:',e.message);return false;}
 }
 
-// Für bereits verknüpfte Gegner ohne gespeichertes Logo: Logo aus handball.net
-// nachladen (team-Endpoint) und – falls möglich – persistieren. Aktualisiert
-// Hero & Übersichtskarte, sobald das Logo vorliegt.
-async function backfillGegnerLogo(g){
-  if(!g||!g.hbn_ical_url||g.hbn_logo_url) return;
+// Für verknüpfte Gegner: Logo + Liga (Wettbewerb) aus handball.net nachladen
+// (team-Endpoint, ein Abruf). Nur leere Felder werden gefüllt – manuelle
+// Eingaben bleiben unangetastet. Persistiert best effort; aktualisiert Hero,
+// Übersichtskarte (Logo) und Liga-Hero-Zeile.
+async function backfillGegnerTeamInfo(g){
+  if(!g||!g.hbn_ical_url) return;
+  if(g.hbn_logo_url&&g.liga) return; // nichts zu holen
   const feed=resolveHbnTeamUrl(g.hbn_ical_url)||parseHbnGameFeed(g.hbn_ical_url);
   if(!feed||!feed.slug) return;
   try{
     const info=await hbnApi('teams/'+encodeURIComponent(feed.slug),'team').catch(()=>null);
-    const logoUrl=fixHbnLogo(info&&info.logo);
-    if(!logoUrl) return;
-    await persistGegnerLogo(g,logoUrl);
-    setOverviewCardLogo(g.id,logoUrl);
-    // Hero aktualisieren, falls noch derselbe Gegner offen ist
-    if(currentGegnerId===g.id){
-      const heroLogoEl=document.querySelector('#detail-hero .detail-logo');
-      if(!heroLogoEl){
+    if(!info) return;
+    const updates={};
+    const logoUrl=fixHbnLogo(info.logo);
+    if(!g.hbn_logo_url&&logoUrl){
+      g.hbn_logo_url=logoUrl; updates.hbn_logo_url=logoUrl;
+      setOverviewCardLogo(g.id,logoUrl);
+      if(currentGegnerId===g.id&&!document.querySelector('#detail-hero .detail-logo')){
         const bar=document.querySelector('#detail-hero .detail-color-bar');
-        if(bar){
-          const img=document.createElement('img');
-          img.className='detail-logo';img.alt='';img.src=logoUrl;
-          img.onerror=function(){this.style.display='none';};
-          bar.insertAdjacentElement('afterend',img);
-        }
+        if(bar){const img=document.createElement('img');img.className='detail-logo';img.alt='';img.src=logoUrl;img.onerror=function(){this.style.display='none';};bar.insertAdjacentElement('afterend',img);}
       }
     }
-  }catch(e){console.warn('Logo-Nachladen fehlgeschlagen:',e.message);}
+    const liga=(info.wettbewerb||'').trim();
+    if(!g.liga&&liga){ g.liga=liga; updates.liga=liga; if(currentGegnerId===g.id) injectHeroStammdaten(g); }
+    if(Object.keys(updates).length){
+      try{const{error}=await supa.from('gegner').update(updates).eq('id',g.id);if(error)console.warn('Stammdaten (team) nicht persistiert:',error.message);}
+      catch(e){console.warn('Stammdaten-Update fehlgeschlagen:',e.message);}
+    }
+  }catch(e){console.warn('Team-Info-Nachladen fehlgeschlagen:',e.message);}
+}
+
+// Heimspielstätte aus dem Spielplan ableiten: häufigste Spielstätte der
+// Heimspiele des Gegners (schedule-Endpoint). Nur wenn spielort leer ist.
+async function backfillGegnerSpielort(g){
+  if(!g||!g.hbn_ical_url||g.spielort) return;
+  const feed=resolveHbnTeamUrl(g.hbn_ical_url)||parseHbnGameFeed(g.hbn_ical_url);
+  if(!feed||!feed.slug) return;
+  try{
+    const path='teams/'+encodeURIComponent(feed.slug)+'/schedule'
+      +(feed.tournamentSeason?'?tournamentSeason='+encodeURIComponent(feed.tournamentSeason):'');
+    const data=await hbnFetch(`${HBN_API_BASE}/${path}`,'schedule');
+    const games=((data&&data.spiele)||[]).map(mapScheduleGame);
+    const counts=new Map();
+    games.forEach(gm=>{
+      if(_opponentSide(gm,feed.slug,g.name)!=='heim') return; // nur Heimspiele
+      const ort=(gm.ort||'').trim(); if(!ort) return;
+      counts.set(ort,(counts.get(ort)||0)+1);
+    });
+    let best='',bestN=0;
+    counts.forEach((n,ort)=>{ if(n>bestN){bestN=n;best=ort;} });
+    if(!best) return;
+    g.spielort=best;
+    try{const{error}=await supa.from('gegner').update({spielort:best}).eq('id',g.id);if(error)console.warn('Spielstätte nicht persistiert:',error.message);}
+    catch(e){console.warn('Spielstätte-Update fehlgeschlagen:',e.message);}
+    if(currentGegnerId===g.id) injectHeroStammdaten(g);
+  }catch(e){console.warn('Spielstätte-Nachladen fehlgeschlagen:',e.message);}
+}
+
+// Liga- und Spielstätte-Zeile im Hero aktualisieren (falls Gegner offen).
+function injectHeroStammdaten(g){
+  const li=document.getElementById('detail-liga-item');
+  if(li){
+    if(g&&g.liga){li.innerHTML=`<span>🏆</span>${esc(g.liga)}`;li.style.display='';}
+    else li.style.display='none';
+  }
+  const so=document.getElementById('detail-spielort-item');
+  if(so){
+    if(g&&g.spielort){so.innerHTML=`<span>📍</span>${esc(g.spielort)}`;so.style.display='';}
+    else so.style.display='none';
+  }
 }
 
 // Tabellenplatz aus handball.net laden (table-Endpoint), am Gegner sichern
