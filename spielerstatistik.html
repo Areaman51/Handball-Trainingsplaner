@@ -176,6 +176,37 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .team-logo{width:42px;height:42px;border-radius:10px;object-fit:contain;background:white;
   border:1px solid var(--border);flex-shrink:0;padding:3px;}
 
+/* ── SPIELER-KACHELN (Grid statt Liste) ── */
+.player-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;}
+.player-grid .pl-group-label{grid-column:1/-1;}
+.player-tile{position:relative;background:white;border:1.5px solid var(--border);border-radius:14px;
+  padding:18px 12px 14px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;
+  align-items:center;text-align:center;gap:3px;}
+.player-tile:hover{border-color:#c7d2fe;box-shadow:var(--shadow-md);transform:translateY(-1px);}
+.player-tile.active{border-color:var(--accent);background:var(--accent-l);}
+.pt-avatar{width:54px;height:54px;border-radius:50%;object-fit:cover;background:var(--accent-l);margin-bottom:6px;}
+.pt-avatar-fallback{width:54px;height:54px;border-radius:50%;background:var(--accent-l);color:var(--accent);
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;margin-bottom:6px;
+  font-family:'DM Sans',sans-serif;}
+.pt-name{font-size:13px;font-weight:700;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:100%;}
+.pt-nr{font-size:11px;color:var(--soft);font-family:'DM Mono',monospace;display:flex;align-items:center;gap:4px;}
+.pt-meta{font-size:10.5px;color:var(--soft);margin-top:2px;line-height:1.5;}
+.pt-badge{position:absolute;top:8px;right:8px;font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:6px;
+  text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;}
+.pt-badge.verletzt{background:#fef9ec;color:var(--yellow);}
+.pt-badge.beendet{background:var(--bg);color:var(--soft);}
+.pt-badge.inaktiv{background:var(--red-l);color:var(--red);}
+
+/* Klickbarer Anwesenheits-Stat (führt zur Verletzt-Bearbeitung) */
+.att-stat.clickable{cursor:pointer;transition:all .15s;}
+.att-stat.clickable:hover{background:#fef9ec;}
+
+/* Detail-Popup: Inhalt füllt das Modal ohne doppelten Rahmen */
+#player-modal-body{padding:0;}
+#player-modal-body .detail-card{border:none;border-radius:0;}
+.modal.modal-lg{max-width:720px;}
+
 /* Detail-Panel */
 .detail-card{background:white;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
 .detail-head{padding:18px 22px 0;}
@@ -441,24 +472,60 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
       </div>
 
-      <div class="split">
-        <div class="player-col">
-          <div class="status-tabs" id="status-tabs"></div>
-          <div class="stat-sort-bar" id="stat-sort-bar"></div>
-          <div class="player-list" id="player-list">
-            <div class="loading">⏳ Lade Kader…</div>
-          </div>
-        </div>
-        <div id="detail-pane">
-          <div class="detail-card"><div class="empty">
-            <div class="e-icon">👈</div>
-            <div class="e-title">Spielerin auswählen</div>
-            <div>Wähle links eine Spielerin, um Langzeitstatistik und Anwesenheit zu sehen.</div>
-          </div></div>
+      <div class="player-col">
+        <div class="status-tabs" id="status-tabs"></div>
+        <div class="stat-sort-bar" id="stat-sort-bar"></div>
+        <div class="player-grid" id="player-list">
+          <div class="loading">⏳ Lade Kader…</div>
         </div>
       </div>
     </div>
   </main>
+</div>
+
+<!-- ════ MODAL: Spielerdetails (Kachel-Klick → Popup) ════ -->
+<div class="modal-overlay" id="player-modal" onclick="if(event.target===this)closePlayerModal()">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div class="mh-title">👤 Spielerdetails</div>
+      <button class="modal-x" onclick="closePlayerModal()">✕</button>
+    </div>
+    <div class="modal-body" id="player-modal-body"></div>
+  </div>
+</div>
+
+<!-- ════ MODAL: Verletzungszeitraum erfassen ════ -->
+<div class="modal-overlay" id="vz-modal" onclick="if(event.target===this)closeVerletztModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="mh-title">🤕 Verletzung · <span id="vz-name"></span></div>
+      <button class="modal-x" onclick="closeVerletztModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="att-note" style="margin-top:0;">Trage hier ein, ob und in welchem Zeitraum die Spielerin verletzt ist. In diesen Wochen wird das Zusatzeinheiten-Soll automatisch ausgesetzt und nicht gewertet.</div>
+      <div class="tw-add">
+        <div style="flex:1 1 130px;min-width:0;">
+          <label class="frm-lbl">Von</label>
+          <input type="date" class="frm-input" id="vz-date" oninput="vzRangeHint()">
+        </div>
+        <div style="flex:1 1 130px;min-width:0;">
+          <label class="frm-lbl">Bis <span class="frm-opt">(leer = andauernd)</span></label>
+          <input type="date" class="frm-input" id="vz-date-bis" oninput="vzRangeHint()">
+        </div>
+      </div>
+      <div class="frm-row" style="margin-top:10px;">
+        <label class="frm-lbl">Notiz <span class="frm-opt">(optional)</span></label>
+        <input type="text" class="frm-input" id="vz-notiz" placeholder="z.B. Knie, Bänderriss …">
+      </div>
+      <div class="tw-hint" id="vz-hint"></div>
+      <button class="btn btn-primary" style="margin-top:6px;" onclick="addVerletzung()">✚ Zeitraum hinzufügen</button>
+      <div class="sect-label" style="margin-top:18px;">Erfasste Zeiträume</div>
+      <div id="vz-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeVerletztModal()">Schließen</button>
+    </div>
+  </div>
 </div>
 
 <!-- ════ MODAL: Zusatzeinheit erfassen ════ -->
@@ -800,7 +867,7 @@ async function reloadAll(){
     listEl.innerHTML=`<div class="empty"><div class="e-icon">👥</div>
       <div class="e-title">Kein Team konfiguriert</div>
       <div>Bitte zuerst eine Mannschaft anlegen.</div></div>`;
-    document.getElementById('detail-pane').innerHTML='';
+    closePlayerModal();
     return;
   }
   listEl.innerHTML='<div class="loading">⏳ Lade Daten…</div>';
@@ -812,12 +879,10 @@ async function reloadAll(){
     await Promise.all([loadKaderWithGameStats(), loadAttendance(), loadEinzeleinheiten()]);
     renderPlayerList();
     if(_selectedPlayerId && _players.find(p=>p.id===_selectedPlayerId)){
-      renderDetail(_selectedPlayerId);
+      if(isPlayerModalOpen()) renderDetail(_selectedPlayerId);
     } else {
       _selectedPlayerId=null;
-      document.getElementById('detail-pane').innerHTML=`<div class="detail-card"><div class="empty">
-        <div class="e-icon">👈</div><div class="e-title">Spielerin auswählen</div>
-        <div>Wähle links eine Spielerin, um Langzeitstatistik und Anwesenheit zu sehen.</div></div></div>`;
+      closePlayerModal();
     }
   }catch(e){
     console.error(e);
@@ -830,6 +895,7 @@ async function reloadAll(){
 async function loadKaderWithGameStats(){
   // 1. Kader – Spalten gestaffelt versuchen (neue optionale Spalten via Fallback robust)
   const COLS=[
+    'id,name,nummer,pos,zusatz_soll_woche,aktiv,aktiv_bis,foto_url,zusatz_soll_wochen,verletzungen',
     'id,name,nummer,pos,zusatz_soll_woche,aktiv,aktiv_bis,foto_url,zusatz_soll_wochen',
     'id,name,nummer,pos,zusatz_soll_woche,aktiv,aktiv_bis,foto_url',
     'id,name,nummer,pos,zusatz_soll_woche'
@@ -842,12 +908,14 @@ async function loadKaderWithGameStats(){
     if(!error){ ks=data; loadedCols=cols; break; }
   }
   if(loadedCols!==COLS[0]){
-    console.warn("SQL-Migration für spieler-individuelle Wochen-Ausnahmen empfohlen:\n"+
-      "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS zusatz_soll_wochen jsonb DEFAULT '{}'::jsonb;");
+    console.warn("SQL-Migration empfohlen (fehlende Spalten werden bis dahin ignoriert):\n"+
+      "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS zusatz_soll_wochen jsonb DEFAULT '{}'::jsonb;\n"+
+      "ALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS verletzungen jsonb DEFAULT '[]'::jsonb;");
   }
   const kader=(ks||[]).map(p=>({...p,
     aktiv: p.aktiv===undefined?true:p.aktiv,
     zusatz_soll_wochen: (p.zusatz_soll_wochen && typeof p.zusatz_soll_wochen==='object')?p.zusatz_soll_wochen:{},
+    verletzungen: Array.isArray(p.verletzungen)?p.verletzungen:[],
     game:emptyGame(), att:emptyAtt()}));
 
   // 2. Spiele der Mannschaft
@@ -1028,12 +1096,20 @@ function isoWeekKey(dateStr){
 }
 function _zus(p){ return _zusatzById[p.id]||{count:0,minutes:0,items:[]}; }
 
-// Wochen, in denen der Spieler in ALLEN erfassten Einheiten verletzt war → vom Soll ausgenommen
-function _injuredWeeks(a){
+// Wochen, in denen der Spieler verletzt war → vom Zusatz-Soll ausgenommen.
+// Quelle 1: alle erfassten Trainings-Einheiten dieser Woche mit Status "verletzt".
+// Quelle 2 (neu): explizit hinterlegte Verletzungszeiträume (unabhängig von Trainingsdaten).
+function _injuredWeeks(p){
+  const a=_att(p);
   const byW={};
   a.sessions.forEach(se=>{ const w=isoWeekKey(se.date); if(!w) return; (byW[w]=byW[w]||[]).push(se.status); });
   const inj=new Set();
   Object.keys(byW).forEach(w=>{ const sts=byW[w]; if(sts.length && sts.every(s=>s==='verletzt')) inj.add(w); });
+  (p.verletzungen||[]).forEach(v=>{
+    if(!v || !v.von) return;
+    const bis=v.bis||new Date().toISOString().slice(0,10);
+    isoWeeksBetween(v.von,bis).forEach(w=>inj.add(w));
+  });
   return inj;
 }
 
@@ -1077,7 +1153,7 @@ function _zusWeekStats(p){
   const z=_zus(p);
   const istByWeek={};
   z.items.forEach(it=>{ const w=isoWeekKey(it.datum); if(!w) return; istByWeek[w]=(istByWeek[w]||0)+1; });
-  const inj=_injuredWeeks(_att(p));
+  const inj=_injuredWeeks(p);
   const cw=curWeekKey();
   const set=new Set();
   _activeWeeks.forEach(w=>set.add(w));
@@ -1106,6 +1182,19 @@ function playerStatus(p){
   return 'aktiv';
 }
 function isPlayerAktiv(p){ return playerStatus(p)==='aktiv'; }
+
+// ── Verletzungszeiträume (spieler-individuell, direkt eingegeben) ──
+function isInjuredOnDate(p,dateStr){
+  if(!p || !Array.isArray(p.verletzungen) || !dateStr) return false;
+  const d=String(dateStr).slice(0,10);
+  return p.verletzungen.some(v=>v && v.von && d>=v.von && (!v.bis || d<=v.bis));
+}
+function isCurrentlyInjured(p){ return isInjuredOnDate(p,new Date().toISOString().slice(0,10)); }
+function _currentInjuryInfo(p){
+  if(!p || !Array.isArray(p.verletzungen)) return null;
+  const today=new Date().toISOString().slice(0,10);
+  return p.verletzungen.find(v=>v && v.von && today>=v.von && (!v.bis||today<=v.bis))||null;
+}
 
 // ── Sortierung der Spielerliste (analog Trainingsplaner-Anwesenheit) ──
 function _nummerVal(p){ const n=parseInt(p.nummer,10); return Number.isFinite(n)?n:99999; }
@@ -1190,18 +1279,19 @@ function renderPlayerList(){
     const m4=ws.weeksTotal>0?`${ws.weeksMet}/${ws.weeksTotal} Wo.`:(z.count?`${z.count} Zus.`:'');
     const nr=p.nummer!=null && p.nummer!==''?String(p.nummer).padStart(2,'0'):'–';
     const st=playerStatus(p);
-    const stChip=st!=='aktiv'?`<span class="pc-status ${st}">${st==='beendet'?'Beendet':'Inaktiv'}</span>`:'';
+    const injured=isCurrentlyInjured(p);
+    const badge = st!=='aktiv'
+      ? `<div class="pt-badge ${st}">${st==='beendet'?'Beendet':'Inaktiv'}</div>`
+      : (injured?`<div class="pt-badge verletzt">🤕 Verletzt</div>`:'');
     const avatar=p.foto_url
-      ? `<img class="pc-avatar" src="${esc(p.foto_url)}" alt="" loading="lazy">`
-      : `<span class="pc-avatar-fallback">${initials(p.name)}</span>`;
-    return `<div class="player-card ${p.id===_selectedPlayerId?'active':''}" onclick="selectPlayer('${p.id}')">
-      <div class="pc-nr">${nr}</div>
+      ? `<img class="pt-avatar" src="${esc(p.foto_url)}" alt="" loading="lazy">`
+      : `<span class="pt-avatar-fallback">${initials(p.name)}</span>`;
+    return `<div class="player-tile ${p.id===_selectedPlayerId?'active':''}" onclick="selectPlayer('${p.id}')">
+      ${badge}
       ${avatar}
-      <div class="pc-body">
-        <div class="pc-name">${esc(p.name)}</div>
-        <div class="pc-meta">${stChip}<span>${m1}</span><span class="dot">·</span><span>${m2}</span><span class="dot">·</span><span>${m3}</span>${m4?`<span class="dot">·</span><span style="color:#7c3aed;font-weight:600;">${m4}</span>`:''}</div>
-      </div>
-      <div class="pc-pos">${isTH?'●':'▲'}</div>
+      <div class="pt-name">${esc(p.name)}</div>
+      <div class="pt-nr">${isTH?'●':'▲'} #${nr}</div>
+      <div class="pt-meta">${m1} · ${m2}<br>${m3}${m4?` · <span style="color:#7c3aed;font-weight:600;">${m4}</span>`:''}</div>
     </div>`;
   }
 
@@ -1232,9 +1322,11 @@ function selectPlayer(id){
   _selectedPlayerId=id;
   renderPlayerList();
   renderDetail(id);
-  // Auf Mobile: zum Detail scrollen
-  if(window.innerWidth<=820){ document.getElementById('detail-pane')?.scrollIntoView({behavior:'smooth',block:'start'}); }
+  openPlayerModal();
 }
+function openPlayerModal(){ document.getElementById('player-modal')?.classList.add('open'); }
+function closePlayerModal(){ document.getElementById('player-modal')?.classList.remove('open'); }
+function isPlayerModalOpen(){ return !!document.getElementById('player-modal')?.classList.contains('open'); }
 
 // ════════════════════════════════════════════════════════════
 // RENDERING — DETAIL (TABS)
@@ -1243,7 +1335,8 @@ function setTab(tab){ _activeTab=tab; renderDetail(_selectedPlayerId); }
 
 function renderDetail(id){
   const p=_players.find(x=>x.id===id);
-  const pane=document.getElementById('detail-pane');
+  const pane=document.getElementById('player-modal-body');
+  if(!pane) return;
   if(!p){ pane.innerHTML=''; return; }
   const isTH=p.pos==='TH';
   const nr=p.nummer!=null && p.nummer!==''?String(p.nummer).padStart(2,'0'):'–';
@@ -1377,9 +1470,25 @@ function renderAttTab(p){
   const ws=_zusWeekStats(p);
   const hasAtt=total>0;
   const hasZus=ist>0 || _teamSollWoche!=null || p.zusatz_soll_woche!=null || _activeWeeks.size>0;
+  const canEdit=!_isSharedTeam;
+
+  // ── Verletzungsstatus (direkt eingebbar, mit Zeitraum) ──
+  const curInjury=_currentInjuryInfo(p);
+  const vzCount=(p.verletzungen||[]).length;
+  const vzSection=`<div class="att-group" style="margin-bottom:18px;">
+    <div class="att-group-head">
+      <div class="att-group-title">🤕 Verletzt</div>
+      ${canEdit?`<button class="btn btn-ghost btn-sm" onclick="openVerletztModal('${p.id}')" title="Verletzungszeitraum eintragen/bearbeiten">✏️ Verletzt-Status bearbeiten</button>`:''}
+    </div>
+    ${curInjury
+      ? `<span class="att-badge verletzt">🤕 Aktuell verletzt${curInjury.bis?` · bis ${fmtDate(curInjury.bis)}`:' · andauernd'}</span>${curInjury.notiz?` <span style="font-size:11.5px;color:var(--soft);margin-left:6px;">${esc(curInjury.notiz)}</span>`:''}`
+      : `<span style="font-size:12px;color:var(--xsoft);">Aktuell nicht als verletzt eingetragen.</span>`}
+    ${vzCount?`<div class="att-note" style="margin-bottom:0;">${vzCount} Verletzungszeitraum${vzCount===1?'':'räume'} erfasst – wird beim Zusatzeinheiten-Soll automatisch berücksichtigt (keine Wertung in diesen Wochen).</div>`:''}
+  </div>`;
+
   if(!hasAtt && !hasZus){
-    return `<div class="empty"><div class="e-icon">✅</div>
-      <div class="e-title">Keine Daten</div>
+    return `${vzSection}<div class="empty"><div class="e-icon">✅</div>
+      <div class="e-title">Keine Trainingsdaten</div>
       <div>Für diese Spielerin wurde in diesem Zeitraum noch keine Trainings-Anwesenheit erfasst<br>
       und keine Zusatzeinheit hinterlegt.<br>
       <a href="trainingsplaner.html" style="color:var(--accent);font-weight:600;text-decoration:none;">→ Trainingsplaner</a></div></div>`;
@@ -1397,7 +1506,7 @@ function renderAttTab(p){
         <div class="att-stat"><div class="att-dot quote"></div><div><div class="att-num" style="color:var(--accent)">${q!==null?q+'%':'–'}</div><div class="att-lbl">Anw.-Quote</div></div></div>
         <div class="att-stat"><div class="att-dot anwesend"></div><div><div class="att-num" style="color:var(--green)">${a.anwesend}</div><div class="att-lbl">Anwesend</div></div></div>
         <div class="att-stat"><div class="att-dot abwesend"></div><div><div class="att-num" style="color:var(--red)">${a.abwesend}</div><div class="att-lbl">Abwesend</div></div></div>
-        <div class="att-stat"><div class="att-dot verletzt"></div><div><div class="att-num" style="color:var(--yellow)">${a.verletzt}</div><div class="att-lbl">Verletzt</div></div></div>
+        <div class="att-stat clickable" ${canEdit?`onclick="openVerletztModal('${p.id}')"`:''} title="Verletzungszeitraum eintragen/bearbeiten"><div class="att-dot verletzt"></div><div><div class="att-num" style="color:var(--yellow)">${a.verletzt}</div><div class="att-lbl">Verletzt ✏️</div></div></div>
       </div>
       ${note}
     </div>`;
@@ -1419,7 +1528,6 @@ function renderAttTab(p){
     : '';
 
   // ── Zusatztraining (wöchentlich) ──
-  const canEdit=!_isSharedTeam;
   const dis=canEdit?'':'disabled';
   const ovVal = p.zusatz_soll_woche!=null?p.zusatz_soll_woche:'';
   const teamVal = _teamSollWoche!=null?_teamSollWoche:'';
@@ -1498,7 +1606,7 @@ function renderAttTab(p){
     ${zusList}
   </div>`;
 
-  return `${mt}${mtList}${zt}`;
+  return `${vzSection}${mt}${mtList}${zt}`;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1612,6 +1720,88 @@ async function deleteEinzeleinheit(rowId,pid){
   if(pid) _selectedPlayerId=pid;
   toast('Zusatzeinheit gelöscht','success');
   await reloadAll();
+}
+
+// ════════════════════════════════════════════════════════════
+// VERLETZUNGSZEITRÄUME — direkt bei der Spielerin erfassen
+// ════════════════════════════════════════════════════════════
+let _vzPlayerId=null;
+function openVerletztModal(pid){
+  if(_isSharedTeam){ toast('Nur Lesezugriff für fremde Teams','error'); return; }
+  const p=_players.find(x=>x.id===pid); if(!p){ toast('Spielerin nicht gefunden','error'); return; }
+  _vzPlayerId=pid;
+  document.getElementById('vz-name').textContent=p.name||'';
+  const d=new Date();
+  document.getElementById('vz-date').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  document.getElementById('vz-date-bis').value='';
+  document.getElementById('vz-notiz').value='';
+  vzRangeHint();
+  renderVerletztList();
+  document.getElementById('vz-modal').classList.add('open');
+}
+function closeVerletztModal(){ document.getElementById('vz-modal').classList.remove('open'); _vzPlayerId=null; }
+function vzRangeHint(){
+  const el=document.getElementById('vz-hint'); if(!el) return;
+  const d1=document.getElementById('vz-date').value;
+  const d2=document.getElementById('vz-date-bis').value;
+  if(!d1){ el.innerHTML=''; return; }
+  el.innerHTML = d2 ? `→ ${fmtDate(d1)} bis ${fmtDate(d2)}` : `→ ab ${fmtDate(d1)} (andauernd, bis auf Weiteres)`;
+}
+function renderVerletztList(){
+  const el=document.getElementById('vz-list'); if(!el) return;
+  const p=_players.find(x=>x.id===_vzPlayerId); if(!p){ el.innerHTML=''; return; }
+  const list=(p.verletzungen||[]);
+  if(!list.length){ el.innerHTML=`<div class="tw-empty">Noch keine Verletzungszeiträume erfasst.</div>`; return; }
+  const order=list.map((v,i)=>({v,i})).sort((a,b)=>(b.v.von||'').localeCompare(a.v.von||''));
+  el.innerHTML=order.map(({v,i})=>{
+    const range=v.bis?`${fmtDate(v.von)} – ${fmtDate(v.bis)}`:`ab ${fmtDate(v.von)} <strong style="color:var(--yellow)">(andauernd)</strong>`;
+    return `<div class="tw-item">
+      <div class="tw-item-wk">🤕 ${range}${v.notiz?`<div class="wk-indiv" style="color:var(--soft)">${esc(v.notiz)}</div>`:''}</div>
+      <button class="tw-del" onclick="deleteVerletzung(${i})" title="Diesen Zeitraum entfernen">🗑️</button>
+    </div>`;
+  }).join('');
+}
+async function addVerletzung(){
+  if(_isSharedTeam){ toast('Nur Lesezugriff für fremde Teams','error'); return; }
+  const p=_players.find(x=>x.id===_vzPlayerId); if(!p) return;
+  const von=document.getElementById('vz-date').value;
+  const bis=document.getElementById('vz-date-bis').value||null;
+  const notiz=document.getElementById('vz-notiz').value.trim()||null;
+  if(!von){ toast('Bitte ein Start-Datum angeben','error'); return; }
+  if(bis && bis<von){ toast('„Bis" darf nicht vor „Von" liegen','error'); return; }
+  const arr=(p.verletzungen||[]).slice();
+  arr.push({von,bis,notiz});
+  const ok=await saveVerletzungen(p.id,arr);
+  if(!ok) return;
+  document.getElementById('vz-date-bis').value='';
+  document.getElementById('vz-notiz').value='';
+  vzRangeHint();
+  toast('Verletzungszeitraum gespeichert','success');
+}
+async function deleteVerletzung(idx){
+  if(_isSharedTeam){ toast('Nur Lesezugriff für fremde Teams','error'); return; }
+  const p=_players.find(x=>x.id===_vzPlayerId); if(!p) return;
+  if(!confirm('Diesen Verletzungszeitraum wirklich entfernen?')) return;
+  const arr=(p.verletzungen||[]).slice();
+  arr.splice(Number(idx),1);
+  const ok=await saveVerletzungen(p.id,arr);
+  if(!ok) return;
+  toast('Zeitraum entfernt','success');
+}
+async function saveVerletzungen(pid,arr){
+  const {error}=await supa.from('mannschaft_spieler').update({verletzungen:arr}).eq('id',pid);
+  if(error){
+    if(/verletzungen|column|PGRST204|schema cache/i.test(String(error.message||'')+String(error.code||''))){
+      toast('⚠️ Spalte fehlt – SQL-Migration nötig (Konsole)','error');
+      console.warn("SQL-Migration erforderlich:\nALTER TABLE mannschaft_spieler ADD COLUMN IF NOT EXISTS verletzungen jsonb DEFAULT '[]'::jsonb;");
+    } else { toast('Fehler: '+error.message,'error'); }
+    return false;
+  }
+  const p=_players.find(x=>x.id===pid); if(p) p.verletzungen=arr;
+  renderVerletztList();
+  renderPlayerList();
+  if(_selectedPlayerId===pid && isPlayerModalOpen()) renderDetail(pid);
+  return true;
 }
 
 // ── Soll bearbeiten ──
