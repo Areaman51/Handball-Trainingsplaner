@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v5.260806.1251 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -556,7 +557,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v5.260609.1034</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v5.260806.1251</div>
     </div>
   </aside>
 
@@ -1697,6 +1698,32 @@ function switchRosterTab(tab) {
                    : 'flex:1;justify-content:center;';
 }
 
+// Effektiver Aktiv-Status eines Kader-Spielers — identisch zur Mannschaftsverwaltung:
+// aktiv=true UND (kein "aktiv_bis" ODER Datum liegt nicht in der Vergangenheit).
+// Beendete/deaktivierte Spieler sollen bei der Spiel-Aufstellung NICHT erscheinen.
+function isKaderSpielerAktiv(p){
+  if(!p || !p.aktiv) return false;
+  if(p.aktiv_bis && String(p.aktiv_bis).slice(0,10) < new Date().toISOString().slice(0,10)) return false;
+  return true;
+}
+
+// Lädt den Kader einer Mannschaft und gibt NUR aktive Spieler zurück.
+// Robust gegen ältere Schemata ohne aktiv_bis-Spalte (Fallback-Select).
+async function loadAktiveKaderSpieler(teamId){
+  let res = await supa.from('mannschaft_spieler')
+    .select('id,name,nummer,pos,aktiv,aktiv_bis')
+    .eq('mannschaft_id', teamId)
+    .order('pos').order('nummer');
+  if (res.error) {
+    // Fallback: aktiv_bis existiert evtl. noch nicht
+    res = await supa.from('mannschaft_spieler')
+      .select('id,name,nummer,pos,aktiv')
+      .eq('mannschaft_id', teamId)
+      .order('pos').order('nummer');
+  }
+  return (res.data || []).filter(isKaderSpielerAktiv);
+}
+
 async function loadKaderIntoRosterModal() {
   const el = document.getElementById('rst-kader-content');
   if (!el) return;
@@ -1705,13 +1732,10 @@ async function loadKaderIntoRosterModal() {
       '⚠️ Keine Mannschaft verknüpft.</div>';
     return;
   }
-  const { data: kader } = await supa.from('mannschaft_spieler')
-    .select('id,name,nummer,pos')
-    .eq('mannschaft_id', _myTeamId)
-    .order('pos').order('nummer');
+  const kader = await loadAktiveKaderSpieler(_myTeamId);
   if (!kader?.length) {
     el.innerHTML = '<div style="padding:12px;color:var(--xsoft);font-size:13px;text-align:center;">' +
-      '📭 Kein Kader vorhanden.</div>';
+      '📭 Keine aktiven Spieler im Kader.</div>';
     return;
   }
   // Alle vorauswählen
@@ -1840,7 +1864,9 @@ async function saveSpiel(){
   const _kaderTabActive = document.getElementById('rst-kader-tab')?.style.display !== 'none';
   if (_kaderTabActive && _gs._kaderData) {
     const _sel = (_gs._kaderData||[]).filter(p => (_gs.selectedPlayers||[]).includes(p.id));
-    editRoster = _sel.map(p => ({ nummer: p.nummer, name: p.name, pos: p.pos||'FL' }));
+    // WICHTIG: Schlüssel "num" (nicht "nummer") — der Sync-Loop unten liest p.num.
+    // Sonst wird die Trikotnummer nicht übernommen und in der Livestatistik als "?" angezeigt.
+    editRoster = _sel.map(p => ({ num: p.nummer, name: p.name, pos: p.pos||'FL' }));
   }
   const heim=document.getElementById('sp-heim').value.trim();
   const gast=document.getElementById('sp-gast').value.trim();
@@ -5103,16 +5129,13 @@ async function showWizardKaderSelection() {
   if (bodyEl) bodyEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--xsoft);">
     <div style="font-size:24px;margin-bottom:8px;">⏳</div>Lade Kader…</div>`;
 
-  const { data: kader } = await supa.from('mannschaft_spieler')
-    .select('id,name,nummer,pos')
-    .eq('mannschaft_id', _myTeamId)
-    .order('pos').order('nummer');
+  const kader = await loadAktiveKaderSpieler(_myTeamId);
 
   if (!kader?.length) {
     if (bodyEl) bodyEl.innerHTML = `
       <div style="padding:24px;text-align:center;color:var(--xsoft);">
         <div style="font-size:28px;margin-bottom:10px;">📭</div>
-        <div style="font-size:13px;">Keine Spieler im Kader gefunden.</div>
+        <div style="font-size:13px;">Keine aktiven Spieler im Kader gefunden.</div>
       </div>`;
     return;
   }
