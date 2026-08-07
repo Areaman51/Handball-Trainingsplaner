@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v5.260806.1251 -->
+<!-- v5.260807.1502 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -557,7 +557,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div class="sidebar-bottom">
       <div style="padding:4px 10px 2px;font-size:10px;color:rgba(255,255,255,.18);
-        font-family:'DM Mono',monospace;letter-spacing:.04em;">v5.260806.1251</div>
+        font-family:'DM Mono',monospace;letter-spacing:.04em;">v5.260807.1502</div>
     </div>
   </aside>
 
@@ -1533,6 +1533,8 @@ const FL_POS=[
   {t:'assist',  l:'Assist',     i:'🎯',c:'#1d4ed8'},
   {t:'7m_g',    l:'7m geholt',  i:'📌',c:'#7c3aed'},
   {t:'2min_p',  l:'2min geholt',i:'⬆️',c:'#9333ea'},
+  {t:'abwehr',    l:'Gute Abwehr', i:'🛡️',c:'#0f766e'},
+  {t:'ballgewinn',l:'Ballgewinn',  i:'🧲',c:'#0d9488'},
 ];
 const FL_NEG=[
   {t:'turnover',l:'Turn-Over',  i:'🔄',c:'#dc2626'},
@@ -1560,7 +1562,7 @@ const TH_NEG=[
   {t:'rot',     l:'2min / Rot', i:'🟥',c:'#450a0a'},
 ];
 const POL={
-  tor:1,tor_7m:1,assist:1,'7m_g':1,'2min_p':1,geh:1,geh_7m:1,
+  tor:1,tor_7m:1,assist:1,'7m_g':1,'2min_p':1,geh:1,geh_7m:1,abwehr:1,ballgewinn:1,
   turnover:-1,fw:-1,fw_7m:-1,tf:-1,fp:-1,'1zu1':-1,'7m_v':-1,'2min':-1,rot:-1,kass:-1,kass_7m:-1
 };
 const GOAL_TYPES=new Set(['tor','tor_7m']);
@@ -2282,6 +2284,7 @@ function renderLiveView(){
         <div class="sel-val"><div class="sv vn" id="sel-minus">-0</div><div class="sl">-Wert</div></div>
         <div class="sel-val"><div class="sv" id="sel-wert">0</div><div class="sl">±</div></div>
       </div>
+      <button class="sel-close" onclick="editLivePlayerNummer()" title="Trikotnummer in diesem Spiel ändern" style="margin-right:6px;">✎ Nr.</button>
       <button class="sel-close" onclick="deselectPlayer()">✕ Schließen</button>
     </div>
     <div class="act-scroll">
@@ -2347,6 +2350,41 @@ function updateSelStats(){
   const wel=document.getElementById('sel-wert');
   wel.textContent=(w>0?'+':'')+w;
   wel.className='sv '+(w>0?'vp':w<0?'vn':'');
+}
+
+// Trikotnummer der ausgewählten Spielerin FÜR DIESES SPIEL ändern.
+// Nützlich, wenn sie am Spieltag eine abweichende Nummer trägt. Die bereits
+// erfassten Aktionen bleiben über spieler_id an diesem Lineup-Eintrag hängen;
+// in der Langzeitstatistik wird weiterhin über den Namen (bzw. Kader-Nummer)
+// zusammengeführt, die abweichende Nummer erscheint dort als „≠#"-Hinweis.
+async function editLivePlayerNummer(){
+  if(!selPlayerId) return;
+  const p=lineup.find(x=>x.id===selPlayerId);
+  if(!p) return;
+  const cur=(p.nummer!=null && p.nummer!=='')?String(p.nummer):'';
+  const eingabe=prompt(
+    `Trikotnummer für „${p.name||'Spielerin'}" in diesem Spiel\n`+
+    `(abweichende Spieltags-Nummer – wird in der Langzeitstatistik weiterhin dieser Spielerin zugeordnet):`,
+    cur);
+  if(eingabe===null) return; // abgebrochen
+  const t=eingabe.trim();
+  const neu=t===''?null:parseInt(t,10);
+  if(t!=='' && (isNaN(neu)||neu<0||neu>999)){ toast('Ungültige Nummer','error'); return; }
+
+  setStatus('saving','Nummer speichern…');
+  const{error}=await supa.from('spieler_lineup')
+    .update({nummer:neu, updated_at:new Date().toISOString()})
+    .eq('id',selPlayerId);
+  if(error){ setStatus('err','Fehler'); toast('Fehler: '+error.message,'error'); return; }
+  setStatus('ok','');
+
+  p.nummer=neu; // lokalen State aktualisieren
+  const tileNum=document.querySelector(`#pt-${selPlayerId} .pt-num`);
+  if(tileNum) tileNum.textContent=(neu!=null?neu:'?');
+  const selNum=document.getElementById('sel-num');
+  if(selNum) selNum.textContent='#'+(neu!=null?neu:'?');
+  renderLog();
+  toast(`Nummer aktualisiert: #${neu!=null?neu:'?'} ${p.name||''}`,'success');
 }
 
 function buildActBtns(pos){
@@ -3206,17 +3244,19 @@ function renderStatistik(){
   // ── Field players ──
   if(fl.length){
     let tt={plus:0,minus:0,tore:0,tor_7m:0,assist:0,'7m_g':0,'2min_p':0,'2min':0,
+      abwehr:0,ballgewinn:0,
       turnover:0,fw:0,fw_7m:0,tf:0,fp:0,'1zu1':0,'7m_v':0,rot:0,total:0};
     let rows=fl.map(p=>{
       const{s,plus,minus,total,tore,he,wq}=getFlStats(p.id);
       tt.plus+=plus;tt.minus+=minus;tt.total+=total;tt.tore+=tore;
-      ['tor_7m','assist','7m_g','2min_p','2min','turnover','fw','fw_7m','tf','fp','1zu1','7m_v','rot'].forEach(k=>tt[k]=(tt[k]||0)+(s[k]||0));
+      ['tor_7m','assist','7m_g','2min_p','2min','abwehr','ballgewinn','turnover','fw','fw_7m','tf','fp','1zu1','7m_v','rot'].forEach(k=>tt[k]=(tt[k]||0)+(s[k]||0));
       const w=plus-minus;
       return `<tr>
         <td class="ncol">${p.nummer?'#'+p.nummer:''} ${p.name||'—'}</td>
         <td class="ve">${he!==null?he+'%':'—'}</td><td class="ve">${wq!==null?wq+'%':'—'}</td>
         <td class="vp">${tore}</td><td>${s.tor_7m||0}</td><td>${s.assist||0}</td>
         <td>${s['7m_g']||0}</td><td>${s['2min_p']||0}</td>
+        <td class="vp">${s.abwehr||0}</td><td class="vp">${s.ballgewinn||0}</td>
         <td class="vp">+${plus}</td>
         <td>${s.turnover||0}</td><td>${s.fw||0}</td><td>${s.fw_7m||0}</td>
         <td>${s.tf||0}</td><td>${s.fp||0}</td><td>${s['1zu1']||0}</td>
@@ -3234,7 +3274,8 @@ function renderStatistik(){
     rows+=`<tr class="tot-row">
       <td class="ncol">Gesamt</td><td>${thEff}</td><td>${tWQ}</td>
       <td>${tt.tore}</td><td>${tt.tor_7m||0}</td><td>${tt.assist||0}</td>
-      <td>${tt['7m_g']||0}</td><td>${tt['2min_p']||0}</td><td>+${tt.plus}</td>
+      <td>${tt['7m_g']||0}</td><td>${tt['2min_p']||0}</td>
+      <td>${tt.abwehr||0}</td><td>${tt.ballgewinn||0}</td><td>+${tt.plus}</td>
       <td>${tt.turnover||0}</td><td>${tt.fw||0}</td><td>${tt.fw_7m||0}</td>
       <td>${tt.tf||0}</td><td>${tt.fp||0}</td><td>${tt['1zu1']||0}</td>
       <td>${tt['7m_v']||0}</td><td>${(tt['2min']||0)+(tt.rot||0)}</td><td>-${tt.minus}</td>
@@ -3246,6 +3287,7 @@ function renderStatistik(){
         <th class="ncol">Spieler</th>
         <th title="Handlungseffektivität">HE%</th><th title="Wurfquote">WQ%</th>
         <th>Tore</th><th>7m⚽</th><th>Asst</th><th>7m↑</th><th>2m↑</th>
+        <th class="vp" title="Gute Abwehr">Abw</th><th class="vp" title="Ballgewinn">BG</th>
         <th class="vp">+</th>
         <th>TO</th><th>FW</th><th>FW7</th><th>TF</th><th>FP</th><th>1:1</th><th>7m↓</th><th>2m↓</th>
         <th class="vn">−</th><th>±</th><th>Akt</th>
@@ -4424,6 +4466,8 @@ function renderKaderTableFL(players) {
       <td>${p.s.assist||0}</td>
       <td>${p.s['7m_g']||0}</td>
       <td>${p.s['2min_p']||0}</td>
+      <td class="vp">${p.s.abwehr||0}</td>
+      <td class="vp">${p.s.ballgewinn||0}</td>
       <td class="vp">+${plus}</td>
       <td>${p.s.turnover||0}</td>
       <td>${p.s.fw||0}</td>
@@ -4448,6 +4492,7 @@ function renderKaderTableFL(players) {
         <th title="Handlungseffektivität">HE%</th>
         <th title="Wurfquote">WQ%</th>
         <th>Tore</th><th>7m⚽</th><th>Asst</th><th>7m↑</th><th>2m↑</th>
+        <th class="vp" title="Gute Abwehr">Abw</th><th class="vp" title="Ballgewinn">BG</th>
         <th class="vp">+</th>
         <th>TO</th><th>FW</th><th>FW7</th><th>TF</th><th>FP</th><th>1:1</th><th>7m↓</th><th>2m↓</th>
         <th class="vn">−</th><th>±</th><th>Akt</th>
@@ -4575,6 +4620,8 @@ function openPlayerDetail(idx) {
     { key: 'assist',   label: 'Asst',  cls: '',   warn: 10 },
     { key: '7m_g',     label: '7m↑',   cls: '',   warn: 8  },
     { key: '2min_p',   label: '2m↑',   cls: '',   warn: 4  },
+    { key: 'abwehr',     label: 'Abw',   cls: 'vp', warn: 30 },
+    { key: 'ballgewinn', label: 'BG',    cls: 'vp', warn: 20 },
     { key: 'turnover', label: 'TO',    cls: 'vn', warn: 8  },
     { key: 'fw',       label: 'FW',    cls: 'vn', warn: 10 },
     { key: 'fw_7m',    label: 'FW7',   cls: 'vn', warn: 6  },
